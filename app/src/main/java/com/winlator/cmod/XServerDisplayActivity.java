@@ -470,17 +470,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
             shortcut = new Shortcut(container, new File(shortcutPath));
         }
 
-        // Pre-create event files so Wine registers them at startup
-        int numControllers = 1;
-        if (shortcut != null) {
-            try { numControllers = Integer.parseInt(shortcut.getExtra("numControllers", "1")); }
-            catch (NumberFormatException e) { numControllers = 1; }
-        }
-        numControllers = Math.max(1, Math.min(numControllers, 4));
-        for (int i = 0; i < numControllers; i++) {
+        // Pre-create all 4 event files so Wine registers every slot at startup.
+        // Wine scans /dev/input/ once on boot — slots that don't exist then are never seen,
+        // even if created later. OSC takes slot 0; physical controllers need slots 1-3.
+        for (int i = 0; i < 4; i++) {
             try { new File(devInputDir, "event" + i).createNewFile(); } catch (Exception e) {}
         }
-        Log.d("XServerDisplayActivity", "Pre-created " + numControllers + " controller event file(s)");
+        Log.d("XServerDisplayActivity", "Pre-created 4 controller event file(s)");
 
         taskAffinityMask = (short) ProcessHelper.getAffinityMask(container.getCPUList(true));
         taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(container.getCPUListWoW64(true));
