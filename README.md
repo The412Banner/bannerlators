@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/jacojayy/star/refs/heads/main/20260418_134945.png" width="1500" height="500" alt="star" />  
+<img src="20260418_134945.png" width="1500" height="500" alt="star" />  
 </p>
 
 <p align="center">
