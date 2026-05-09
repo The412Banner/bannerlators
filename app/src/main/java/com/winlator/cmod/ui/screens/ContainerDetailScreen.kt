@@ -416,11 +416,11 @@ private fun WineConfigTab(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun WinComponentsTab(viewModel: ContainerDetailViewModel) {
-    val directxItems = remember(viewModel.winComponents.size) {
-        viewModel.winComponents.filter { it.key.startsWith("direct") }
+    val directxItems by remember {
+        derivedStateOf { viewModel.winComponents.filter { it.key.startsWith("direct") } }
     }
-    val generalItems = remember(viewModel.winComponents.size) {
-        viewModel.winComponents.filterNot { it.key.startsWith("direct") }
+    val generalItems by remember {
+        derivedStateOf { viewModel.winComponents.filterNot { it.key.startsWith("direct") } }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
