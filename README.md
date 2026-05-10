@@ -67,7 +67,7 @@ Windows applications and games on Android.</h1>
 
 ### Test on Redmi 13C 5G, MediaTek Dimensity 6100 Plus, 8 GB RAM (active)
 
-[![Play on Youtube](https://i.ytimg.com/vi/XC77qiV9J
+[![Play on Youtube](https://i.ytimg.com/vi/XC77qiV9JAs/hqdefault.jpg?sqp=-oaymwEXCOADEI4CSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLAugcpnDowM36jEOjCvOozlJ5B9uw)](https://youtube.com/playlist?list=PLQt8o_wwflSfB6SmBgzu-ylatalWprEc6&si=h87CCitYpZSaoBnB)
 
 ---
 
