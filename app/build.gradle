@@ -123,11 +123,10 @@ android {
     buildToolsVersion "35.0.0"
 
     defaultConfig {
-        applicationId "com.winlator.star"
         minSdkVersion 26
         targetSdkVersion 28
         versionCode 20
-        versionName "7.1.4x-cmod"
+        versionName "1.2-REVAMPED"
 
         externalNativeBuild {
             cmake {
@@ -158,11 +157,27 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
-            // REMOVED: signingConfig signingConfigs.debug
         }
     }
 
-    // REMOVED: signingConfigs block that referenced the missing testkey_untrusted.jks
+    flavorDimensions "version"
+    productFlavors {
+        standard {
+            dimension "version"
+            applicationId "com.winlator.star"
+            resValue "string", "app_name", "star Bionic"
+        }
+        ludashi {
+            dimension "version"
+            applicationId "com.ludashi.benchmark"
+            resValue "string", "app_name", "star Bionic Ludashi"
+        }
+        pubg {
+            dimension "version"
+            applicationId "com.tencent.ig"
+            resValue "string", "app_name", "star Bionic PuBG"
+        }
+    }
 
     ndkVersion '29.0.14206865'
 
@@ -180,7 +195,6 @@ android {
 }
 
 dependencies {
-    // Compose BOM
     implementation platform('androidx.compose:compose-bom:2024.02.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
@@ -210,8 +224,6 @@ dependencies {
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
-    // DepotDownloader requires okio 3.x (okio.Path / okio.FileSystem added in 3.0).
-    // Explicit dep forces Gradle to upgrade from the 2.8.0 pulled in by okhttp4.
     implementation 'com.squareup.okio:okio:3.16.0'
     implementation 'com.google.code.gson:gson:2.8.8'
     implementation 'org.conscrypt:conscrypt-android:2.5.2'
