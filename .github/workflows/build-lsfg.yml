@@ -1,0 +1,32 @@
+name: Build LSFG native library
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-lsfg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager --install "ndk;26.1.10909125"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build LSFG native library
+        run: ./build-lsfg-android.sh
+
+      - name: Upload LSFG .so
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsfg-native
+          path: app/src/main/jniLibs/arm64-v8a/libVkLayer_LSFGVK_frame_generation.so
