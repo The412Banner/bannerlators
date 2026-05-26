@@ -50,7 +50,7 @@ public class LsfgManager {
 
         try {
             // Extract manifest JSON
-            extractAsset(context, LSFG_ASSET_DIR + "/" + LAYER_MANIFORM_NAME, manifestFile);
+            extractAsset(context, LSFG_ASSET_DIR + "/" + LAYER_MANIFEST_NAME, manifestFile);
             // Extract layer .so from native lib dir (it's in jniLibs)
             String nativeLibDir = context.getApplicationInfo().nativeLibraryDir;
             File sourceSo = new File(nativeLibDir, LAYER_SO_NAME);
