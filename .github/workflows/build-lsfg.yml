@@ -11,8 +11,6 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.GHQ_PAT }}
-        with:
-          submodules: recursive
 
       - name: Install NDK
         run: |

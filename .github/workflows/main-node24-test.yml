@@ -17,8 +17,6 @@ jobs:
       with:
         submodules: recursive
         token: ${{ secrets.GHQ_PAT }}
-      with:
-        submodules: recursive
 
     - name: set up JDK 17
       run: |
