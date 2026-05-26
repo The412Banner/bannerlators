@@ -23,6 +23,9 @@ object XServerDrawerState {
     private val _showMagnifier           = MutableStateFlow(true)
     val showMagnifier: StateFlow<Boolean> = _showMagnifier
 
+    private val _lsfgEnabled              = MutableStateFlow(false)
+    val lsfgEnabled: StateFlow<Boolean>   = _lsfgEnabled
+
     private val _cursorExpanded          = MutableStateFlow(false)
     val cursorExpanded: StateFlow<Boolean> = _cursorExpanded
 
@@ -43,6 +46,7 @@ object XServerDrawerState {
     @JvmField var onMagnifier:              Runnable? = null
     @JvmField var onLogs:                   Runnable? = null
     @JvmField var onExit:                   Runnable? = null
+    @JvmField var onLsfgToggle:             Runnable? = null
     @JvmField var onMoveCursorToTouchpoint: Runnable? = null
     @JvmField var onRelativeMouseMovement:  Runnable? = null
     @JvmField var onDisableMouse:           Runnable? = null
@@ -55,6 +59,7 @@ object XServerDrawerState {
     fun setMoveCursorToTouchpoint(v: Boolean)  { _moveCursorToTouchpoint.value = v }
     fun setShowLogs(v: Boolean)                { _showLogs.value = v }
     fun setShowMagnifier(v: Boolean)           { _showMagnifier.value = v }
+    fun setLsfgEnabled(v: Boolean)              { _lsfgEnabled.value = v }
     fun setCursorExpanded(v: Boolean)          { _cursorExpanded.value = v }
 
     fun toggleCursorExpanded() {
@@ -70,12 +75,13 @@ object XServerDrawerState {
         _moveCursorToTouchpoint.value = false
         _showLogs.value = false
         _showMagnifier.value = true
+        _lsfgEnabled.value = false
         _cursorExpanded.value = false
         onClose = null; onKeyboard = null; onInputControls = null
         onScreenEffects = null; onGraphicEngine = null; onVibration = null
         onToggleFullscreen = null; onPauseResume = null; onPipMode = null
         onActiveWindows = null; onTaskManager = null; onMagnifier = null
-        onLogs = null; onExit = null; onMoveCursorToTouchpoint = null
+        onLogs = null; onExit = null; onLsfgToggle = null; onMoveCursorToTouchpoint = null
         onRelativeMouseMovement = null; onDisableMouse = null
         onCursorExpandedChanged = null
     }
