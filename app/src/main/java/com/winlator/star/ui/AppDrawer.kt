@@ -60,6 +60,7 @@ private fun iconFor(screen: Screen): ImageVector = when (screen) {
     Screen.FileManager   -> Icons.Filled.FolderOpen
     Screen.Settings      -> Icons.Filled.Settings
     Screen.Appearance    -> Icons.Filled.Palette
+    Screen.LsfgSettings  -> Icons.Filled.Settings
     else                 -> Icons.Filled.Storefront
 }
 
@@ -127,6 +128,7 @@ fun AppDrawerContent(
         DrawerItem(Screen.AdrenoTools,   currentRoute, onNavigate)
         DrawerItem(Screen.Saves,         currentRoute, onNavigate)
         DrawerItem(Screen.Appearance,    currentRoute, onNavigate)
+        DrawerItem(Screen.LsfgSettings, currentRoute, onNavigate)
 
         Divider(color = DividerColor, modifier = Modifier.padding(top = 4.dp))
 
