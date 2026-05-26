@@ -922,8 +922,6 @@ internal fun SectionBox(
     }
 }
 
-@Composable
-
 // ── LSFG Config Dialog ─────────────────────────────────────────────────────
 @Composable
 internal fun LsfgConfigDialog(
@@ -994,12 +992,13 @@ internal fun LsfgConfigDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
+                Text(stringResource(R.string.lsfg_close))
             }
         }
     )
 }
 
+@Composable
 internal fun LabeledDropdown(
     label: String,
     options: List<String>,
