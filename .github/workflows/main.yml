@@ -148,7 +148,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
        name: compiled-debug
-       path: ./app/build/outputs/apk/debug/app-debug.apk
+       path: ./app/build/outputs/apk/*/debug/*.apk
 
     - name: "Get Short SHA"
       run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
