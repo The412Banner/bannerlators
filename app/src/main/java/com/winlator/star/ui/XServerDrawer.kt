@@ -56,6 +56,7 @@ fun XServerDrawer() {
     val isMouseDisabled     by state.isMouseDisabled.collectAsState()
     val moveCursorToTouch   by state.moveCursorToTouchpoint.collectAsState()
     val showLogs            by state.showLogs.collectAsState()
+    val lsfgEnabled         by state.lsfgEnabled.collectAsState()
     val showMagnifier       by state.showMagnifier.collectAsState()
     val cursorExpanded      by state.cursorExpanded.collectAsState()
 
@@ -172,6 +173,13 @@ fun XServerDrawer() {
             iconRes = R.drawable.icon_settings,
             label = "Graphic Engine",
             onClick = { state.onGraphicEngine?.run(); state.onClose?.run() },
+        )
+
+        // ── LSFG (Lossless Scaling Frame Gen) ──────────────────────────────────
+        DrawerCheckItem(
+            label = "Lossless Scaling FG",
+            checked = lsfgEnabled,
+            onClick = { state.onLsfgToggle?.run(); state.onClose?.run() },
         )
 
         // ── Vibration ─────────────────────────────────────────────────────────
