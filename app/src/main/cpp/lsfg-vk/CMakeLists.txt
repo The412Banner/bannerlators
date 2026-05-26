@@ -17,7 +17,7 @@ include(FetchContent)
 FetchContent_Declare(
     lsfg-vk
     GIT_REPOSITORY  https://github.com/PancakeTAS/lsfg-vk.git
-    GIT_TAG         main  # Or pin to a specific commit
+    GIT_TAG         v2.0.0-dev
     GIT_SHALLOW     TRUE
 )
 
