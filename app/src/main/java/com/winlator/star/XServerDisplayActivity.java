@@ -344,6 +344,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         state.setIsPaused(isPaused);
         state.setIsRelativeMouseMovement(isRelativeMouseMovement);
         state.setIsMouseDisabled(isMouseDisabled);
+        // LSFG initial state comes from container config (set later in setupXEnvironment)
+        state.setLsfgEnabled(false);
 
         state.onClose                  = () -> runOnUiThread(() -> drawerLayout.closeDrawers());
         state.onKeyboard               = () -> AppUtils.showKeyboard(this);
@@ -351,6 +353,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         state.onScreenEffects          = () -> showScreenEffectsDialog();
         state.onGraphicEngine          = () -> showFsrOverlay();
         state.onVibration              = () -> showVibrationDialog();
+        state.onLsfgToggle              = () -> {
+            boolean current = XServerDrawerState.INSTANCE.getLsfgEnabled();
+            XServerDrawerState.INSTANCE.setLsfgEnabled(!current);
+        };
         state.onToggleFullscreen       = () -> {
             xServerView.getRenderer().toggleFullscreen();
             touchpadView.toggleFullscreen();
