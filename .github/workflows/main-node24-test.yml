@@ -139,11 +139,23 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew assembleDebug
 
-    - name: Attach release in action
+    - name: Upload standard APK
       uses: actions/upload-artifact@v4
       with:
-       name: compiled-debug
-       path: ./app/build/outputs/apk/*/debug/*.apk
+       name: standard-debug
+       path: ./app/build/outputs/apk/standard/debug/app-standard-debug.apk
+
+    - name: Upload ludashi APK
+      uses: actions/upload-artifact@v4
+      with:
+       name: ludashi-debug
+       path: ./app/build/outputs/apk/ludashi/debug/app-ludashi-debug.apk
+
+    - name: Upload pubg APK
+      uses: actions/upload-artifact@v4
+      with:
+       name: pubg-debug
+       path: ./app/build/outputs/apk/pubg/debug/app-pubg-debug.apk
 
     - name: "Get Short SHA"
       run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
