@@ -54,7 +54,7 @@ echo "API:      $API_LEVEL"
 echo "Build:    $BUILD_DIR"
 echo "Output:   $OUTPUT_DIR"
 
-"$CMAKE" -S "$SCRIPT_DIR" -B "$BUILD_DIR" \
+"$CMAKE" -S "${SCRIPT_DIR}/app/src/main/cpp/lsfg-vk" -B "$BUILD_DIR" \
     -DCMAKE_TOOLCHAIN_FILE="${NDK}/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="$ABI" \
     -DANDROID_PLATFORM="android-${API_LEVEL}" \
@@ -66,9 +66,16 @@ echo "Output:   $OUTPUT_DIR"
 
 "$CMAKE" --build "$BUILD_DIR" --parallel "$(nproc)"
 
-# Copy the resulting .so to jniLibs
+# Copy the resulting .so to jniLibs (search in case path differs)
 mkdir -p "$OUTPUT_DIR"
-cp "$BUILD_DIR"/lsfg-vk-layer/libVkLayer_LSFGVK_frame_generation.so "$OUTPUT_DIR/"
-echo "=== Done ==="
-echo "Library copied to: ${OUTPUT_DIR}/libVkLayer_LSFGVK_frame_generation.so"
-ls -lh "$OUTPUT_DIR/libVkLayer_LSFGVK_frame_generation.so"
+FOUND_SO=$(find "$BUILD_DIR" -name "libVkLayer_LSFGVK_frame_generation.so" -type f 2>/dev/null | head -1)
+if [ -n "$FOUND_SO" ]; then
+    cp "$FOUND_SO" "$OUTPUT_DIR/"
+    echo "=== Done ==="
+    echo "Library copied from: $FOUND_SO"
+    ls -lh "$OUTPUT_DIR/libVkLayer_LSFGVK_frame_generation.so"
+else
+    echo "ERROR: libVkLayer_LSFGVK_frame_generation.so not found in $BUILD_DIR"
+    find "$BUILD_DIR" -name "*.so" -type f 2>/dev/null || true
+    exit 1
+fi
