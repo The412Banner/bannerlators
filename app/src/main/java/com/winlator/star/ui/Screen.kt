@@ -10,20 +10,18 @@ sealed class Screen(val route: String, val label: String, val iconName: String) 
     object FileManager   : Screen("file_manager",   "File Manager",           "folder_open")
     object Settings      : Screen("settings",       "Settings",               "settings")
     object Appearance    : Screen("appearance",     "Appearance",             "palette")
+    object LsfgSettings  : Screen("lsfg_settings",  "LSFG Settings",           "video_settings")
 
-    // Store items — these launch Activities via Intent, not Compose nav routes
     object Gog    : Screen("gog",    "GOG",          "storefront")
     object Epic   : Screen("epic",   "Epic Games",   "storefront")
     object Amazon : Screen("amazon", "Amazon Games", "storefront")
     object Steam  : Screen("steam",  "Steam",        "storefront")
 
-    // Sub-screens (not in drawer)
     object ContainerDetail : Screen("container_detail?id={id}", "Container", "")
 
     companion object {
-        // Used for top-bar title lookup — all navigable screens
         val drawerItems by lazy {
-            listOf(Shortcuts, Containers, Settings, Appearance, InputControls, Contents, AdrenoTools, Saves)
+            listOf(Shortcuts, Containers, Settings, Appearance, InputControls, Contents, AdrenoTools, LsfgSettings, Saves)
         }
         val storeItems by lazy {
             listOf(Gog, Epic, Amazon, Steam)
