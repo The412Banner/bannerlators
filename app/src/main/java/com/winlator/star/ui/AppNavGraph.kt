@@ -20,6 +20,7 @@ import com.winlator.star.ui.screens.FileManagerScreen
 import com.winlator.star.ui.screens.FragmentScreen
 import com.winlator.star.ui.screens.SavesScreen
 import com.winlator.star.ui.screens.ShortcutsScreen
+import com.winlator.star.ui.screens.LsfgSettingsScreen
 
 @Composable
 fun AppNavGraph(
@@ -94,5 +95,8 @@ fun AppNavGraph(
             SavesScreen()
         }
 
+        composable(Screen.LsfgSettings.route) {
+            LsfgSettingsScreen()
+        }
     }
 }
