@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.ComposeView
 import com.winlator.star.R
 import com.winlator.star.ui.theme.WinlatorTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.Arrangement
 
 fun setupComposeView(view: ComposeView) {
     view.setContent {
