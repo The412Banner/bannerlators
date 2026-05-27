@@ -49,6 +49,14 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.winlator.star.ui.XServerDialogState
 import com.winlator.star.ui.XServerDrawerState
 import kotlin.math.roundToInt
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
