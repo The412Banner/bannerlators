@@ -66,7 +66,6 @@ fun ContainerDetailScreen(
     var showDxvkConfig           by remember { mutableStateOf(false) }
     var showWineD3DConfig        by remember { mutableStateOf(false) }
     var showFpsConfig            by remember { mutableStateOf(false) }
-    var showLsfgConfig           by remember { mutableStateOf(false) }
 
     // AndroidView references for custom views
     val envVarsViewRef      = remember { mutableStateOf<EnvVarsView?>(null)      }
@@ -873,79 +872,6 @@ internal fun SectionBox(
 }
 
 @Composable
-internal fun LsfgConfigDialog(
-    viewModel: ContainerDetailViewModel,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.lsfg_advanced_settings)) },
-        text = {
-            Column {
-                // Flow Scale
-                Text(stringResource(R.string.lsfg_flow_scale))
-                Text(
-                    stringResource(R.string.lsfg_flow_scale_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = viewModel.lsfgFlowScale.toFloat(),
-                    onValueChange = { viewModel.lsfgFlowScale = it.toInt() },
-                    valueRange = 50f..200f,
-                    steps = 14,
-                )
-                Text("${viewModel.lsfgFlowScale}%", modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.height(12.dp))
-
-                // Max Input Latency
-                Text(stringResource(R.string.lsfg_max_latency))
-                Text(
-                    stringResource(R.string.lsfg_max_latency_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = viewModel.lsfgMaxLatency.toFloat(),
-                    onValueChange = { viewModel.lsfgMaxLatency = it.toInt() },
-                    valueRange = 0f..33f,
-                    steps = 32,
-                )
-                Text("${viewModel.lsfgMaxLatency}ms", modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.height(12.dp))
-
-                // GPU Architecture
-                LabeledDropdown(
-                    label = stringResource(R.string.lsfg_gpu_arch),
-                    options = viewModel.lsfgGpuArchEntries,
-                    selectedOption = when (viewModel.selectedLsfgGpuArch) {
-                        "mali" -> viewModel.lsfgGpuArchEntries.getOrNull(1) ?: ""
-                        "adreno" -> viewModel.lsfgGpuArchEntries.getOrNull(2) ?: ""
-                        else -> viewModel.lsfgGpuArchEntries.getOrNull(0) ?: ""
-                    },
-                    onSelect = { opt ->
-                        viewModel.selectedLsfgGpuArch = when (opt) {
-                            viewModel.lsfgGpuArchEntries.getOrNull(1) -> "mali"
-                            viewModel.lsfgGpuArchEntries.getOrNull(2) -> "adreno"
-                            else -> "auto"
-                        }
-                    }
-                )
-                Text(
-                    stringResource(R.string.lsfg_gpu_arch_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.lsfg_close))
-            }
-        }
-    )
-}
 
 @Composable
 internal fun LabeledDropdown(
