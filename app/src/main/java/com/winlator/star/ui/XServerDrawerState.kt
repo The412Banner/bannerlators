@@ -30,6 +30,22 @@ object XServerDrawerState {
     private val _cursorExpanded          = MutableStateFlow(false)
     val cursorExpanded: StateFlow<Boolean> = _cursorExpanded
 
+    // LSFG runtime settings (shared with Graphics Engine overlay)
+    private val _lsfgMultiplier  = MutableStateFlow(2)
+    val lsfgMultiplier: StateFlow<Int> = _lsfgMultiplier
+
+    private val _lsfgQuality     = MutableStateFlow("balanced")
+    val lsfgQuality: StateFlow<String> = _lsfgQuality
+
+    private val _lsfgFlowScale   = MutableStateFlow(100)
+    val lsfgFlowScale: StateFlow<Int> = _lsfgFlowScale
+
+    private val _lsfgMaxLatency  = MutableStateFlow(16)
+    val lsfgMaxLatency: StateFlow<Int> = _lsfgMaxLatency
+
+    private val _lsfgGpuArch     = MutableStateFlow("auto")
+    val lsfgGpuArch: StateFlow<String> = _lsfgGpuArch
+
     // Callbacks wired by XServerDisplayActivity.
     // @JvmField exposes these as public fields so Java can assign them directly.
     // Runnable avoids the kotlin.Unit return-type mismatch for Java void lambdas.
@@ -51,6 +67,8 @@ object XServerDrawerState {
     @JvmField var onMoveCursorToTouchpoint: Runnable? = null
     @JvmField var onRelativeMouseMovement:  Runnable? = null
     @JvmField var onDisableMouse:           Runnable? = null
+    @JvmField var onApplyLsfg:             Runnable? = null
+    @JvmField var onResetLsfg:             Runnable? = null
     var onCursorExpandedChanged: ((Boolean) -> Unit)? = null
 
     // Setters called from Java
@@ -63,6 +81,16 @@ object XServerDrawerState {
     fun setLsfgEnabled(v: Boolean)              { _lsfgEnabled.value = v }
     fun getLsfgEnabled(): Boolean = _lsfgEnabled.value
     fun setCursorExpanded(v: Boolean)          { _cursorExpanded.value = v }
+    fun setLsfgMultiplier(v: Int)       { _lsfgMultiplier.value = v }
+    fun setLsfgQuality(v: String)       { _lsfgQuality.value = v }
+    fun setLsfgFlowScale(v: Int)        { _lsfgFlowScale.value = v }
+    fun setLsfgMaxLatency(v: Int)       { _lsfgMaxLatency.value = v }
+    fun setLsfgGpuArch(v: String)       { _lsfgGpuArch.value = v }
+    fun getLsfgMultiplier(): Int         = _lsfgMultiplier.value
+    fun getLsfgQuality(): String         = _lsfgQuality.value
+    fun getLsfgFlowScale(): Int          = _lsfgFlowScale.value
+    fun getLsfgMaxLatency(): Int         = _lsfgMaxLatency.value
+    fun getLsfgGpuArch(): String         = _lsfgGpuArch.value
 
     fun toggleCursorExpanded() {
         val next = !_cursorExpanded.value
@@ -78,6 +106,11 @@ object XServerDrawerState {
         _showLogs.value = false
         _showMagnifier.value = true
         _lsfgEnabled.value = false
+        _lsfgMultiplier.value = 2
+        _lsfgQuality.value = "balanced"
+        _lsfgFlowScale.value = 100
+        _lsfgMaxLatency.value = 16
+        _lsfgGpuArch.value = "auto"
         _cursorExpanded.value = false
         onClose = null; onKeyboard = null; onInputControls = null
         onScreenEffects = null; onGraphicEngine = null; onVibration = null
@@ -85,6 +118,7 @@ object XServerDrawerState {
         onActiveWindows = null; onTaskManager = null; onMagnifier = null
         onLogs = null; onExit = null; onLsfgToggle = null; onMoveCursorToTouchpoint = null
         onRelativeMouseMovement = null; onDisableMouse = null
+        onApplyLsfg = null; onResetLsfg = null
         onCursorExpandedChanged = null
     }
 }
