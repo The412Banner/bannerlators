@@ -427,11 +427,13 @@ private fun DrawerCheckItem(label: String, checked: Boolean, onClick: () -> Unit
                 modifier = Modifier.size(18.dp),
             )
         }
+    }
+}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LsfgDropdown(
+fun LsfgDropdown(
     label: String,
     options: List<String>,
     selectedOption: String,
