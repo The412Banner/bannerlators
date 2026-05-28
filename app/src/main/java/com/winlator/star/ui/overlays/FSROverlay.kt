@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
@@ -82,7 +85,7 @@ fun FSROverlay(state: XServerDialogState) {
     }
 
     Dialog(
-        onDismissRequest = {},
+        onDismissRequest = { state.setFsrVisible(false) },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnClickOutside = false
@@ -91,10 +94,11 @@ fun FSROverlay(state: XServerDialogState) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             window?.apply {
-                addFlags(
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                )
+                // Keep NOT_TOUCH_MODAL so taps outside the panel still reach the game,
+                // but allow focus so the Back key dismisses the panel instead of
+                // falling through to the XServer activity menu.
+                addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+                clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
                 setGravity(Gravity.TOP or Gravity.START)
                 val attrs = attributes
                 attrs.x = offsetX.roundToInt()
@@ -105,15 +109,15 @@ fun FSROverlay(state: XServerDialogState) {
 
         Column(
             modifier = Modifier
-                .wrapContentSize()
                 .width(260.dp)
+                .heightIn(max = 520.dp)
                 .background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                     shape = RoundedCornerShape(12.dp)
                 )
                 .padding(12.dp)
         ) {
-            // Drag handle / title
+            // Drag handle / title (fixed, stays visible)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -134,6 +138,13 @@ fun FSROverlay(state: XServerDialogState) {
                 )
             }
 
+            // Scrollable body — grows up to the height cap, then scrolls so the
+            // expanded LSFG section and the pinned Close button stay reachable.
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
             // FSR toggle
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -344,9 +355,11 @@ fun FSROverlay(state: XServerDialogState) {
                     }
                 }
             }
+            } // end scrollable body
 
             Spacer(Modifier.height(8.dp))
 
+            // Pinned Close — always visible regardless of scroll position
             Button(
                 onClick = { state.setFsrVisible(false) },
                 modifier = Modifier.fillMaxWidth()
