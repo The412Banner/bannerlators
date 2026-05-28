@@ -23,7 +23,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -1382,9 +1381,9 @@ internal fun FpsCounterConfigDialog(
     ).joinToString(",")
 
     @Composable
-    fun CheckRow(label: String, checked: Boolean, enabled: Boolean = true, onToggle: (Boolean) -> Unit) {
+    fun CheckRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Checkbox(checked = checked, onCheckedChange = onToggle, enabled = enabled)
+            Checkbox(checked = checked, onCheckedChange = onToggle)
             Text(label)
         }
     }
@@ -1403,15 +1402,13 @@ internal fun FpsCounterConfigDialog(
                     )
                 }
 
-                Column(modifier = Modifier.alpha(if (horizontalMode) 0.4f else 1.0f)) {
-                    CheckRow("Show FPS",                  showFPS,            enabled = !horizontalMode) { showFPS = it }
-                    CheckRow("Show CPU Load",             showCPULoad,        enabled = !horizontalMode) { showCPULoad = it }
-                    CheckRow("Show GPU Load",             showGPULoad,        enabled = !horizontalMode) { showGPULoad = it }
-                    CheckRow("Show RAM",                  showRAM,            enabled = !horizontalMode) { showRAM = it }
-                    CheckRow("Show Renderer",             showRenderer,       enabled = !horizontalMode) { showRenderer = it }
-                    CheckRow("Show Battery Temp",         showBatteryTemp,    enabled = !horizontalMode) { showBatteryTemp = it }
-                    CheckRow("Show Battery Voltage",      showBatteryVoltage, enabled = !horizontalMode) { showBatteryVoltage = it }
-                }
+                CheckRow("Show FPS",             showFPS)            { showFPS = it }
+                CheckRow("Show CPU Load",        showCPULoad)        { showCPULoad = it }
+                CheckRow("Show GPU Load",        showGPULoad)        { showGPULoad = it }
+                CheckRow("Show RAM",             showRAM)            { showRAM = it }
+                CheckRow("Show Renderer",        showRenderer)       { showRenderer = it }
+                CheckRow("Show Battery Temp",    showBatteryTemp)    { showBatteryTemp = it }
+                CheckRow("Show Battery Voltage", showBatteryVoltage) { showBatteryVoltage = it }
 
                 Spacer(Modifier.height(8.dp))
                 Text("HUD Scale: $hudScale%", style = MaterialTheme.typography.bodySmall)
@@ -1437,7 +1434,7 @@ internal fun FpsCounterConfigDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
+                        .heightIn(min = 120.dp)
                 ) {
                     if (horizontalMode) {
                         AndroidView(

@@ -74,9 +74,21 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
     public void applyConfig(String configString) {
         if (configString == null || configString.isEmpty()) return;
         KeyValueSet config = new KeyValueSet(configString);
+
+        if (tvFPS != null) tvFPS.setVisibility(config.get("showFPS", "1").equals("1") ? VISIBLE : GONE);
+        if (tvCPUTemp != null) tvCPUTemp.setVisibility(config.get("showCPULoad", "0").equals("1") ? VISIBLE : GONE);
+        if (tvGPULoad != null) tvGPULoad.setVisibility(config.get("showGPULoad", "0").equals("1") ? VISIBLE : GONE);
+        if (tvRAM != null) tvRAM.setVisibility(config.get("showRAM", "0").equals("1") ? VISIBLE : GONE);
+        if (tvBatteryTemp != null) tvBatteryTemp.setVisibility(config.get("showBatteryTemp", "0").equals("1") ? VISIBLE : GONE);
+        if (tvBatteryVoltage != null) tvBatteryVoltage.setVisibility(config.get("showBatteryVoltage", "0").equals("1") ? VISIBLE : GONE);
+
+        int rendererVis = config.get("showRenderer", "0").equals("1") ? VISIBLE : GONE;
+        if (tvRenderer != null) tvRenderer.setVisibility(rendererVis);
+        if (tvGPU != null) tvGPU.setVisibility(rendererVis);
+
         try {
             int trans = Integer.parseInt(config.get("hudTransparency", "0"));
-            this.setAlpha(1.0f - (trans / 100.0f));
+            this.setAlpha(1.0f - (Math.max(0, Math.min(50, trans)) / 100.0f));
 
             int scaleInt = Integer.parseInt(config.get("hudScale", "100"));
             float scaleFactor = Math.max(50, Math.min(150, scaleInt)) / 100.0f;
