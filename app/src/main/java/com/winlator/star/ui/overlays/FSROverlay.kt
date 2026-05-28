@@ -232,7 +232,7 @@ fun FSROverlay(state: XServerDialogState) {
                     .padding(vertical = 4.dp)
             ) {
                 Text(
-                    "Lossless Scaling FG",
+                    "Vegas FrameGen",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)

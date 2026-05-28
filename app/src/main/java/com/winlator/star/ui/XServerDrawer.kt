@@ -193,7 +193,7 @@ fun XServerDrawer() {
                 .padding(start = 20.dp, end = 20.dp, top = 11.dp, bottom = 11.dp),
         ) {
             Text(
-                text = "Lossless Scaling FG",
+                text = "Vegas FrameGen",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (lsfgEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),

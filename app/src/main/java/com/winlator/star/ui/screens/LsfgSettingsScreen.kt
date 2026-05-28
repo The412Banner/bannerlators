@@ -101,7 +101,7 @@ fun LsfgSettingsScreen() {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "Lossless Scaling Frame Generation (LSFG) settings and tuning.",
+            text = "Vegas FrameGen settings and tuning.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

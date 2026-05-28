@@ -463,7 +463,7 @@
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
     <string name="num_controllers">Number of Controllers</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
-    <string name="lsfg_enabled">LSFG (Lossless Scaling Frame Gen.)</string>
+    <string name="lsfg_enabled">Vegas FrameGen</string>
     <string name="lsfg_quality_performance">Performance</string>
     <string name="lsfg_quality_balanced">Balanced</string>
     <string name="lsfg_quality_quality">Quality</string>
@@ -661,8 +661,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="lsfg_flow_scale">Flow Scale</string>
     <string name="lsfg_max_latency">Max Input Latency</string>
     <string name="lsfg_gpu_arch">GPU Architecture</string>
-    <string name="lsfg_advanced_settings">Advanced LSFG Settings</string>
-    <string name="lsfg_settings">LSFG Settings</string>
+    <string name="lsfg_advanced_settings">Advanced Vegas FrameGen Settings</string>
+    <string name="lsfg_settings">Vegas FrameGen Settings</string>
     <string name="lsfg_multiplier_desc">How many interpolated frames between real frames. 2x = double FPS.</string>
     <string name="lsfg_quality_desc">Performance: fastest, lighter artifacts. Balanced: good tradeoff. Quality: best visual.</string>
     <string name="lsfg_flow_scale_desc">Motion estimation sensitivity. Higher = smoother but may ghost. 100%% is default.</string>
