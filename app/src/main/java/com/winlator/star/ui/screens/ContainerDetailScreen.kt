@@ -992,9 +992,10 @@ internal fun GraphicsDriverConfigDialog(
         (cfg["blacklistedExtensions"] ?: "").split(",").filter { it.isNotEmpty() }.toSet()
     }
     var blacklisted   by remember { mutableStateOf(initialBlacklist) }
+    var showAllDrivers by remember { mutableStateOf(false) }
     var showExtPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(showAllDrivers) {
         val atVersions = withContext(Dispatchers.IO) {
             AdrenotoolsManager(context).enumarateInstalledDrivers()
         }
@@ -1011,7 +1012,10 @@ internal fun GraphicsDriverConfigDialog(
         // concurrent AdrenoTools hook invocations that cause SIGSEGV.
         val wrapperVersions = context.resources
             .getStringArray(R.array.wrapper_graphics_driver_version_entries)
-            .filter { GPUInformation.isDriverSupported(it, context) }
+            .let { arr ->
+                if (showAllDrivers) arr.toList()
+                else arr.filter { GPUInformation.isDriverSupported(it, context) }
+            }
 
         driverVersions = wrapperVersions + atVersions
         gpuNames = gpuList
@@ -1054,6 +1058,11 @@ internal fun GraphicsDriverConfigDialog(
                 LabeledDropdown(stringResource(R.string.graphics_driver_vulkan_version), vulkanVersions, vulkanVersion, { vulkanVersion = it })
                 Spacer(Modifier.height(8.dp))
                 LabeledDropdown(stringResource(R.string.graphics_driver_version), driverVersions, version, { version = it })
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = showAllDrivers, onCheckedChange = { showAllDrivers = it })
+                    Text(stringResource(R.string.graphics_driver_show_incompatible))
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { showExtPicker = true },
