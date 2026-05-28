@@ -92,6 +92,7 @@ import com.winlator.star.renderer.effects.ToonEffect;
 import com.winlator.star.renderer.effects.FSREffect;
 import com.winlator.star.renderer.effects.HDREffect;
 import com.winlator.star.widget.FrameRating;
+import com.winlator.star.widget.FrameRatingHorizontal;
 import com.winlator.star.widget.InputControlsView;
 import com.winlator.star.widget.LogView;
 import com.winlator.star.widget.TouchpadView;
@@ -158,6 +159,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
     private FrameRating frameRating = null;
+    private FrameRatingHorizontal frameRatingHorizontal = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -601,7 +603,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     winStarted[0] = true;
                 }
                     
-                if (frameRatingWindowId == window.id) frameRating.update();
+                if (frameRatingWindowId == window.id) {
+                    if (frameRating != null) frameRating.update();
+                    if (frameRatingHorizontal != null) frameRatingHorizontal.update();
+                }
             }
            
             @Override
@@ -1340,14 +1345,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         if (container != null && container.isShowFPS()) {
-    frameRating = new FrameRating(this, graphicsDriverConfig);
-    
-    // NEW: Apply the custom configuration string from the container
-    frameRating.applyConfig(container.getFPSCounterConfig());
-    
-    frameRating.setVisibility(View.GONE);
-    rootView.addView(frameRating);
-}
+            String fpsConfigString = container.getFPSCounterConfig();
+            com.winlator.star.core.KeyValueSet fpsConfig = new com.winlator.star.core.KeyValueSet(fpsConfigString);
+            boolean isHorizontal = fpsConfig.get("hudMode", "vertical").equals("horizontal");
+
+            if (isHorizontal) {
+                frameRatingHorizontal = new FrameRatingHorizontal(this);
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
+                );
+                lp.topMargin = 10;
+                frameRatingHorizontal.setLayoutParams(lp);
+                frameRatingHorizontal.applyConfig(fpsConfigString);
+                frameRatingHorizontal.setVisibility(View.GONE);
+                rootView.addView(frameRatingHorizontal);
+            } else {
+                frameRating = new FrameRating(this, graphicsDriverConfig);
+                frameRating.applyConfig(fpsConfigString);
+                frameRating.setVisibility(View.GONE);
+                rootView.addView(frameRating);
+            }
+        }
 
         // Get the fullscreen stretched extra from the shortcut if available
         String shortcutFullscreenStretched = shortcut != null ? shortcut.getExtra("fullscreenStretched") : null;
@@ -2071,32 +2091,49 @@ return true;
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {
-    if (frameRating == null) return;
+        if (frameRating == null && frameRatingHorizontal == null) return;
 
-    if (property != null) {
-        if (frameRatingWindowId == -1 && property.nameAsString().contains("_MESA_DRV")) {
-            frameRatingWindowId = window.id;
-            Log.d("XServerDisplayActivity", "Showing hud for Window " + window.getName());
-            
-            // NEW: Ensure the HUD becomes visible when the driver property is detected
-            runOnUiThread(() -> frameRating.setVisibility(View.VISIBLE));
-            
-            frameRating.update();
+        if (property != null) {
+            if (frameRatingWindowId == -1 && property.nameAsString().contains("_MESA_DRV")) {
+                frameRatingWindowId = window.id;
+                Log.d("XServerDisplayActivity", "Showing hud for Window " + window.getName());
+
+                runOnUiThread(() -> {
+                    if (frameRating != null) frameRating.setVisibility(View.VISIBLE);
+                    if (frameRatingHorizontal != null) frameRatingHorizontal.setVisibility(View.VISIBLE);
+                });
+
+                if (frameRating != null) frameRating.update();
+                if (frameRatingHorizontal != null) frameRatingHorizontal.update();
+            }
+            if (property.nameAsString().contains("_MESA_DRV_ENGINE_NAME")) {
+                runOnUiThread(() -> {
+                    if (frameRating != null) frameRating.setRenderer(property.toString());
+                    if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(property.toString());
+                });
+            }
+            if (property.nameAsString().contains("_MESA_DRV_GPU_NAME")) {
+                runOnUiThread(() -> {
+                    if (frameRating != null) frameRating.setGpuName(property.toString());
+                    if (frameRatingHorizontal != null) frameRatingHorizontal.setGpuName(property.toString());
+                });
+            }
         }
-        if (property.nameAsString().contains("_MESA_DRV_ENGINE_NAME")) {
-            runOnUiThread(() -> frameRating.setRenderer(property.toString()));
-        }
-        if (property.nameAsString().contains("_MESA_DRV_GPU_NAME")) {
-            runOnUiThread(() -> frameRating.setGpuName(property.toString()));
+        else if (frameRatingWindowId != -1) {
+            frameRatingWindowId = -1;
+            Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
+            runOnUiThread(() -> {
+                if (frameRating != null) {
+                    frameRating.setVisibility(View.GONE);
+                    frameRating.reset();
+                }
+                if (frameRatingHorizontal != null) {
+                    frameRatingHorizontal.setVisibility(View.GONE);
+                    frameRatingHorizontal.reset();
+                }
+            });
         }
     }
-    else if (frameRatingWindowId != -1) {
-        frameRatingWindowId = -1;
-        Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
-        runOnUiThread(() -> frameRating.setVisibility(View.GONE));
-        runOnUiThread(() -> frameRating.reset());
-    }
-}
 
 
     public String getScreenEffectProfile() {

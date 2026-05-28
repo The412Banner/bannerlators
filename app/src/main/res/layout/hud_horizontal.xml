@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="#88000000"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp"
+    android:gravity="center_vertical">
+
+    <TextView android:id="@+id/TVFPS" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#0277bd" android:textStyle="bold" android:textSize="12sp" android:text="0 FPS" android:layout_marginRight="10dp"/>
+    <TextView android:id="@+id/TVCPUTemp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#ff5722" android:textStyle="bold" android:textSize="12sp" android:text="0°C" android:layout_marginRight="10dp"/>
+    <TextView android:id="@+id/TVGPULoad" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#9c27b0" android:textStyle="bold" android:textSize="12sp" android:text="GPU: 0%" android:layout_marginRight="10dp"/>
+    <TextView android:id="@+id/TVRAM" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#23a6a4" android:textStyle="bold" android:textSize="12sp" android:text="0MB" android:layout_marginRight="10dp"/>
+    <TextView android:id="@+id/TVBatteryVoltage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#4caf50" android:textStyle="bold" android:textSize="12sp" android:text="0.00W"/>
+</LinearLayout>
