@@ -555,9 +555,12 @@ public class ControlElement {
     }
 
     private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId) {
-        Paint paint = inputControlsView.getPaint();
         Bitmap icon = inputControlsView.getIcon((byte)iconId);
-        paint.setColorFilter(inputControlsView.getColorFilter());
+        if (icon == null) return;
+
+        Paint paint = inputControlsView.getPaint();
+        // Only tint system icons. Custom icons (ID >= 100) are drawn as-is to prevent "white screen" blocks.
+        if (iconId < CustomIconManager.CUSTOM_ICON_ID_OFFSET) paint.setColorFilter(inputControlsView.getColorFilter());
         int margin = (int)(inputControlsView.getSnappingSize() * (shape == Shape.CIRCLE || shape == Shape.SQUARE ? 2.0f : 1.0f) * scale);
         int halfSize = (int)((Math.min(width, height) - margin) * 0.5f);
 
