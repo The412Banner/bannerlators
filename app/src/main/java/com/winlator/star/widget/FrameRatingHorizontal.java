@@ -8,6 +8,7 @@ import android.os.BatteryManager;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -31,6 +32,12 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
     private final String totalRAM;
 
     private final TextView tvFPS, tvCPUTemp, tvGPULoad, tvRAM, tvBatteryTemp, tvBatteryVoltage, tvRenderer, tvGPU;
+    
+    // Drag handling
+    private float lastX = 0;
+    private float lastY = 0;
+    private float offsetX = 0;
+    private float offsetY = 0;
 
     public FrameRatingHorizontal(Context context) {
         this(context, null);
@@ -130,6 +137,29 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
         if (tvRAM != null) tvRAM.setText(getUsedRAM() + " / " + totalRAM);
         if (tvBatteryTemp != null) tvBatteryTemp.setText(String.format(Locale.ENGLISH, "%.1f°C", batteryTemp));
         if (tvBatteryVoltage != null) tvBatteryVoltage.setText(String.format(Locale.ENGLISH, "%.2fW", batteryWattage));
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                lastX = event.getRawX();
+                lastY = event.getRawY();
+                offsetX = getX();
+                offsetY = getY();
+                return true;
+            
+            case MotionEvent.ACTION_MOVE:
+                float deltaX = event.getRawX() - lastX;
+                float deltaY = event.getRawY() - lastY;
+                setX(offsetX + deltaX);
+                setY(offsetY + deltaY);
+                return true;
+            
+            case MotionEvent.ACTION_UP:
+                return true;
+        }
+        return super.onTouchEvent(event);
     }
 
     private String getUsedRAM() {
