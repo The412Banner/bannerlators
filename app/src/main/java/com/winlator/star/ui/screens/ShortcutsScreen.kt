@@ -1015,7 +1015,8 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
                     )
                     OutlinedButton(
                         onClick = {
-                            if (StringUtils.parseIdentifier(selectedDxWrapper).contains("dxvk")) showDxvkConfig = true
+                            val w = StringUtils.parseIdentifier(selectedDxWrapper)
+                            if (w.contains("dxvk") || w.contains("vegas")) showDxvkConfig = true
                             else showWineD3DConfig = true
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -1186,6 +1187,7 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
     if (showDxvkConfig) {
         DxvkConfigDialog(
             isArm64EC = isArm64EC,
+            isVegas = StringUtils.parseIdentifier(selectedDxWrapper).contains("vegas"),
             initialConfig = dxWrapperConfig,
             onConfirm = { dxWrapperConfig = it; showDxvkConfig = false },
             onDismiss = { showDxvkConfig = false }

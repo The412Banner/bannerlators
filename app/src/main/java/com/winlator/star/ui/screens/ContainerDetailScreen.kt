@@ -166,6 +166,7 @@ fun ContainerDetailScreen(
     if (showDxvkConfig) {
         DxvkConfigDialog(
             isArm64EC = viewModel.isArm64EC,
+            isVegas = StringUtils.parseIdentifier(viewModel.selectedDXWrapper ?: "").contains("vegas"),
             initialConfig = viewModel.dxWrapperConfig,
             onConfirm = { newConfig -> viewModel.dxWrapperConfig = newConfig; showDxvkConfig = false },
             onDismiss = { showDxvkConfig = false }
@@ -277,7 +278,7 @@ private fun TopLevelFields(
             }
             IconButton(onClick = {
                 val wrapper = StringUtils.parseIdentifier(viewModel.selectedDXWrapper ?: "")
-                if (wrapper.contains("dxvk")) onShowDxvkConfig() else onShowWineD3DConfig()
+                if (wrapper.contains("dxvk") || wrapper.contains("vegas")) onShowDxvkConfig() else onShowWineD3DConfig()
             }) {
                 Icon(Icons.Default.Settings, contentDescription = null)
             }
@@ -1171,6 +1172,7 @@ internal fun ExtensionPickerDialog(
 @Composable
 internal fun DxvkConfigDialog(
     isArm64EC: Boolean,
+    isVegas: Boolean = false,
     initialConfig: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
@@ -1233,7 +1235,7 @@ internal fun DxvkConfigDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState()).fillMaxWidth()) {
                 LabeledDropdown(stringResource(R.string.vkd3d_version), vkd3dVersions.value, selectedVkd3d, { selectedVkd3d = it })
                 Spacer(Modifier.height(8.dp))
-                LabeledDropdown(stringResource(R.string.dxvk_version), filteredDxvk, selectedDxvk, { selectedDxvk = it })
+                LabeledDropdown(if (isVegas) "Vegas Selector" else stringResource(R.string.dxvk_version), filteredDxvk, selectedDxvk, { selectedDxvk = it })
                 Spacer(Modifier.height(8.dp))
                 if (dxvkType != DXVKConfigDialog.DXVK_TYPE_NONE) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

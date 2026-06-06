@@ -570,6 +570,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
         }
 
+        // "Vegas+VKD3D" is a cosmetic alias of DXVK (Vegas backend not ready yet); run it as DXVK.
+        if (dxwrapper != null && dxwrapper.contains("vegas")) dxwrapper = dxwrapper.replace("vegas", "dxvk");
+
         this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
         this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
 
