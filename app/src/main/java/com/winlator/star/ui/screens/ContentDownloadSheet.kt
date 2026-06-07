@@ -56,8 +56,20 @@ fun ContentDownloadSheet(
     var confirmRemoveProfile by remember { mutableStateOf<ContentProfile?>(null) }
     var installing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    var isLoadingRemote by remember { mutableStateOf(true) }
 
-    LaunchedEffect(contentTypes) { loadProfiles(cm, contentTypes) { profiles = it } }
+    LaunchedEffect(contentTypes) {
+        val json = withContext(Dispatchers.IO) {
+            Downloader.downloadString(ContentsManager.REMOTE_PROFILES)
+        }
+        if (json != null) {
+            cm.setRemoteProfiles(json)
+        } else {
+            cm.syncContents()
+        }
+        loadProfiles(cm, contentTypes) { profiles = it }
+        isLoadingRemote = false
+    }
 
     // Info sub-dialog
     showInfoProfile?.let { profile ->
@@ -133,7 +145,11 @@ fun ContentDownloadSheet(
             Text("${contentTypes.joinToString(" + ") { it.toString() }} Downloads", color = Color.White)
         },
         text = {
-            if (profiles.isEmpty()) {
+            if (isLoadingRemote) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            } else if (profiles.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     Text("No content available.", color = OnSurfaceVariant)
                 }
