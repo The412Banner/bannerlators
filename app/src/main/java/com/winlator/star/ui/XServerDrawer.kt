@@ -85,7 +85,6 @@ private val allTabs = listOf(
 )
 
 private val contentTabs = setOf(TabType.GRAPHICS, TabType.HUD, TabType.CONTROLS, TabType.TASK_MANAGER)
-private val contentTabs = setOf(TabType.GRAPHICS, TabType.HUD, TabType.CONTROLS, TabType.TASK_MANAGER)
 
 fun setupComposeView(view: ComposeView) {
     view.setContent {
