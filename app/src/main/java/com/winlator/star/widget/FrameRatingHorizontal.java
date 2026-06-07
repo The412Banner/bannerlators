@@ -176,7 +176,11 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
 
     @Override
     public void run() {
-        if (tvFPS != null) tvFPS.setText(String.format(Locale.ENGLISH, "FPS: %.0f", lastFPS));
+        if (tvFPS != null) {
+            tvFPS.setText(String.format(Locale.ENGLISH, "FPS: %.0f", lastFPS));
+            tvFPS.setTextColor(lastFPS > 30 ? 0xFF4CAF50 :
+                               lastFPS > 20 ? 0xFFFFEB3B : 0xFFF44336);
+        }
         if (tvCPUTemp != null) tvCPUTemp.setText(String.format(Locale.ENGLISH, "%.1f°C", cpuTemp));
         if (tvGPULoad != null) tvGPULoad.setText(gpuLoad + "%");
         if (tvRAM != null) tvRAM.setText(String.format(Locale.ENGLISH, "%.0f%%", getRAMPercentage()));

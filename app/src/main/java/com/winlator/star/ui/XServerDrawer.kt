@@ -286,11 +286,7 @@ fun XServerDrawer() {
             onClick = { state.onVibration?.run(); state.onClose?.run() },
         )
 
-        DrawerMenuItem(
-            iconRes = R.drawable.icon_debug,
-            label = "FPS Counter",
-            onClick = { state.onFpsCounter?.run(); state.onClose?.run() },
-        )
+        FpsCounterSection(state)
 
         Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -435,6 +431,170 @@ fun LsfgDropdown(
                     onClick = { onSelect(opt); expanded = false },
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FpsCounterSection(state: XServerDrawerState) {
+    val fpsExpanded by state.fpsExpanded.collectAsState()
+    val fpsConfig by state.fpsConfig.collectAsState()
+
+    fun parseConfig(s: String): Map<String, String> {
+        if (s.isEmpty()) return emptyMap()
+        val map = mutableMapOf<String, String>()
+        s.split(",").forEach { part ->
+            val eq = part.indexOf('=')
+            if (eq >= 0) map[part.substring(0, eq)] = part.substring(eq + 1)
+        }
+        return map
+    }
+
+    val cfg = remember(fpsConfig) { parseConfig(fpsConfig) }
+    val hudMode = remember { cfg.getOrDefault("hudMode", "horizontal") }
+
+    var showFPS by remember { mutableStateOf(cfg.getOrDefault("showFPS", "1") == "1") }
+    var showCPULoad by remember { mutableStateOf(cfg.getOrDefault("showCPULoad", "0") == "1") }
+    var showGPULoad by remember { mutableStateOf(cfg.getOrDefault("showGPULoad", "0") == "1") }
+    var showRAM by remember { mutableStateOf(cfg.getOrDefault("showRAM", "0") == "1") }
+    var showRenderer by remember { mutableStateOf(cfg.getOrDefault("showRenderer", "0") == "1") }
+    var showBatteryTemp by remember { mutableStateOf(cfg.getOrDefault("showBatteryTemp", "0") == "1") }
+
+    val initialScale = cfg.getOrDefault("hudScale", "100")
+    val initialTrans = cfg.getOrDefault("hudTransparency", "0")
+    var selectedScale by remember { mutableStateOf("${initialScale}%") }
+    var selectedTrans by remember { mutableStateOf("${initialTrans}%") }
+
+    fun buildConfig(): String = listOf(
+        "hudMode=$hudMode",
+        "showFPS=${if (showFPS) "1" else "0"}",
+        "showCPULoad=${if (showCPULoad) "1" else "0"}",
+        "showGPULoad=${if (showGPULoad) "1" else "0"}",
+        "showRAM=${if (showRAM) "1" else "0"}",
+        "showRenderer=${if (showRenderer) "1" else "0"}",
+        "showBatteryTemp=${if (showBatteryTemp) "1" else "0"}",
+        "hudScale=${selectedScale.removeSuffix("%")}",
+        "hudTransparency=${selectedTrans.removeSuffix("%")}",
+    ).joinToString(",")
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { state.toggleFpsExpanded() }
+            .padding(horizontal = 20.dp, vertical = 13.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.icon_debug),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = "FPS Counter",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (fpsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+
+    AnimatedVisibility(
+        visible = fpsExpanded,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FpsDropdown(
+                label = "HUD Scale",
+                options = listOf("50%", "75%", "100%", "125%", "150%"),
+                selectedOption = selectedScale,
+                onSelect = { selectedScale = it; state.onFpsConfigApply?.invoke(buildConfig()) },
+            )
+            FpsDropdown(
+                label = "HUD Transparency",
+                options = listOf("0%", "10%", "20%", "30%", "40%", "50%"),
+                selectedOption = selectedTrans,
+                onSelect = { selectedTrans = it; state.onFpsConfigApply?.invoke(buildConfig()) },
+            )
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            FpsCheckItem("Show FPS", showFPS) { showFPS = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+            FpsCheckItem("Show CPU Temp", showCPULoad) { showCPULoad = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+            FpsCheckItem("Show GPU Load", showGPULoad) { showGPULoad = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+            FpsCheckItem("Show RAM", showRAM) { showRAM = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+            FpsCheckItem("Show Renderer", showRenderer) { showRenderer = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+            FpsCheckItem("Show Battery Temp", showBatteryTemp) { showBatteryTemp = it; state.onFpsConfigApply?.invoke(buildConfig()) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FpsDropdown(
+    label: String,
+    options: List<String>,
+    selectedOption: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selectedOption,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt) },
+                    onClick = { onSelect(opt); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FpsCheckItem(label: String, checked: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (checked) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

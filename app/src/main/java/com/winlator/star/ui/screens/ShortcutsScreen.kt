@@ -538,7 +538,7 @@ private fun ShortcutGridItem(
 
     Box(
         modifier = Modifier
-            .aspectRatio(1f)
+            .aspectRatio(2f / 3f)
             .clip(RoundedCornerShape(8.dp))
             .background(SurfaceColor)
             .combinedClickable(onClick = onRun, onLongClick = { menuExpanded = true }),

@@ -9,7 +9,6 @@ import com.winlator.star.ui.dialogs.DebugDialogContent
 import com.winlator.star.ui.dialogs.InputControlsDialog
 import com.winlator.star.ui.dialogs.ScreenEffectsDialog
 import com.winlator.star.ui.dialogs.TaskManagerDialog
-import com.winlator.star.ui.dialogs.FpsCounterDialog
 import com.winlator.star.ui.dialogs.VibrationDialog
 import com.winlator.star.ui.overlays.FSROverlay
 import com.winlator.star.ui.overlays.MagnifierOverlay
@@ -37,7 +36,6 @@ fun XServerDialogHost() {
         XServerDialogState.ActiveDialog.SCREEN_EFFECTS -> ScreenEffectsDialog(state)
         XServerDialogState.ActiveDialog.ACTIVE_WINDOWS -> ActiveWindowsDialog(state)
         XServerDialogState.ActiveDialog.TASK_MANAGER   -> TaskManagerDialog(state)
-        XServerDialogState.ActiveDialog.FPS_COUNTER    -> FpsCounterDialog(state)
         XServerDialogState.ActiveDialog.NONE           -> Unit
     }
 

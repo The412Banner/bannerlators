@@ -46,6 +46,12 @@ object XServerDrawerState {
     private val _lsfgGpuArch     = MutableStateFlow("auto")
     val lsfgGpuArch: StateFlow<String> = _lsfgGpuArch
 
+    private val _fpsExpanded = MutableStateFlow(false)
+    val fpsExpanded: StateFlow<Boolean> = _fpsExpanded
+
+    private val _fpsConfig = MutableStateFlow("")
+    val fpsConfig: StateFlow<String> = _fpsConfig
+
     // Callbacks wired by XServerDisplayActivity.
     // @JvmField exposes these as public fields so Java can assign them directly.
     // Runnable avoids the kotlin.Unit return-type mismatch for Java void lambdas.
@@ -69,7 +75,7 @@ object XServerDrawerState {
     @JvmField var onDisableMouse:           Runnable? = null
     @JvmField var onApplyLsfg:             Runnable? = null
     @JvmField var onResetLsfg:             Runnable? = null
-    @JvmField var onFpsCounter:            Runnable? = null
+    @JvmField var onFpsConfigApply: XServerDialogState.FpsConfigCallback? = null
     var onCursorExpandedChanged: ((Boolean) -> Unit)? = null
 
     // Setters called from Java
@@ -99,6 +105,10 @@ object XServerDrawerState {
         onCursorExpandedChanged?.invoke(next)
     }
 
+    fun setFpsExpanded(v: Boolean) { _fpsExpanded.value = v }
+    fun setFpsConfig(v: String) { _fpsConfig.value = v }
+    fun toggleFpsExpanded() { _fpsExpanded.value = !_fpsExpanded.value }
+
     fun reset() {
         _isPaused.value = false
         _isRelativeMouseMovement.value = false
@@ -113,13 +123,15 @@ object XServerDrawerState {
         _lsfgMaxLatency.value = 16
         _lsfgGpuArch.value = "auto"
         _cursorExpanded.value = false
+        _fpsExpanded.value = false
+        _fpsConfig.value = ""
         onClose = null; onKeyboard = null; onInputControls = null
         onScreenEffects = null; onGraphicEngine = null; onVibration = null
         onToggleFullscreen = null; onPauseResume = null; onPipMode = null
         onActiveWindows = null; onTaskManager = null; onMagnifier = null
         onLogs = null; onExit = null; onLsfgToggle = null; onMoveCursorToTouchpoint = null
         onRelativeMouseMovement = null; onDisableMouse = null
-        onApplyLsfg = null; onResetLsfg = null; onFpsCounter = null
+        onApplyLsfg = null; onResetLsfg = null; onFpsConfigApply = null
         onCursorExpandedChanged = null
     }
 }
