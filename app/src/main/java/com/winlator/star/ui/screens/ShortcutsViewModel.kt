@@ -26,7 +26,7 @@ import java.util.Collections
 enum class ShortcutSortOrder { NAME_ASC, NAME_DESC, CONTAINER }
 
 sealed class ImportResult {
-    object Success : ImportResult()
+    data class Success(val shortcutName: String) : ImportResult()
     data class Error(val message: String) : ImportResult()
 }
 
@@ -129,7 +129,7 @@ class ShortcutsViewModel(app: Application) : AndroidViewModel(app) {
                     Log.w(TAG, "Cover art lookup failed for $safeName", e)
                 }
             }, "exe-import-cover-art").start()
-            ImportResult.Success
+            ImportResult.Success(shortcutFile.nameWithoutExtension)
         } catch (e: IOException) {
             Log.e(TAG, "Failed to write EXE shortcut", e)
             ImportResult.Error("Failed to write shortcut: ${e.message ?: e.javaClass.simpleName}")
@@ -157,7 +157,7 @@ class ShortcutsViewModel(app: Application) : AndroidViewModel(app) {
                 dest.writeText(lines.joinToString("\n") + "\n")
             }
             refresh()
-            ImportResult.Success
+            ImportResult.Success(dest.nameWithoutExtension)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import shortcut file", e)
             ImportResult.Error("Failed to import: ${e.message ?: e.javaClass.simpleName}")
@@ -299,6 +299,22 @@ class ShortcutsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun containers() = manager.getContainers()
+
+    fun renameImportedShortcut(containerIndex: Int, oldName: String, newName: String) {
+        if (oldName == newName || newName.isBlank()) return
+        val containers = manager.getContainers()
+        if (containerIndex < 0 || containerIndex >= containers.size) return
+        val container = containers[containerIndex]
+        val desktopDir = container.getDesktopDir()
+        val oldFile = File(desktopDir, "$oldName.desktop")
+        val newFile = File(desktopDir, "$newName.desktop")
+        if (oldFile.isFile && !newFile.isFile && oldFile.renameTo(newFile)) {
+            val oldLnk = File(desktopDir, "$oldName.lnk")
+            val newLnk = File(desktopDir, "$newName.lnk")
+            if (oldLnk.isFile) oldLnk.renameTo(newLnk)
+            refresh()
+        }
+    }
 
     companion object {
         private const val TAG = "ShortcutsImport"

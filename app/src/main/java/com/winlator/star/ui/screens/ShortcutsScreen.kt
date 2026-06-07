@@ -46,7 +46,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddToHomeScreen
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ViewList
@@ -162,16 +161,23 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showImportContainerPicker by remember { mutableStateOf(false) }
     var pendingImportContainerIndex by remember { mutableStateOf(-1) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameDialogName by remember { mutableStateOf("") }
+    var renameDialogContainerIndex by remember { mutableStateOf(-1) }
 
     val importFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         if (pendingImportContainerIndex >= 0) {
             val result = vm.importShortcut(pendingImportContainerIndex, uri, context)
-            pendingImportContainerIndex = -1
             when (result) {
-                is ImportResult.Success -> Toast.makeText(context, "Shortcut imported.", Toast.LENGTH_SHORT).show()
+                is ImportResult.Success -> {
+                    renameDialogContainerIndex = pendingImportContainerIndex
+                    renameDialogName = result.shortcutName
+                    showRenameDialog = true
+                }
                 is ImportResult.Error -> Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
             }
+            pendingImportContainerIndex = -1
         }
     }
 
@@ -183,9 +189,6 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
     // parent's clear when it fires post-commit.
     LaunchedEffect(Unit) {
         topBarActions.value = {
-            IconButton(onClick = { showImportContainerPicker = true }) {
-                Icon(Icons.Filled.FileDownload, contentDescription = "Import shortcut", tint = androidx.compose.ui.graphics.Color.White)
-            }
             IconButton(onClick = { vm.setGridView(!isGridView) }) {
                 Icon(
                     imageVector = if (isGridView) Icons.Filled.ViewList else Icons.Filled.GridView,
@@ -235,7 +238,7 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = 120.dp),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                            contentPadding = PaddingValues(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
@@ -272,6 +275,14 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                 }
             }
         }
+        Button(
+            onClick = { showImportContainerPicker = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Add Shortcut")
+        }
     }
 
     // Import container picker
@@ -304,6 +315,40 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = { showImportContainerPicker = false }) { Text("Cancel") } },
+        )
+    }
+
+    // Rename after import
+    if (showRenameDialog) {
+        var newName by remember { mutableStateOf(renameDialogName) }
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Rename Shortcut") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("Shortcut name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newName.trim()
+                    if (name.isNotEmpty()) {
+                        vm.renameImportedShortcut(renameDialogContainerIndex, renameDialogName, name)
+                    }
+                    showRenameDialog = false
+                    Toast.makeText(context, "Shortcut imported.", Toast.LENGTH_SHORT).show()
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showRenameDialog = false
+                    Toast.makeText(context, "Shortcut imported.", Toast.LENGTH_SHORT).show()
+                }) { Text("Skip") }
+            },
         )
     }
 
