@@ -39,7 +39,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -57,24 +56,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.winlator.star.R
 import com.winlator.star.ui.theme.Primary
 import com.winlator.star.ui.theme.WinlatorTheme
-import kotlinx.coroutines.delay
-
-private data class TabData(
-    val type: TabType,
-    val iconRes: Int,
-)
-
-private val allTabs = listOf(
-    TabData(TabType.GRAPHICS, R.drawable.icon_settings),
-    TabData(TabType.HUD, R.drawable.icon_settings),
-    TabData(TabType.CONTROLS, R.drawable.icon_input_controls),
-    TabData(TabType.ADVANCED, R.drawable.icon_debug),
-)
 
 fun setupComposeView(view: ComposeView) {
     view.setContent {
@@ -88,6 +75,9 @@ fun setupComposeView(view: ComposeView) {
 fun XServerDrawer() {
     val state = XServerDrawerState
     val selectedTab by state.selectedTab.collectAsState()
+    val showTaskManager by state.showTaskManagerInline.collectAsState()
+    val isPaused by state.isPaused.collectAsState()
+    val pauseIcon = if (isPaused) R.drawable.icon_play else R.drawable.icon_pause
 
     Row(
         modifier = Modifier
@@ -99,20 +89,52 @@ fun XServerDrawer() {
             modifier = Modifier
                 .width(60.dp)
                 .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .verticalScroll(rememberScrollState()),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(8.dp))
-            allTabs.forEach { tab ->
-                TabIconButton(
-                    iconRes = tab.iconRes,
-                    isSelected = selectedTab == tab.type,
-                    onClick = { handleTabClick(tab.type, state) },
-                )
-                Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.weight(1f))
+
+            TabIconButton(R.drawable.icon_settings, selectedTab == TabType.GRAPHICS) {
+                handleTabClick(TabType.GRAPHICS, state)
             }
+            Spacer(Modifier.height(4.dp))
+            FpsTabButton(isSelected = selectedTab == TabType.HUD) {
+                handleTabClick(TabType.HUD, state)
+            }
+            Spacer(Modifier.height(4.dp))
+            TabIconButton(R.drawable.icon_input_controls, selectedTab == TabType.CONTROLS) {
+                handleTabClick(TabType.CONTROLS, state)
+            }
+            Spacer(Modifier.height(4.dp))
+            TabIconButton(R.drawable.icon_debug, selectedTab == TabType.ADVANCED) {
+                handleTabClick(TabType.ADVANCED, state)
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Box(
+                modifier = Modifier
+                    .width(44.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Primary)
+            )
+
             Spacer(Modifier.height(8.dp))
+
+            TabIconButton(R.drawable.icon_task_manager, isSelected = false) {
+                state.onTaskManager?.run(); state.onClose?.run()
+            }
+            Spacer(Modifier.height(4.dp))
+            TabIconButton(pauseIcon, isSelected = false) {
+                state.onPauseResume?.run(); state.onClose?.run()
+            }
+            Spacer(Modifier.height(4.dp))
+            TabIconButton(R.drawable.icon_exit, isSelected = false) {
+                state.onExit?.run()
+            }
+
+            Spacer(Modifier.weight(1f))
         }
 
         Column(
@@ -122,11 +144,15 @@ fun XServerDrawer() {
                 .verticalScroll(rememberScrollState())
                 .padding(12.dp),
         ) {
-            when (selectedTab) {
-                TabType.GRAPHICS -> GraphicsContent(state)
-                TabType.HUD -> HudContent(state)
-                TabType.CONTROLS -> ControlsContent(state)
-                TabType.ADVANCED -> AdvancedContent(state)
+            if (showTaskManager) {
+                TaskManagerContent(state)
+            } else {
+                when (selectedTab) {
+                    TabType.GRAPHICS -> GraphicsContent(state)
+                    TabType.HUD -> HudContent(state)
+                    TabType.CONTROLS -> ControlsContent(state)
+                    TabType.ADVANCED -> AdvancedContent(state)
+                }
             }
         }
     }
@@ -156,6 +182,30 @@ private fun TabIconButton(iconRes: Int, isSelected: Boolean, onClick: () -> Unit
             contentDescription = null,
             tint = tintColor,
             modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun FpsTabButton(isSelected: Boolean, onClick: () -> Unit) {
+    val bgColor = if (isSelected) Primary else Color.Transparent
+    val borderColor = if (isSelected) Color.Transparent else Primary
+    val textColor = if (isSelected) Color.White else Primary
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgColor, RoundedCornerShape(12.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "FPS",
+            color = textColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -524,18 +574,8 @@ private fun ControlsMouseCheckItem(label: String, checked: Boolean, onClick: () 
 
 @Composable
 private fun AdvancedContent(state: XServerDrawerState) {
-    val processes by XServerDialogState.tmProcesses.collectAsState()
-    val cpuCores by XServerDialogState.tmCpuCores.collectAsState()
-    val cpuTitle by XServerDialogState.tmCpuTitle.collectAsState()
-    val memTitle by XServerDialogState.tmMemTitle.collectAsState()
-    val memInfo by XServerDialogState.tmMemInfo.collectAsState()
-    val count by XServerDialogState.tmCount.collectAsState()
-    val isPaused by state.isPaused.collectAsState()
-    val selectedTab by state.selectedTab.collectAsState()
-
-    // Quick Actions section (one-shot actions)
-    Text("Quick Actions", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-    Spacer(Modifier.height(6.dp))
+    Text("Advanced", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+    Spacer(Modifier.height(8.dp))
 
     AdvancedActionRow("Magnifier", R.drawable.icon_magnifier) {
         state.onClose?.run(); state.onMagnifier?.run()
@@ -551,79 +591,6 @@ private fun AdvancedContent(state: XServerDrawerState) {
     }
     AdvancedActionRow("Show Keyboard", R.drawable.icon_keyboard) {
         state.onClose?.run(); state.onKeyboard?.run()
-    }
-
-    HorizontalDivider(
-        modifier = Modifier.padding(vertical = 8.dp),
-        color = Primary.copy(alpha = 0.5f),
-        thickness = 2.dp,
-    )
-
-    // Task Manager (inline)
-    Text("Task Manager", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-    Spacer(Modifier.height(4.dp))
-    Text("Processes: $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == TabType.ADVANCED) {
-            while (true) {
-                XServerDialogState.onTmRefresh?.run()
-                delay(1000L)
-            }
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose { XServerDialogState.onTmDismissed?.run() }
-    }
-
-    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-
-    if (processes.isEmpty()) {
-        Text("No processes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
-    } else {
-        LazyColumn(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-            items(processes, key = { it.pid }) { proc ->
-                TmProcessRow(proc)
-                HorizontalDivider()
-            }
-        }
-    }
-
-    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-
-    Text(cpuTitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-    cpuCores.forEach { core -> Text(core, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-
-    Spacer(Modifier.height(4.dp))
-    Text(memTitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-    Text(memInfo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-
-    Row(modifier = Modifier.fillMaxWidth()) {
-        TextButton(onClick = {
-            XServerDialogState.onTmDismissed?.run()
-            XServerDialogState.onTmNewTask?.run()
-        }) { Text("New Task\u2026") }
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = {
-            XServerDialogState.onTmDismissed?.run()
-            state.onClose?.run()
-        }) { Text("Close") }
-    }
-
-    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Primary.copy(alpha = 0.5f), thickness = 2.dp)
-
-    // Session controls
-    val pauseIcon = if (isPaused) R.drawable.icon_play else R.drawable.icon_pause
-    val pauseLabel = if (isPaused) "Resume" else "Pause"
-    AdvancedActionRow(pauseLabel, pauseIcon) {
-        state.onPauseResume?.run(); state.onClose?.run()
-    }
-
-    AdvancedActionRow("Exit", R.drawable.icon_exit) {
-        state.onExit?.run()
     }
 }
 
