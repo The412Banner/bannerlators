@@ -50,8 +50,6 @@ import com.winlator.star.container.Container
 import com.winlator.star.widget.ColorPickerView
 import com.winlator.star.widget.CPUListView
 import com.winlator.star.widget.EnvVarsView
-import com.winlator.star.widget.FrameRating
-import com.winlator.star.widget.FrameRatingHorizontal
 
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
@@ -1366,62 +1364,40 @@ internal fun FpsCounterConfigDialog(
     }
 
     val cfg = remember(initialConfig) { parseConfig(initialConfig) }
-
-    var horizontalMode     by remember { mutableStateOf(cfg.getOrDefault("hudMode", "vertical") == "horizontal") }
-    var showFPS            by remember { mutableStateOf(cfg.getOrDefault("showFPS", "1") == "1") }
-    var showCPULoad        by remember { mutableStateOf(cfg.getOrDefault("showCPULoad", "0") == "1") }
-    var showGPULoad        by remember { mutableStateOf(cfg.getOrDefault("showGPULoad", "0") == "1") }
-    var showRAM            by remember { mutableStateOf(cfg.getOrDefault("showRAM", "0") == "1") }
-    var showRenderer       by remember { mutableStateOf(cfg.getOrDefault("showRenderer", "0") == "1") }
-    var showBatteryTemp    by remember { mutableStateOf(cfg.getOrDefault("showBatteryTemp", "0") == "1") }
-    var showBatteryVoltage by remember { mutableStateOf(cfg.getOrDefault("showBatteryVoltage", "0") == "1") }
-    var hudScale           by remember { mutableStateOf(cfg.getOrDefault("hudScale", "100").toIntOrNull() ?: 100) }
-    var hudTransparency    by remember { mutableStateOf(cfg.getOrDefault("hudTransparency", "0").toIntOrNull() ?: 0) }
+    val modeOptions = remember { listOf("Vertical", "Horizontal") }
+    var selectedMode by remember {
+        mutableStateOf(
+            if (cfg.getOrDefault("hudMode", "vertical") == "horizontal") "Horizontal" else "Vertical"
+        )
+    }
+    var hudScale by remember { mutableStateOf(cfg.getOrDefault("hudScale", "100").toIntOrNull() ?: 100) }
+    var hudTransparency by remember { mutableStateOf(cfg.getOrDefault("hudTransparency", "0").toIntOrNull() ?: 0) }
 
     fun buildConfig(): String = listOf(
-        "hudMode=${if (horizontalMode) "horizontal" else "vertical"}",
-        "showFPS=${if (showFPS) "1" else "0"}",
-        "showCPULoad=${if (showCPULoad) "1" else "0"}",
-        "showGPULoad=${if (showGPULoad) "1" else "0"}",
-        "showRAM=${if (showRAM) "1" else "0"}",
-        "showRenderer=${if (showRenderer) "1" else "0"}",
-        "showBatteryTemp=${if (showBatteryTemp) "1" else "0"}",
-        "showBatteryVoltage=${if (showBatteryVoltage) "1" else "0"}",
+        "hudMode=${if (selectedMode == "Horizontal") "horizontal" else "vertical"}",
+        "showFPS=1",
+        "showCPULoad=0",
+        "showGPULoad=0",
+        "showRAM=0",
+        "showRenderer=0",
+        "showBatteryTemp=0",
         "hudScale=$hudScale",
         "hudTransparency=$hudTransparency"
     ).joinToString(",")
-
-    @Composable
-    fun CheckRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Checkbox(checked = checked, onCheckedChange = onToggle)
-            Text(label)
-        }
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("FPS Counter Settings") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Checkbox(checked = horizontalMode, onCheckedChange = { horizontalMode = it })
-                    Text(
-                        "Enable Horizontal HUD Mode",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFF0277BD)
-                    )
-                }
+                LabeledDropdown(
+                    label = "FPS Counter Mode",
+                    options = modeOptions,
+                    selectedOption = selectedMode,
+                    onSelect = { selectedMode = it }
+                )
 
-                CheckRow("Show FPS",             showFPS)            { showFPS = it }
-                CheckRow("Show CPU Load",        showCPULoad)        { showCPULoad = it }
-                CheckRow("Show GPU Load",        showGPULoad)        { showGPULoad = it }
-                CheckRow("Show RAM",             showRAM)            { showRAM = it }
-                CheckRow("Show Renderer",        showRenderer)       { showRenderer = it }
-                CheckRow("Show Battery Temp",    showBatteryTemp)    { showBatteryTemp = it }
-                CheckRow("Show Battery Voltage", showBatteryVoltage) { showBatteryVoltage = it }
-
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 Text("HUD Scale: $hudScale%", style = MaterialTheme.typography.bodySmall)
                 Slider(
                     value = hudScale.toFloat(),
@@ -1437,32 +1413,6 @@ internal fun FpsCounterConfigDialog(
                     valueRange = 0f..50f,
                     steps = 49
                 )
-
-                Spacer(Modifier.height(16.dp))
-                Text("Live Preview", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(4.dp))
-                val currentConfig = buildConfig()
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 120.dp)
-                ) {
-                    if (horizontalMode) {
-                        AndroidView(
-                            factory = { ctx ->
-                                FrameRatingHorizontal(ctx).apply { applyConfig(currentConfig) }
-                            },
-                            update = { it.applyConfig(currentConfig) }
-                        )
-                    } else {
-                        AndroidView(
-                            factory = { ctx ->
-                                FrameRating(ctx, HashMap<String, Any?>()).apply { applyConfig(currentConfig) }
-                            },
-                            update = { it.applyConfig(currentConfig) }
-                        )
-                    }
-                }
             }
         },
         confirmButton = {

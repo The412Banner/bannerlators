@@ -69,6 +69,7 @@ object XServerDrawerState {
     @JvmField var onDisableMouse:           Runnable? = null
     @JvmField var onApplyLsfg:             Runnable? = null
     @JvmField var onResetLsfg:             Runnable? = null
+    @JvmField var onFpsCounter:            Runnable? = null
     var onCursorExpandedChanged: ((Boolean) -> Unit)? = null
 
     // Setters called from Java
@@ -118,7 +119,7 @@ object XServerDrawerState {
         onActiveWindows = null; onTaskManager = null; onMagnifier = null
         onLogs = null; onExit = null; onLsfgToggle = null; onMoveCursorToTouchpoint = null
         onRelativeMouseMovement = null; onDisableMouse = null
-        onApplyLsfg = null; onResetLsfg = null
+        onApplyLsfg = null; onResetLsfg = null; onFpsCounter = null
         onCursorExpandedChanged = null
     }
 }

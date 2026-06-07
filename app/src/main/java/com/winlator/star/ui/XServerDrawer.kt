@@ -286,6 +286,12 @@ fun XServerDrawer() {
             onClick = { state.onVibration?.run(); state.onClose?.run() },
         )
 
+        DrawerMenuItem(
+            iconRes = R.drawable.icon_debug,
+            label = "FPS Counter",
+            onClick = { state.onFpsCounter?.run(); state.onClose?.run() },
+        )
+
         Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
         DrawerMenuItem(

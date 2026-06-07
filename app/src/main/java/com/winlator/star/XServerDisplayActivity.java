@@ -408,6 +408,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             state.setIsMouseDisabled(isMouseDisabled);
             touchpadView.setMouseEnabled(!isMouseDisabled);
         };
+        state.onFpsCounter             = () -> showFpsCounterDialog();
 
         ComposeView drawerComposeView = findViewById(R.id.XServerDrawerComposeView);
         XServerDrawerKt.setupComposeView(drawerComposeView);
@@ -2488,6 +2489,32 @@ return true;
         } catch (Exception ignored) {}
     }
 
+
+    private void showFpsCounterDialog() {
+        XServerDialogState ds = XServerDialogState.INSTANCE;
+        String fpsConfig = container != null ? container.getFPSCounterConfig() : Container.DEFAULT_FPS_COUNTER_CONFIG;
+        ds.setFpsConfig(fpsConfig);
+
+        ds.onFpsConfigApply = (newConfig) -> {
+            if (newConfig == null) return;
+            // Apply config to active frame rating widgets
+            runOnUiThread(() -> {
+                if (frameRating != null) {
+                    frameRating.applyConfig(newConfig);
+                }
+                if (frameRatingHorizontal != null) {
+                    frameRatingHorizontal.applyConfig(newConfig);
+                }
+            });
+            // Also save to container for persistence
+            if (container != null) {
+                container.setFPSCounterConfig(newConfig);
+                container.saveData();
+            }
+        };
+
+        ds.show(XServerDialogState.ActiveDialog.FPS_COUNTER);
+    }
 
 } // Closes the XServerDisplayActivity class
 
