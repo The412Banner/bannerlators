@@ -4,8 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 enum class TabType {
-    GRAPHICS, HUD, CONTROLS, TASK_MANAGER,
-    ACTIVE_WINDOWS, KEYBOARD, MAGNIFIER, LOGS, PIP, PAUSE_RESUME, EXIT
+    GRAPHICS, HUD, CONTROLS, ADVANCED
 }
 
 object XServerDrawerState {

@@ -67,21 +67,13 @@ import kotlinx.coroutines.delay
 private data class TabData(
     val type: TabType,
     val iconRes: Int,
-    val pauseIconRes: Int? = null,
 )
 
 private val allTabs = listOf(
     TabData(TabType.GRAPHICS, R.drawable.icon_settings),
-    TabData(TabType.HUD, R.drawable.icon_debug),
+    TabData(TabType.HUD, R.drawable.icon_settings),
     TabData(TabType.CONTROLS, R.drawable.icon_input_controls),
-    TabData(TabType.TASK_MANAGER, R.drawable.icon_task_manager),
-    TabData(TabType.ACTIVE_WINDOWS, R.drawable.icon_active_windows),
-    TabData(TabType.KEYBOARD, R.drawable.icon_keyboard),
-    TabData(TabType.MAGNIFIER, R.drawable.icon_magnifier),
-    TabData(TabType.LOGS, R.drawable.icon_debug),
-    TabData(TabType.PIP, R.drawable.ic_picture_in_picture_alt),
-    TabData(TabType.PAUSE_RESUME, R.drawable.icon_pause, pauseIconRes = R.drawable.icon_play),
-    TabData(TabType.EXIT, R.drawable.icon_exit),
+    TabData(TabType.ADVANCED, R.drawable.icon_debug),
 )
 
 fun setupComposeView(view: ComposeView) {
@@ -96,7 +88,6 @@ fun setupComposeView(view: ComposeView) {
 fun XServerDrawer() {
     val state = XServerDrawerState
     val selectedTab by state.selectedTab.collectAsState()
-    val isPaused by state.isPaused.collectAsState()
 
     Row(
         modifier = Modifier
@@ -114,12 +105,8 @@ fun XServerDrawer() {
         ) {
             Spacer(Modifier.height(8.dp))
             allTabs.forEach { tab ->
-                val iconRes = if (tab.type == TabType.PAUSE_RESUME && isPaused) {
-                    tab.pauseIconRes ?: tab.iconRes
-                } else tab.iconRes
-
                 TabIconButton(
-                    iconRes = iconRes,
+                    iconRes = tab.iconRes,
                     isSelected = selectedTab == tab.type,
                     onClick = { handleTabClick(tab.type, state) },
                 )
@@ -139,44 +126,14 @@ fun XServerDrawer() {
                 TabType.GRAPHICS -> GraphicsContent(state)
                 TabType.HUD -> HudContent(state)
                 TabType.CONTROLS -> ControlsContent(state)
-                TabType.TASK_MANAGER -> TaskManagerContent(state)
-                else -> Unit
+                TabType.ADVANCED -> AdvancedContent(state)
             }
         }
     }
 }
 
 private fun handleTabClick(tab: TabType, state: XServerDrawerState) {
-    when (tab) {
-        TabType.GRAPHICS, TabType.HUD, TabType.CONTROLS, TabType.TASK_MANAGER -> state.selectTab(tab)
-        TabType.ACTIVE_WINDOWS -> {
-            state.onClose?.run()
-            state.onActiveWindows?.run()
-        }
-        TabType.KEYBOARD -> {
-            state.onClose?.run()
-            state.onKeyboard?.run()
-        }
-        TabType.MAGNIFIER -> {
-            state.onClose?.run()
-            state.onMagnifier?.run()
-        }
-        TabType.LOGS -> {
-            state.onClose?.run()
-            state.onLogs?.run()
-        }
-        TabType.PIP -> {
-            state.onClose?.run()
-            state.onPipMode?.run()
-        }
-        TabType.PAUSE_RESUME -> {
-            state.onClose?.run()
-            state.onPauseResume?.run()
-        }
-        TabType.EXIT -> {
-            state.onExit?.run()
-        }
-    }
+    state.selectTab(tab)
 }
 
 @Composable
@@ -563,20 +520,52 @@ private fun ControlsMouseCheckItem(label: String, checked: Boolean, onClick: () 
     }
 }
 
-// ───── Task Manager Tab ─────
+// ───── Advanced Tab ─────
 
 @Composable
-private fun TaskManagerContent(state: XServerDrawerState) {
+private fun AdvancedContent(state: XServerDrawerState) {
     val processes by XServerDialogState.tmProcesses.collectAsState()
     val cpuCores by XServerDialogState.tmCpuCores.collectAsState()
     val cpuTitle by XServerDialogState.tmCpuTitle.collectAsState()
     val memTitle by XServerDialogState.tmMemTitle.collectAsState()
     val memInfo by XServerDialogState.tmMemInfo.collectAsState()
     val count by XServerDialogState.tmCount.collectAsState()
+    val isPaused by state.isPaused.collectAsState()
     val selectedTab by state.selectedTab.collectAsState()
 
+    // Quick Actions section (one-shot actions)
+    Text("Quick Actions", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+    Spacer(Modifier.height(6.dp))
+
+    AdvancedActionRow("Magnifier", R.drawable.icon_magnifier) {
+        state.onClose?.run(); state.onMagnifier?.run()
+    }
+    AdvancedActionRow("Active Windows", R.drawable.icon_active_windows) {
+        state.onClose?.run(); state.onActiveWindows?.run()
+    }
+    AdvancedActionRow("Debug Logs", R.drawable.icon_debug) {
+        state.onClose?.run(); state.onLogs?.run()
+    }
+    AdvancedActionRow("Picture-in-Picture", R.drawable.ic_picture_in_picture_alt) {
+        state.onClose?.run(); state.onPipMode?.run()
+    }
+    AdvancedActionRow("Show Keyboard", R.drawable.icon_keyboard) {
+        state.onClose?.run(); state.onKeyboard?.run()
+    }
+
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 8.dp),
+        color = Primary.copy(alpha = 0.5f),
+        thickness = 2.dp,
+    )
+
+    // Task Manager (inline)
+    Text("Task Manager", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+    Spacer(Modifier.height(4.dp))
+    Text("Processes: $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
     LaunchedEffect(selectedTab) {
-        if (selectedTab == TabType.TASK_MANAGER) {
+        if (selectedTab == TabType.ADVANCED) {
             while (true) {
                 XServerDialogState.onTmRefresh?.run()
                 delay(1000L)
@@ -587,10 +576,6 @@ private fun TaskManagerContent(state: XServerDrawerState) {
     DisposableEffect(Unit) {
         onDispose { XServerDialogState.onTmDismissed?.run() }
     }
-
-    Text("Task Manager", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-    Spacer(Modifier.height(4.dp))
-    Text("Processes: $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
 
@@ -626,6 +611,36 @@ private fun TaskManagerContent(state: XServerDrawerState) {
             XServerDialogState.onTmDismissed?.run()
             state.onClose?.run()
         }) { Text("Close") }
+    }
+
+    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Primary.copy(alpha = 0.5f), thickness = 2.dp)
+
+    // Session controls
+    val pauseIcon = if (isPaused) R.drawable.icon_play else R.drawable.icon_pause
+    val pauseLabel = if (isPaused) "Resume" else "Pause"
+    AdvancedActionRow(pauseLabel, pauseIcon) {
+        state.onPauseResume?.run(); state.onClose?.run()
+    }
+
+    AdvancedActionRow("Exit", R.drawable.icon_exit) {
+        state.onExit?.run()
+    }
+}
+
+@Composable
+private fun AdvancedActionRow(label: String, iconRes: Int, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = Primary,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
     }
 }
 
