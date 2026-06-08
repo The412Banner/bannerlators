@@ -77,9 +77,12 @@ public class DXVKConfigDialog {
         String[] original = context.getResources().getStringArray(R.array.vegas_version_entries);
         List<String> list = new ArrayList<>(Arrays.asList(original));
         for (ContentProfile profile : contentsManager.getProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK)) {
-            String entry = ContentsManager.getEntryName(profile);
-            int dash = entry.indexOf('-');
-            list.add(entry.substring(dash + 1));
+            // vegas WCP profiles have verName like "2.7.3-vegas"
+            if (profile.verName != null && profile.verName.contains("-vegas")) {
+                int vegasIdx = profile.verName.indexOf("-vegas");
+                String ver = profile.verName.substring(0, vegasIdx);
+                if (!list.contains(ver)) list.add(ver);
+            }
         }
         return list;
     }
