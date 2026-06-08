@@ -2026,8 +2026,10 @@ return true;
 } else if (dxwrapper.contains("vegas")) {
     Log.d(TAG, "Extracting VEGAS wrapper files: " + dxwrapper);
 
-    String vegasWrapper = dxwrapper.split(";")[0];
-    String ddrawrapper = dxwrapper.split(";")[2];
+    String[] parts = dxwrapper.split(";");
+    String vegasWrapper = parts[0];
+    String vkd3dWrapper = parts.length > 1 ? parts[1] : "";
+    String ddrawrapper = parts.length > 2 ? parts[2] : "";
 
     // Extract vegas DLL archive
     // vegas WCPs use CONTENT_TYPE_VEGAS, verName like "vegas-2.7.3"
@@ -2055,8 +2057,22 @@ return true;
         TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "dxwrapper/" + vegasWrapper + ".tzst", windowsDir, onExtractFileListener);
     }
 
-    // Restore original d3d12 (vegas does not include VKD3D)
-    restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+    // Extract VKD3D if part of vegas+vkd3d combo
+    boolean hasVkd3d = vkd3dWrapper != null && !vkd3dWrapper.isEmpty() && !vkd3dWrapper.contains("None");
+    if (hasVkd3d) {
+        Log.d(TAG, "Extracting VKD3D wrapper files for VEGAS combo: " + vkd3dWrapper);
+        ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
+        if (vkd3dProfile != null) {
+            Log.d(TAG, "Applying user-defined VKD3D content profile: " + vkd3dWrapper);
+            contentsManager.applyContent(vkd3dProfile);
+        } else {
+            Log.d(TAG, "Extracting VKD3D .tzst archive: " + vkd3dWrapper);
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "dxwrapper/" + vkd3dWrapper + ".tzst", windowsDir, onExtractFileListener);
+        }
+    } else {
+        // Restore original d3d12 (vanilla vegas does not include VKD3D)
+        restoreOriginalDllFiles(new String[]{"d3d12.dll", "d3d12core.dll"});
+    }
 
     // Extract nglide
     Log.d(TAG, "Extracting nglide wrapper");

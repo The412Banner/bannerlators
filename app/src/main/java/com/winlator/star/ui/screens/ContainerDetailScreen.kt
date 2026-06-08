@@ -175,9 +175,7 @@ fun ContainerDetailScreen(
             onDismiss = { showGraphicsDriverConfig = false }
         )
     }
-    val isVegasWrapper by remember {
-        mutableStateOf(StringUtils.parseIdentifier(viewModel.selectedDXWrapper ?: "").contains("vegas"))
-    }
+    val isVegasWrapper = StringUtils.parseIdentifier(viewModel.selectedDXWrapper ?: "").contains("vegas")
     if (showDxvkConfig) {
         DxvkConfigDialog(
             isArm64EC = viewModel.isArm64EC,
