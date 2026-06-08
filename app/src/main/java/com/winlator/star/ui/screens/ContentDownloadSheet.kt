@@ -287,20 +287,30 @@ private fun installContent(
 ) {
     val activity = context as Activity
     Executors.newSingleThreadExecutor().execute {
-        cm.extraContentFile(uri, object : ContentsManager.OnInstallFinishedCallback {
-            var phase = 0
-            override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
-                activity.runOnUiThread { onDone(false) }
-            }
-            override fun onSucceed(profile: ContentProfile) {
-                if (phase == 0) {
-                    phase = 1
-                    cm.finishInstallContent(profile, this)
-                } else {
-                    cm.syncContents()
-                    activity.runOnUiThread { onDone(true) }
+        try {
+            cm.extraContentFile(uri, object : ContentsManager.OnInstallFinishedCallback {
+                var phase = 0
+                override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                    activity.runOnUiThread { onDone(false) }
                 }
-            }
-        })
+                override fun onSucceed(profile: ContentProfile) {
+                    try {
+                        if (phase == 0) {
+                            phase = 1
+                            cm.finishInstallContent(profile, this)
+                        } else {
+                            cm.syncContents()
+                            activity.runOnUiThread { onDone(true) }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        activity.runOnUiThread { onDone(false) }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
+            activity.runOnUiThread { onDone(false) }
+        }
     }
 }
