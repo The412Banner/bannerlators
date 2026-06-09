@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -587,6 +588,13 @@ private fun ShortcutGridItem(
             .aspectRatio(2f / 3f)
             .clip(RoundedCornerShape(8.dp))
             .background(SurfaceColor)
+            .border(
+                width = 2.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFF6A4FC4), Color(0xFF8B6BE0), Color(0xFFB49BF5)),
+                ),
+                shape = RoundedCornerShape(8.dp),
+            )
             .combinedClickable(onClick = onRun, onLongClick = { menuExpanded = true }),
     ) {
         // Cover image fills the entire tile
