@@ -13,7 +13,7 @@ Windows applications and games on Android.</h1>
 **Informations:**
 - **Package:** `com.winlator.star` (standard), `com.tencent.ig` (pubg), `com.ludashi.benchmark` (ludashi)
 
-- **Version:** `v1.2-REVAMPED` (build identifier `7.1.4x-cmod`, versionCode `20`)
+- **Version:** `v1.3-vegas` (build identifier `7.1.4x-cmod`, versionCode `20`)
 
 - **Android SDK:** `compileSdk 34`, `targetSdk 28`, `minSdk 26` (Android 8.0+)
 
