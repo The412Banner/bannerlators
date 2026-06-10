@@ -57,5 +57,6 @@
     <LinearLayout android:id="@+id/GroupFPS" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
         <TextView android:id="@+id/SepFPS" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="|" android:textColor="#ffffff" android:textSize="18sp" android:layout_marginRight="6dp" android:layout_marginLeft="6dp"/>
         <TextView android:id="@+id/TVFPS" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#4caf50" android:textStyle="bold" android:textSize="18sp"/>
+        <TextView android:id="@+id/TVLatency" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#4fc3f7" android:textStyle="bold" android:textSize="18sp" android:layout_marginLeft="6dp"/>
     </LinearLayout>
 </LinearLayout>

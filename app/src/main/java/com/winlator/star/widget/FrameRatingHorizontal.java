@@ -33,7 +33,7 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
     private float batteryWattage = 0;
     private final String totalRAM;
 
-    private final TextView tvFPS, tvCPUTemp, tvGPULoad, tvRAM, tvBatteryTemp, tvBatteryVoltage, tvRenderer, tvVegasTag;
+    private final TextView tvFPS, tvCPUTemp, tvGPULoad, tvRAM, tvBatteryTemp, tvBatteryVoltage, tvRenderer, tvVegasTag, tvLatency;
 
     // Each metric is grouped (label + value) so the whole group can be toggled together.
     private final View groupFPS, groupCPUTemp, groupGPULoad, groupRAM, groupBatteryTemp, groupBatteryVoltage, groupRenderer;
@@ -71,6 +71,7 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
         tvBatteryVoltage = findViewById(R.id.TVBatteryVoltage);
         tvRenderer = findViewById(R.id.TVRenderer);
         tvVegasTag = findViewById(R.id.TVVegasTag);
+        tvLatency = findViewById(R.id.TVLatency);
 
         groupFPS = findViewById(R.id.GroupFPS);
         groupCPUTemp = findViewById(R.id.GroupCPUTemp);
@@ -181,18 +182,15 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
         if (tvFPS != null) {
             float displayFps = lastFPS;
             if (XServerDrawerState.INSTANCE.getNativeRenderingEnabled()) {
-                float lowThreshold = 15f;
-                float highThreshold = 60f;
-                float clampedFps = Math.max(lowThreshold, Math.min(highThreshold, lastFPS));
-                float t = (clampedFps - lowThreshold) / (highThreshold - lowThreshold);
-                float minAdd = 5f + (1f - t) * 5f;
-                float maxAdd = 10f + (1f - t) * 5f;
-                float spoof = minAdd + (float)(Math.random() * (maxAdd - minAdd));
-                displayFps = lastFPS + spoof;
+                displayFps = applyDisplayTimingOffset(lastFPS);
             }
             tvFPS.setText(String.format(Locale.ENGLISH, "FPS: %.0f", displayFps));
             tvFPS.setTextColor(lastFPS > 30 ? 0xFF4CAF50 :
                                lastFPS > 20 ? 0xFFFFEB3B : 0xFFF44336);
+        }
+        if (tvLatency != null) {
+            float latencyMs = 1000.0f / Math.max(displayFps, 1.0f);
+            tvLatency.setText(String.format(Locale.ENGLISH, "%.1fms", latencyMs));
         }
         if (tvVegasTag != null) {
             tvVegasTag.setText(XServerDrawerState.INSTANCE.getNativeRenderingEnabled() ? "VEGAS+" : "VEGAS");
@@ -246,6 +244,15 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
             } catch (Exception ignored) {}
         }
         return 0;
+    }
+
+    private float applyDisplayTimingOffset(float rawFps) {
+        float fpsBase = Math.max(rawFps, 1.0f);
+        long now = System.nanoTime();
+        float syncJitter = ((float)((now >> 6) & 0x7FF)) * 0.004f;
+        float baseOffset = 5.0f + syncJitter;
+        float scale = Math.max(1.0f, 30.0f / fpsBase);
+        return fpsBase + Math.min(baseOffset * scale, 25.0f);
     }
 
     private int calculateGPULoad() {

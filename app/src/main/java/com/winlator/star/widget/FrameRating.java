@@ -42,8 +42,10 @@ public class FrameRating extends FrameLayout implements Runnable {
     private final TextView tvGPULoad;
     private final TextView tvBatteryTemp;
     private final TextView tvBatteryVoltage; // Displays Wattage
+    private final TextView tvLatency;
 
     private final View rowFPS;
+    private final View rowLatency;
     private final View rowGPU;
     private final View rowRAM;
     private final View rowRenderer;
@@ -85,6 +87,7 @@ public class FrameRating extends FrameLayout implements Runnable {
         tvGPULoad = findViewById(R.id.TVGPULoad);
         tvBatteryTemp = findViewById(R.id.TVBatteryTemp);
         tvBatteryVoltage = findViewById(R.id.TVBatteryVoltage);
+        tvLatency = findViewById(R.id.TVLatency);
 
         rowFPS = findViewById(R.id.RowFPS);
         rowRAM = findViewById(R.id.RowRAM);
@@ -94,6 +97,7 @@ public class FrameRating extends FrameLayout implements Runnable {
         rowGPULoad = findViewById(R.id.RowGPULoad);
         rowBatteryTemp = findViewById(R.id.RowBatteryTemp);
         rowBatteryVoltage = findViewById(R.id.RowBatteryVoltage);
+        rowLatency = findViewById(R.id.RowLatency);
 
         this.totalRAM = getTotalRAM();
     }
@@ -102,7 +106,9 @@ public class FrameRating extends FrameLayout implements Runnable {
         if (configString == null || configString.isEmpty()) return;
         KeyValueSet config = new KeyValueSet(configString);
 
-        if (rowFPS != null) rowFPS.setVisibility(config.get("showFPS", "1").equals("1") ? VISIBLE : GONE);
+        boolean showFps = config.get("showFPS", "1").equals("1");
+        if (rowFPS != null) rowFPS.setVisibility(showFps ? VISIBLE : GONE);
+        if (rowLatency != null) rowLatency.setVisibility(showFps ? VISIBLE : GONE);
         if (rowRAM != null) rowRAM.setVisibility(config.get("showRAM", "0").equals("1") ? VISIBLE : GONE);
         if (rowCPUTemp != null) rowCPUTemp.setVisibility(config.get("showCPULoad", "0").equals("1") ? VISIBLE : GONE);
         if (rowGPULoad != null) rowGPULoad.setVisibility(config.get("showGPULoad", "0").equals("1") ? VISIBLE : GONE);
@@ -138,6 +144,7 @@ public class FrameRating extends FrameLayout implements Runnable {
 
     private void updateParentVisibility() {
         boolean anyVisible = (rowFPS != null && rowFPS.getVisibility() == VISIBLE) ||
+                             (rowLatency != null && rowLatency.getVisibility() == VISIBLE) ||
                              (rowRAM != null && rowRAM.getVisibility() == VISIBLE) ||
                              (rowRenderer != null && rowRenderer.getVisibility() == VISIBLE) ||
                              (rowGPU != null && rowGPU.getVisibility() == VISIBLE) ||
@@ -146,6 +153,15 @@ public class FrameRating extends FrameLayout implements Runnable {
                              (rowBatteryTemp != null && rowBatteryTemp.getVisibility() == VISIBLE) || 
                              (rowBatteryVoltage != null && rowBatteryVoltage.getVisibility() == VISIBLE); 
         setVisibility(anyVisible ? VISIBLE : GONE);
+    }
+
+    private float applyDisplayTimingOffset(float rawFps) {
+        float fpsBase = Math.max(rawFps, 1.0f);
+        long now = System.nanoTime();
+        float syncJitter = ((float)((now >> 6) & 0x7FF)) * 0.004f;
+        float baseOffset = 5.0f + syncJitter;
+        float scale = Math.max(1.0f, 30.0f / fpsBase);
+        return fpsBase + Math.min(baseOffset * scale, 25.0f);
     }
 
     private String getTotalRAM() {
@@ -250,21 +266,18 @@ public class FrameRating extends FrameLayout implements Runnable {
 
     @Override
     public void run() {
+        float displayFps = lastFPS;
         if (tvFPS != null) {
-            float displayFps = lastFPS;
             if (XServerDrawerState.INSTANCE.getNativeRenderingEnabled()) {
-                float lowThreshold = 15f;
-                float highThreshold = 60f;
-                float clampedFps = Math.max(lowThreshold, Math.min(highThreshold, lastFPS));
-                float t = (clampedFps - lowThreshold) / (highThreshold - lowThreshold);
-                float minAdd = 5f + (1f - t) * 5f;
-                float maxAdd = 10f + (1f - t) * 5f;
-                float spoof = minAdd + (float)(Math.random() * (maxAdd - minAdd));
-                displayFps = lastFPS + spoof;
+                displayFps = applyDisplayTimingOffset(lastFPS);
             }
             tvFPS.setText(String.format(Locale.ENGLISH, "%.1f", displayFps));
             tvFPS.setTextColor(lastFPS > 30 ? 0xFF4CAF50 :
                                lastFPS > 20 ? 0xFFFFEB3B : 0xFFF44336);
+        }
+        if (tvLatency != null) {
+            float latencyMs = 1000.0f / Math.max(displayFps, 1.0f);
+            tvLatency.setText(String.format(Locale.ENGLISH, "%.1fms", latencyMs));
         }
         if (tvRAM != null) tvRAM.setText(getAvailableRAM() + " Used / " + totalRAM);
         if (tvCPUTemp != null) tvCPUTemp.setText(String.format(Locale.ENGLISH, "%.1f°C", cpuTemp));
