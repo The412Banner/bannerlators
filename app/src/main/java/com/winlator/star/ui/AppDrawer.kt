@@ -140,7 +140,7 @@ fun AppDrawerContent(
         DrawerItem(Screen.Containers,    currentRoute, onNavigate)
         DrawerItem(Screen.Settings,      currentRoute, onNavigate)
 
-        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(vertical = 6.dp, start = 20.dp, end = 20.dp))
+        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(start = 20.dp, top = 6.dp, end = 20.dp, bottom = 6.dp))
 
         DrawerSection("Tools")
         DrawerItem(Screen.InputControls, currentRoute, onNavigate)
@@ -148,14 +148,14 @@ fun AppDrawerContent(
         DrawerItem(Screen.Saves,         currentRoute, onNavigate)
         DrawerItem(Screen.LsfgSettings,  currentRoute, onNavigate)
 
-        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(vertical = 6.dp, start = 20.dp, end = 20.dp))
+        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(start = 20.dp, top = 6.dp, end = 20.dp, bottom = 6.dp))
 
         DrawerSection("Game Stores")
         Screen.storeItems.forEach { screen ->
             DrawerStoreItem(screen, onLaunchStore)
         }
 
-        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(vertical = 6.dp, start = 20.dp, end = 20.dp))
+        HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(start = 20.dp, top = 6.dp, end = 20.dp, bottom = 6.dp))
 
         DrawerSection("About And Support")
         DrawerIconItem(
