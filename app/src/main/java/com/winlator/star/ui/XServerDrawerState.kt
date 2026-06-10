@@ -56,6 +56,7 @@ object XServerDrawerState {
     val lsfgGpuArch: StateFlow<String> = _lsfgGpuArch
 
     private val _nativeRenderingEnabled = MutableStateFlow(false)
+    @get:JvmName("getNativeRenderingEnabledState")
     val nativeRenderingEnabled: StateFlow<Boolean> = _nativeRenderingEnabled
 
     private val _fpsExpanded = MutableStateFlow(false)
