@@ -36,7 +36,6 @@
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="@string/app_name"
@@ -236,11 +235,11 @@
         <meta-data
             android:name="android.allow_multiple_resumed_activities"
             android:value="true" />
-        <activity android:name="com.winlator.star.store.SteamMainActivity" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
-        <activity android:name="com.winlator.star.store.SteamLoginActivity" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
-        <activity android:name="com.winlator.star.store.SteamGamesActivity" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
-        <activity android:name="com.winlator.star.store.SteamGameDetailActivity" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
-        <activity android:name="com.winlator.star.store.QrLoginActivity" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
+        <activity android:name="com.winlator.star.store.SteamMainActivity" android:exported="false" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
+        <activity android:name="com.winlator.star.store.SteamLoginActivity" android:exported="false" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
+        <activity android:name="com.winlator.star.store.SteamGamesActivity" android:exported="false" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
+        <activity android:name="com.winlator.star.store.SteamGameDetailActivity" android:exported="false" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
+        <activity android:name="com.winlator.star.store.QrLoginActivity" android:exported="false" android:screenOrientation="fullSensor" android:theme="@style/AppTheme"/>
         <service android:name="com.winlator.star.store.SteamForegroundService" android:foregroundServiceType="dataSync" android:exported="false"/>
     </application>
 </manifest>
