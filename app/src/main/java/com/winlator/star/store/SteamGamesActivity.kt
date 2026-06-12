@@ -228,7 +228,7 @@ class SteamGamesActivity : ComponentActivity(), SteamRepository.SteamEventListen
     }
 }
 
-private data class SteamSteamExePickerData(
+private data class SteamExePickerData(
     val gameName: String,
     val candidates: List<String>,
     val coverUrl: String,
