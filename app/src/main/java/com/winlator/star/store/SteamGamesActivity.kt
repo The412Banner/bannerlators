@@ -57,7 +57,7 @@ class SteamGamesActivity : ComponentActivity(), SteamRepository.SteamEventListen
     private var statusText by mutableStateOf("Loading library\u2026")
     private var isLoading by mutableStateOf(true)
     private var showSignOutDialog by mutableStateOf(false)
-    private var showExePicker by mutableStateOf<ExePickerData?>(null)
+    private var showExePicker by mutableStateOf<SteamExePickerData?>(null)
 
     private val imageCache = object : LruCache<Int, Bitmap>(4 * 1024 * 1024) {
         override fun sizeOf(key: Int, value: Bitmap) = value.byteCount
@@ -222,13 +222,13 @@ class SteamGamesActivity : ComponentActivity(), SteamRepository.SteamEventListen
             }
             val candidates = exeFiles.map { it.absolutePath }
             runOnUiThread {
-                showExePicker = ExePickerData(game.name, candidates, coverUrl)
+                showExePicker = SteamExePickerData(game.name, candidates, coverUrl)
             }
         }.start()
     }
 }
 
-private data class ExePickerData(
+private data class SteamSteamExePickerData(
     val gameName: String,
     val candidates: List<String>,
     val coverUrl: String,
