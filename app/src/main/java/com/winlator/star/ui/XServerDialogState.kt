@@ -58,6 +58,14 @@ object XServerDialogState {
     fun interface SgsrUpdateCallback { fun invoke(enabled: Boolean, sharpness: Int, hdr: Boolean) }
     @JvmField var onSgsrUpdate: SgsrUpdateCallback? = null
 
+    // Backward-compatible FSR methods — bridge to SGSR for XServerDisplayActivity.java
+    fun setFsrEnabled(v: Boolean) { _sgsrEnabled.value = v }
+    fun setFsrMode(@Suppress("UNUSED_PARAMETER") v: Int) { }
+    fun setFsrLevel(v: Float) { _sgsrSharpness.value = (v * 100).toInt().coerceIn(0, 100) }
+    fun setFsrVisible(v: Boolean) { _sgsrVisible.value = v }
+    fun interface FsrUpdateCallback { fun invoke(enabled: Boolean, mode: Int, level: Float, hdr: Boolean) }
+    @JvmField var onFsrUpdate: FsrUpdateCallback? = null
+
     // -------------------------------------------------------------------------
     // Vibration dialog
     // -------------------------------------------------------------------------
@@ -288,7 +296,7 @@ object XServerDialogState {
         _tmMemInfo.value       = ""
         _tmCount.value         = 0
         onMagnifierZoom = null; onMagnifierHide = null
-        onSgsrUpdate = null
+        onSgsrUpdate = null; onFsrUpdate = null
         onVibrationSlotChanged = null
         onInputControlsConfirm = null; onInputControlsSettings = null
         onScreenEffectsApply = null; onSeAddProfile = null; onSeRemoveProfile = null
