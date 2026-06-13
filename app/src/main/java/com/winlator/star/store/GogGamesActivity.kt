@@ -146,7 +146,7 @@ class GogGamesActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("bh_gog_prefs", 0)
-        viewMode = prefs.getString(VIEW_MODE_KEY, "list") ?: "list"
+        viewMode = prefs.getString(VIEW_MODE_KEY, "grid") ?: "grid"
 
         setContent {
             WinlatorTheme {

@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -38,9 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +64,7 @@ class SteamGamesActivity : ComponentActivity(), SteamRepository.SteamEventListen
     private var isLoading by mutableStateOf(true)
     private var showSignOutDialog by mutableStateOf(false)
     private var showExePicker by mutableStateOf<SteamExePickerData?>(null)
+    private var viewMode by mutableStateOf("grid")
 
     private val imageCache = object : LruCache<Int, Bitmap>(4 * 1024 * 1024) {
         override fun sizeOf(key: Int, value: Bitmap) = value.byteCount
@@ -75,8 +82,12 @@ class SteamGamesActivity : ComponentActivity(), SteamRepository.SteamEventListen
                     games = games,
                     statusText = statusText,
                     isLoading = isLoading,
+                    viewMode = viewMode,
                     onBack = { finish() },
                     onRefresh = { SteamRepository.getInstance().syncLibrary() },
+                    onViewToggle = {
+                        viewMode = if (viewMode == "list") "grid" else "list"
+                    },
                     onLogout = { showSignOutDialog = true },
                     onGameClick = { game ->
                         startActivity(Intent(this@SteamGamesActivity, SteamGameDetailActivity::class.java)
@@ -239,8 +250,10 @@ private fun SteamGamesScreen(
     games: List<SteamGame>,
     statusText: String,
     isLoading: Boolean,
+    viewMode: String,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
+    onViewToggle: () -> Unit,
     onLogout: () -> Unit,
     onGameClick: (SteamGame) -> Unit,
     onUninstall: (SteamGame) -> Unit,
@@ -262,6 +275,19 @@ private fun SteamGamesScreen(
                 color = Color.White,
                 modifier = Modifier.weight(1f).padding(start = 8.dp),
             )
+            Button(
+                onClick = onViewToggle,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333)),
+                modifier = Modifier.height(40.dp),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Text(
+                    if (viewMode == "grid") "\u2630" else "\u25A6",
+                    color = Color.White, fontSize = 16.sp,
+                )
+            }
+            Spacer(Modifier.width(4.dp))
             Button(
                 onClick = onRefresh,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
@@ -300,14 +326,31 @@ private fun SteamGamesScreen(
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(games, key = { it.appId }) { game ->
-                        GameListItem(
-                            game = game,
-                            onClick = { onGameClick(game) },
-                            onUninstall = { onUninstall(game) },
-                            onLaunch = { onLaunch(game) },
-                        )
+                if (viewMode == "grid") {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(4),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(games, key = { it.appId }) { game ->
+                            GameGridTile(
+                                game = game,
+                                onClick = { onGameClick(game) },
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(games, key = { it.appId }) { game ->
+                            GameListItem(
+                                game = game,
+                                onClick = { onGameClick(game) },
+                                onUninstall = { onUninstall(game) },
+                                onLaunch = { onLaunch(game) },
+                            )
+                        }
                     }
                 }
             }
@@ -442,6 +485,54 @@ private fun GameCoverArt(appId: Int, modifier: Modifier = Modifier) {
                 color = Color(0xFFBB86FC),
                 strokeWidth = 2.dp,
             )
+        }
+    }
+}
+
+@Composable
+private fun GameGridTile(
+    game: SteamGame,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF1A1A2E))
+            .clickable(onClick = onClick),
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(Color(0xFF1E1A2E)),
+                contentAlignment = Alignment.Center,
+            ) {
+                GameCoverArt(
+                    appId = game.appId,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0x44000000), Color(0xEE000000)),
+                        ),
+                    )
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = game.name.ifEmpty { "App ${game.appId}" },
+                    fontSize = 11.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
