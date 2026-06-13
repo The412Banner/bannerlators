@@ -22,22 +22,12 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 tasks.register("downloadImageFS") {
     def assetDir = new File(project.rootDir, ["app","src","main","assets"].join(File.separator))
     File imageFS = new File(assetDir, "imagefs.tar.zst")
-    int parts = 4
+    String imageFSURL = "https://github.com/star-emu/contents/raw/refs/heads/main/imagefs.tar.zst"
 
     doLast {
         if (!imageFS.exists()) {
             println("ImageFS was not present, downloading...\n")
-            FileOutputStream outputStream = new FileOutputStream(imageFS)
-            for (int i = 0; i < parts; i++) {
-                File partFile = new File(assetDir, String.format("imagefs.tar.zst.%02d", i))
-                String partURL = String.format("https://gitlab.com/winlator3/winlator-extra/-/raw/main/imagefs/imagefs.tar.zst.%02d", i)
-                new URL(partURL).withInputStream { p ->
-                    partFile.withOutputStream { it << p }
-                    outputStream << partFile.bytes
-                }
-                partFile.delete()
-            }
-            outputStream.close()
+            new URL(imageFSURL).withInputStream { i -> imageFS.withOutputStream { it << i } }
         }
     }
 }
