@@ -43,7 +43,6 @@ import com.winlator.star.core.FileUtils
 import com.winlator.star.core.GPUInformation
 import com.winlator.star.core.StringUtils
 import com.winlator.star.core.WineThemeManager
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -1245,7 +1244,7 @@ internal fun ExtensionPickerDialog(
             if (extensions.isEmpty()) {
                 Text("No extensions available for this driver.")
             } else {
-                LazyColumn {
+                androidx.compose.foundation.lazy.LazyColumn {
                     items(extensions) { ext ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
