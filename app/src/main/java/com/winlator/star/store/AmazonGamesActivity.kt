@@ -697,12 +697,12 @@ class AmazonGamesActivity : ComponentActivity() {
         private const val CACHE_KEY = "amazon_library_cache"
         private const val VIEW_MODE_KEY = "amazon_view_mode"
 
-        val COLOR_ACCENT = 0xFFFF9900.toInt()
+        val COLOR_ACCENT = 0xFFBB86FC.toInt()
         val COLOR_ADD = 0xFF2E7D32.toInt()
         val COLOR_CANCEL = 0xFFCC3333.toInt()
-        val COLOR_CARD_BG = 0xFF1A1410.toInt()
-        val COLOR_HDR_BG = 0xFF1A1410.toInt()
-        val COLOR_ROOT_BG = 0xFF0D0D0D.toInt()
+        val COLOR_CARD_BG = 0xFF1A1A2E.toInt()
+        val COLOR_HDR_BG = 0xFF0D0D1A.toInt()
+        val COLOR_ROOT_BG = 0xFF000000.toInt()
 
         fun viewModeIcon(mode: String): String = when (mode) {
             "grid" -> "\u25A6"
@@ -837,11 +837,11 @@ private fun AmazonGamesScreen(
                 fontSize = 14.sp,
             ),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF666666),
+                focusedBorderColor = Color(0xFFBB86FC),
                 unfocusedBorderColor = Color(0xFF333333),
-                cursorColor = Color.White,
-                focusedContainerColor = Color(0xFF221A10),
-                unfocusedContainerColor = Color(0xFF221A10),
+                cursorColor = Color(0xFFBB86FC),
+                focusedContainerColor = Color(0xFF1A1A2E),
+                unfocusedContainerColor = Color(0xFF1A1A2E),
             ),
         )
 
@@ -992,7 +992,7 @@ private fun GameCard(
                 contentDescription = null,
                 modifier = Modifier
                     .size(width = 60.dp, height = 60.dp)
-                    .background(Color(0xFF221A10), RoundedCornerShape(4.dp)),
+                    .background(Color(0xFF1A1A2E), RoundedCornerShape(4.dp)),
                 contentScale = ContentScale.Crop,
             )
 
@@ -1204,7 +1204,7 @@ private fun GameGridTile(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF221A10), RoundedCornerShape(5.dp))
+            .background(Color(0xFF1A1A2E), RoundedCornerShape(5.dp))
             .combinedClickable(
                 onClick = onToggleExpansion,
                 onLongClick = onLongPress,

@@ -564,12 +564,12 @@ private fun EpicGamesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0D0D0D)),
+            .background(Color.Black),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0F1117))
+                .background(Color(0xFF1A1A2E))
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -583,7 +583,7 @@ private fun EpicGamesScreen(
                 text = "Epic Games",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0078F0),
+                color = Color(0xFFBB86FC),
                 modifier = Modifier.weight(1f).padding(start = 12.dp),
             )
             Button(
@@ -620,10 +620,10 @@ private fun EpicGamesScreen(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
                 cursorColor = Color.White,
-                focusedContainerColor = Color(0xFF141820),
-                unfocusedContainerColor = Color(0xFF141820),
-                focusedBorderColor = Color(0xFF0078F0),
-                unfocusedBorderColor = Color(0xFF141820),
+                focusedContainerColor = Color(0xFF1A1A2E),
+                unfocusedContainerColor = Color(0xFF1A1A2E),
+                focusedBorderColor = Color(0xFFBB86FC),
+                unfocusedBorderColor = Color(0xFF1A1A2E),
             ),
             textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
         )
@@ -638,7 +638,7 @@ private fun EpicGamesScreen(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF111111))
+                .background(Color(0xFF0D0D1A))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         )
 
@@ -749,7 +749,7 @@ private fun GameListCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1117)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E)),
         shape = RoundedCornerShape(6.dp),
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
@@ -764,7 +764,7 @@ private fun GameListCard(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF141820)),
+                        .background(Color(0xFF1E1A2E)),
                 ) {
                     val imageUrl = if (game.artCover.isNotEmpty()) game.artCover else game.artSquare
                     if (imageUrl.isNotEmpty()) {
@@ -831,7 +831,7 @@ private fun GameListCard(
                     LinearProgressIndicator(
                         progress = { downloadState.progress / 100f },
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp),
-                        color = Color(0xFF0078F0),
+                        color = Color(0xFFBB86FC),
                         trackColor = Color(0xFF2A2A2A),
                     )
                     if (downloadState.status.isNotEmpty()) {
@@ -853,7 +853,7 @@ private fun GameListCard(
                         containerColor = when {
                             downloadState.isActive -> Color(0xFFCC3333)
                             downloadState.installed -> Color(0xFF2E7D32)
-                            else -> Color(0xFF0078F0)
+                            else -> Color(0xFFBB86FC)
                         },
                     ),
                     modifier = Modifier.fillMaxWidth().height(40.dp).padding(top = 8.dp),
@@ -889,7 +889,7 @@ private fun GameGridTile(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(5.dp))
-            .background(Color(0xFF141820))
+            .background(Color(0xFF1E1A2E))
             .clickable {
                 showAction = if (showAction) false else true
             },
@@ -899,7 +899,7 @@ private fun GameGridTile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(artHeightDp.dp)
-                    .background(Color(0xFF0F1117)),
+                    .background(Color(0xFF1A1A2E)),
             ) {
                 val imageUrl = if (game.artCover.isNotEmpty()) game.artCover else game.artSquare
                 if (imageUrl.isNotEmpty()) {
@@ -942,14 +942,14 @@ private fun GameGridTile(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0F1117))
+                    .background(Color(0xFF1A1A2E))
                     .padding(horizontal = 4.dp, vertical = 3.dp),
             ) {
                 if (downloadState.showProgress) {
                     LinearProgressIndicator(
                         progress = { downloadState.progress / 100f },
                         modifier = Modifier.fillMaxWidth().height(3.dp),
-                        color = Color(0xFF0078F0),
+                        color = Color(0xFFBB86FC),
                         trackColor = Color(0xFF2A2A2A),
                     )
                 }
@@ -963,7 +963,7 @@ private fun GameGridTile(
                         containerColor = when {
                             downloadState.isActive -> Color(0xFFCC3333)
                             downloadState.installed -> Color(0xFF2E7D32)
-                            else -> Color(0xFF0078F0)
+                            else -> Color(0xFFBB86FC)
                         },
                     ),
                     modifier = Modifier.fillMaxWidth().height(30.dp).padding(top = 2.dp),

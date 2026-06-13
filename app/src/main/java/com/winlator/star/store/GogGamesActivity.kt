@@ -744,12 +744,12 @@ private fun GogGamesScreen(
     onCancelClick: (GogGame) -> Unit,
     onAddToLauncher: (GogGame) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF0D0D0D))) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF1A1A2E))
+                .background(Color(0xFF0D0D1A))
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -764,7 +764,7 @@ private fun GogGamesScreen(
             Text(
                 "GOG Library",
                 fontSize = 18.sp,
-                color = Color(0xFFFF9800),
+                color = Color(0xFFBB86FC),
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
@@ -822,7 +822,7 @@ private fun GogGamesScreen(
             color = Color(syncTextColor),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF111111))
+                .background(Color(0xFF0D0D1A))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         )
 
@@ -889,7 +889,7 @@ private fun GogGamesScreen(
             if (isSyncing) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center).size(32.dp),
-                    color = Color(0xFFFF9800),
+                    color = Color(0xFFBB86FC),
                     strokeWidth = 3.dp,
                 )
             }
@@ -1023,13 +1023,13 @@ private fun ExpandedSection(
             LinearProgressIndicator(
                 progress = { (downloadState.progress.coerceIn(0, 100)) / 100f },
                 modifier = Modifier.fillMaxWidth().height(6.dp).padding(top = 6.dp),
-                color = Color(0xFFFF9800),
+                color = Color(0xFFBB86FC),
                 trackColor = Color(0xFF2A2A2A),
             )
             Text(
                 "${downloadState.progress}%",
                 fontSize = 12.sp,
-                color = Color(0xFFFF9800),
+                color = Color(0xFFBB86FC),
                 fontWeight = FontWeight.Bold,
             )
             Text(
@@ -1077,7 +1077,7 @@ private fun GameGridTile(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(5.dp))
-            .background(Color(0xFF111122))
+            .background(Color(0xFF1A1A2E))
             .clickable(onClick = onClick),
     ) {
         // Art area
@@ -1086,7 +1086,7 @@ private fun GameGridTile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(artHeightDp.dp)
-                    .background(Color(0xFF0D0D1A)),
+                    .background(Color(0xFF1A1A2E)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (game.imageUrl.isNotEmpty()) {
@@ -1161,7 +1161,7 @@ private fun GameGridTile(
                     LinearProgressIndicator(
                         progress = { (downloadState.progress.coerceIn(0, 100)) / 100f },
                         modifier = Modifier.fillMaxWidth().height(3.dp),
-                        color = Color(0xFFFF9800),
+                        color = Color(0xFFBB86FC),
                         trackColor = Color(0xFF2A2A2A),
                     )
                 }

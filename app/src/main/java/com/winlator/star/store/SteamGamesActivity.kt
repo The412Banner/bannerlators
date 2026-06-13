@@ -246,12 +246,12 @@ private fun SteamGamesScreen(
     onUninstall: (SteamGame) -> Unit,
     onLaunch: (SteamGame) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF1B1B1B))) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Header bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF212121))
+                .background(Color(0xFF1A1A2E))
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -264,7 +264,7 @@ private fun SteamGamesScreen(
             )
             Button(
                 onClick = onRefresh,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4FC3F7)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(4.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -286,7 +286,7 @@ private fun SteamGamesScreen(
             color = Color(0xFFAAAAAA),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF1A1A2E))
+                .background(Color(0xFF0D0D1A))
                 .padding(horizontal = 12.dp, vertical = 5.dp),
         )
 
@@ -333,7 +333,7 @@ private fun GameListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(Color(0xFF252525))
+            .background(Color(0xFF1A1A2E))
             .padding(bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -424,7 +424,7 @@ private fun GameCoverArt(appId: Int, modifier: Modifier = Modifier) {
     }
 
     Box(
-        modifier = modifier.background(Color(0xFF2A2A2A)),
+        modifier = modifier.background(Color(0xFF1E1A2E)),
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null) {

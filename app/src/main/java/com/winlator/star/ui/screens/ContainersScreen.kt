@@ -281,7 +281,7 @@ private fun ContainerItem(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A1A2E).copy(alpha = 0.85f),
+            containerColor = Color.Black,
         ),
         border = BorderStroke(1.dp, Color(0xFF555555)),
     ) {
@@ -319,6 +319,25 @@ private fun ContainerItem(
                     color = OnSurfaceVariant,
                 )
             }
+
+            // Play button (moved before settings)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable(onClick = onRun),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Run",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
 
             // Settings button
             Box {
@@ -359,23 +378,6 @@ private fun ContainerItem(
                         onClick = { menuExpanded = false; onInfo() },
                     )
                 }
-            }
-
-            // Circular play button
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onRun),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Run",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp),
-                )
             }
         }
     }
