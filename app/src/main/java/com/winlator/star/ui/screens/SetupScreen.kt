@@ -142,7 +142,7 @@ fun SetupScreen(
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.headlineMedium.copy(
                         brush = Brush.linearGradient(
-                            colors = listOf(Color(0xFF6A4FC4), Color(0xFF8B6BE0), Color(0xFFB49BF5)),
+                            colors = listOf(Color(0xFF0033AA), Color(0xFF0055FF), Color(0xFF4488FF)),
                         ),
                     ),
                 )
@@ -160,7 +160,7 @@ fun SetupScreen(
             // ── Create starting containers section ──────────────────────
             Button(
                 onClick = { expanded = !expanded },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B6BE0)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
@@ -209,7 +209,7 @@ fun SetupScreen(
                                 checked = checkedOptions[index],
                                 onCheckedChange = { checkedOptions[index] = it },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFF8B6BE0),
+                                    checkedColor = Color(0xFF0055FF),
                                     uncheckedColor = Color(0xFF666666),
                                 ),
                             )
@@ -227,7 +227,7 @@ fun SetupScreen(
                                         Text(
                                             text = "(Recommended)",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF8B6BE0),
+                                            color = Color(0xFF0055FF),
                                         )
                                     }
                                 }
@@ -274,7 +274,7 @@ fun SetupScreen(
                         },
                         enabled = !isCreating && checkedOptions.any { it },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6A4FC4),
+                            containerColor = Color(0xFF0033AA),
                             disabledContainerColor = Color(0xFF333333),
                         ),
                         shape = RoundedCornerShape(8.dp),
@@ -330,7 +330,7 @@ fun SetupScreen(
                 },
                 enabled = containersCreated,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6A4FC4),
+                    containerColor = Color(0xFF0033AA),
                     disabledContainerColor = Color(0xFF333333),
                 ),
                 shape = RoundedCornerShape(10.dp),

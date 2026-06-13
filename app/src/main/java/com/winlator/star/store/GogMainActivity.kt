@@ -100,7 +100,7 @@ private fun GogLoginCard(onLoginClick: () -> Unit) {
             .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("GOG.com", fontSize = 32.sp, color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold)
+        Text("GOG.com", fontSize = 32.sp, color = Color(0xFF0055FF), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Text(
             "Sign in to access your GOG game library",
@@ -110,7 +110,7 @@ private fun GogLoginCard(onLoginClick: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onLoginClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             shape = RoundedCornerShape(8.dp),
         ) { Text("Login with GOG", color = Color.White) }
     }
@@ -129,19 +129,19 @@ private fun GogLoggedInCard(
             .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("GOG.com", fontSize = 32.sp, color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold)
+        Text("GOG.com", fontSize = 32.sp, color = Color(0xFF0055FF), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Text("Signed in as: $username", fontSize = 14.sp, color = Color(0xFFCCCCCC))
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onViewLibrary,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             shape = RoundedCornerShape(8.dp),
         ) { Text("View Game Library", color = Color.White) }
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = onSignOut,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             shape = RoundedCornerShape(8.dp),
         ) { Text("Sign Out", color = Color.White) }
     }

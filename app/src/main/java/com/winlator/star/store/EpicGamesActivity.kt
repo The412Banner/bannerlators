@@ -576,7 +576,7 @@ private fun EpicGamesScreen(
         ) {
             Button(
                 onClick = onBack,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.height(40.dp),
             ) { Text("\u2190", color = Color.White, fontSize = 16.sp) }
@@ -584,12 +584,12 @@ private fun EpicGamesScreen(
                 text = "Epic Games",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 modifier = Modifier.weight(1f).padding(start = 12.dp),
             )
             Button(
                 onClick = onViewToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.height(40.dp),
             ) { Text("\u25A6", color = Color.White, fontSize = 16.sp) }
@@ -597,14 +597,14 @@ private fun EpicGamesScreen(
             Button(
                 onClick = onRefresh,
                 enabled = refreshEnabled,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.height(40.dp),
             ) { Text("\u21ba", color = Color.White, fontSize = 16.sp) }
             Spacer(Modifier.width(4.dp))
             Button(
                 onClick = onFreeGames,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.height(40.dp),
             ) { Text("FREE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
@@ -622,7 +622,7 @@ private fun EpicGamesScreen(
                 cursorColor = Color.White,
                 focusedContainerColor = Color.Black,
                 unfocusedContainerColor = Color.Black,
-                focusedBorderColor = Color(0xFFBB86FC),
+                focusedBorderColor = Color(0xFF0055FF),
                 unfocusedBorderColor = Color(0xFF333333),
             ),
             textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
@@ -634,7 +634,7 @@ private fun EpicGamesScreen(
             color = when {
                 syncText.startsWith("Error") || syncText.startsWith("Not logged in") || syncText.startsWith("No games") -> Color(0xFFFF6B6B)
                 syncText.contains("game") && (syncText.contains("tap") || syncText.contains("cached")) -> Color(0xFF81C784)
-                else -> Color(0xFFBB86FC)
+                else -> Color(0xFF0055FF)
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -831,7 +831,7 @@ private fun GameListCard(
                     LinearProgressIndicator(
                         progress = { downloadState.progress / 100f },
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp),
-                        color = Color(0xFFBB86FC),
+                        color = Color(0xFF0055FF),
                         trackColor = Color(0xFF2A2A2A),
                     )
                     if (downloadState.status.isNotEmpty()) {
@@ -852,8 +852,8 @@ private fun GameListCard(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             downloadState.isActive -> Color(0xFFCC3333)
-                            downloadState.installed -> Color(0xFFBB86FC)
-                            else -> Color(0xFFBB86FC)
+                            downloadState.installed -> Color(0xFF0055FF)
+                            else -> Color(0xFF0055FF)
                         },
                     ),
                     modifier = Modifier.fillMaxWidth().height(40.dp).padding(top = 8.dp),
@@ -890,7 +890,7 @@ private fun GameGridTile(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black)
-            .border(1.dp, Color(0xFFBB86FC).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .clickable {
                 showAction = if (showAction) false else true
             },
@@ -949,7 +949,7 @@ private fun GameGridTile(
                     LinearProgressIndicator(
                         progress = { downloadState.progress / 100f },
                         modifier = Modifier.fillMaxWidth().height(3.dp),
-                        color = Color(0xFFBB86FC),
+                        color = Color(0xFF0055FF),
                         trackColor = Color(0xFF2A2A2A),
                     )
                 }
@@ -962,8 +962,8 @@ private fun GameGridTile(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             downloadState.isActive -> Color(0xFFCC3333)
-                            downloadState.installed -> Color(0xFFBB86FC)
-                            else -> Color(0xFFBB86FC)
+                            downloadState.installed -> Color(0xFF0055FF)
+                            else -> Color(0xFF0055FF)
                         },
                     ),
                     modifier = Modifier.fillMaxWidth().height(32.dp).padding(top = 4.dp),

@@ -193,8 +193,8 @@ private fun DrawerItem(screen: Screen, currentRoute: String, onNavigate: (Screen
             Icon(
                 painter = painterResource(iconFor(screen)),
                 contentDescription = null,
-                tint = if (selected) Color.White else MutedWhite,
-                modifier = Modifier.size(20.dp),
+                tint = Color.Unspecified,
+                modifier = Modifier.size(26.dp),
             )
             Spacer(Modifier.width(14.dp))
             Text(

@@ -281,7 +281,7 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                     .padding(16.dp)
                     .size(56.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .border(1.5.dp, Color(0xFFBB86FC), RoundedCornerShape(12.dp))
+                    .border(1.5.dp, Color(0xFF0055FF), RoundedCornerShape(12.dp))
                     .background(Color.Black)
                     .clickable { showImportContainerPicker = true },
                 contentAlignment = Alignment.Center,
@@ -289,7 +289,7 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = "Add Shortcut",
-                    tint = Color(0xFFBB86FC),
+                    tint = Color(0xFF0055FF),
                     modifier = Modifier.size(28.dp),
                 )
             }
@@ -601,7 +601,7 @@ private fun ShortcutGridItem(
             .border(
                 width = 2.dp,
                 brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF6A4FC4), Color(0xFF8B6BE0), Color(0xFFB49BF5)),
+                    colors = listOf(Color(0xFF0033AA), Color(0xFF0055FF), Color(0xFF4488FF)),
                 ),
                 shape = RoundedCornerShape(8.dp),
             )

@@ -119,7 +119,7 @@ fun ContentDownloadSheet(
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
             Surface(color = Color(0xFF2A2A2A), shape = RoundedCornerShape(12.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    CircularProgressIndicator(color = Color(0xFF8B6BE0))
+                    CircularProgressIndicator(color = Color(0xFF0055FF))
                     Spacer(Modifier.height(16.dp))
                     Text("Installing\u2026", color = Color.White)
                 }

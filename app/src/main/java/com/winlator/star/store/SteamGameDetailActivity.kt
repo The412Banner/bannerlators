@@ -521,7 +521,7 @@ private fun SteamGameDetailScreen(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = Color(0xFFBB86FC),
+                        color = Color(0xFF0055FF),
                         strokeWidth = 3.dp,
                     )
                 }
@@ -558,7 +558,7 @@ private fun SteamGameDetailScreen(
             LinearProgressIndicator(
                 progress = { progressValue / 100f },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 trackColor = Color(0xFF2A2A2A),
             )
         }
@@ -638,7 +638,7 @@ private fun DownloadSpeedPickerDialog(
                         RadioButton(
                             selected = selected == index,
                             onClick = { selected = index },
-                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFBB86FC)),
+                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0055FF)),
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(label, fontSize = 14.sp, color = Color.White, modifier = Modifier.weight(1f))
@@ -648,7 +648,7 @@ private fun DownloadSpeedPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = { onDownload(options[selected].second) }) {
-                Text("Download", color = Color(0xFFBB86FC))
+                Text("Download", color = Color(0xFF0055FF))
             }
         },
         dismissButton = {

@@ -700,8 +700,8 @@ class AmazonGamesActivity : ComponentActivity() {
         private const val CACHE_KEY = "amazon_library_cache"
         private const val VIEW_MODE_KEY = "amazon_view_mode"
 
-        val COLOR_ACCENT = 0xFFBB86FC.toInt()
-        val COLOR_ADD = 0xFFBB86FC.toInt()
+        val COLOR_ACCENT = 0xFF0055FF.toInt()
+        val COLOR_ADD = 0xFF0055FF.toInt()
         val COLOR_CANCEL = 0xFFCC3333.toInt()
         val COLOR_CARD_BG = 0xFF000000.toInt()
         val COLOR_HDR_BG = 0xFF000000.toInt()
@@ -786,7 +786,7 @@ private fun AmazonGamesScreen(
         ) {
             Button(
                 onClick = onBack,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -802,7 +802,7 @@ private fun AmazonGamesScreen(
 
             Button(
                 onClick = onViewModeToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -820,7 +820,7 @@ private fun AmazonGamesScreen(
                 onClick = onRefresh,
                 enabled = refreshEnabled,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (refreshEnabled) Color(0xFFBB86FC) else Color(0xFF555555),
+                    containerColor = if (refreshEnabled) Color(0xFF0055FF) else Color(0xFF555555),
                 ),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
@@ -840,9 +840,9 @@ private fun AmazonGamesScreen(
                 fontSize = 14.sp,
             ),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFBB86FC),
+                focusedBorderColor = Color(0xFF0055FF),
                 unfocusedBorderColor = Color(0xFF333333),
-                cursorColor = Color(0xFFBB86FC),
+                cursorColor = Color(0xFF0055FF),
                 focusedContainerColor = Color.Black,
                 unfocusedContainerColor = Color.Black,
             ),
@@ -1209,7 +1209,7 @@ private fun GameGridTile(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black)
-            .border(1.dp, Color(0xFFBB86FC).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onToggleExpansion,
                 onLongClick = onLongPress,

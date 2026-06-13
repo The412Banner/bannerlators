@@ -655,7 +655,7 @@ private fun GogGameDetailScreen(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = Color(0xFFBB86FC),
+                        color = Color(0xFF0055FF),
                         strokeWidth = 3.dp,
                     )
                 }

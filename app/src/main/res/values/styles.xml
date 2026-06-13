@@ -73,7 +73,25 @@
     <style name="ComboBox.Dark" parent="ComboBox">
         <item name="android:textColor">#ffffff</item>
         <item name="android:background">@drawable/combo_box_dark</item>
-        <item name="android:popupBackground">@drawable/content_dialog_background_dark</item>
+        <item name="android:popupBackground">@drawable/dialog_background_dark_blue</item>
+    </style>
+
+    <style name="ComboBoxLight">
+        <item name="android:layout_width">192dp</item>
+        <item name="android:layout_height">42dp</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:gravity">left|center_vertical</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">36dp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:spinnerMode">dropdown</item>
+        <item name="android:background">@drawable/combo_box</item>
+        <item name="android:popupBackground">@drawable/dialog_background_dark_blue</item>
     </style>
 
     <style name="MultiSelectionComboBox" parent="ComboBox"/>
@@ -182,12 +200,13 @@
     </style>
 
     <style name="ButtonNeutral" parent="BaseButton">
-        <item name="android:background">@drawable/button_neutral</item>
-        <item name="android:textColor">#ffffff</item>
+        <item name="android:background">@drawable/ui_add_button_outline</item>
+        <item name="android:textColor">@color/colorAccent</item>
     </style>
 
     <style name="ButtonNeutral.Dark" parent="BaseButton.Dark">
-        <item name="android:background">@drawable/button_neutral</item>
+        <item name="android:background">@drawable/ui_add_button_outline</item>
+        <item name="android:textColor">@color/colorAccent</item>
     </style>
 
     <style name="ButtonPositive" parent="BaseButton">
@@ -196,7 +215,8 @@
     </style>
 
     <style name="ButtonPositive.Dark" parent="BaseButton.Dark">
-        <item name="android:background">@drawable/button_positive</item>
+        <item name="android:background">@drawable/proton_icon_button_background</item>
+        <item name="android:textColor">#ffffff</item>
     </style>
 
     <!-- Base ImageButton Styles -->
@@ -224,13 +244,13 @@
     <style name="ListMenuButton" parent="BaseImageButton">
         <item name="android:layout_width">34dp</item>
         <item name="android:layout_height">34dp</item>
-        <item name="android:tint">#9e9e9e</item>
+        <item name="android:tint">@color/colorPrimaryDark</item>
         <item name="android:layout_marginLeft">2dp</item>
         <item name="android:layout_marginRight">2dp</item>
     </style>
 
     <style name="ListMenuButton.Dark" parent="ListMenuButton">
-        <item name="android:tint">#9e9e9e</item>
+        <item name="android:tint">@color/colorAccent</item>
     </style>
 
     <!-- Line Styles -->
@@ -277,11 +297,11 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/bordered_panel</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:paddingLeft">8dp</item>
-        <item name="android:paddingRight">8dp</item>
-        <item name="android:paddingBottom">8dp</item>
-        <item name="android:paddingTop">16dp</item>
-        <item name="android:layout_marginTop">10dp</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:paddingTop">18dp</item>
+        <item name="android:layout_marginTop">12dp</item>
     </style>
 
     <style name="FieldSet.Dark" parent="FieldSet">
@@ -291,17 +311,18 @@
     <style name="FieldSetLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/colorAccent</item>
         <item name="android:background">@color/window_background_color</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:paddingLeft">4dp</item>
-        <item name="android:paddingRight">4dp</item>
-        <item name="android:layout_marginLeft">8dp</item>
-        <item name="android:textColor">#bdbdbd</item>
+        <item name="android:paddingLeft">6dp</item>
+        <item name="android:paddingRight">6dp</item>
+        <item name="android:layout_marginLeft">12dp</item>
     </style>
 
     <style name="FieldSetLabel.Dark" parent="FieldSetLabel">
+        <item name="android:textColor">@color/colorAccent</item>
         <item name="android:background">@color/window_background_color_dark</item>
-        <item name="android:textColor">#cccccc</item>
     </style>
 
     <!-- Table Header Styles -->

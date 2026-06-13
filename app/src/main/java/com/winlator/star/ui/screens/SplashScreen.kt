@@ -212,7 +212,7 @@ fun SplashScreen(
                     Spacer(Modifier.height(32.dp))
                     Button(
                         onClick = onProceed,
-                        colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B6BE0)),
+                        colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                         shape   = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -274,7 +274,7 @@ private fun GlowingProgressBar(
     isComplete: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val glowColor = if (isComplete) Color(0xFFD0BBFF) else Color(0xFF8B6BE0)
+    val glowColor = if (isComplete) Color(0xFF4499FF) else Color(0xFF0055FF)
 
     Canvas(modifier = modifier) {
         val barH   = size.height
@@ -307,7 +307,7 @@ private fun GlowingProgressBar(
             // Fill gradient
             drawRoundRect(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF6A4FC4), Color(0xFF8B6BE0), Color(0xFFB49BF5)),
+                    colors = listOf(Color(0xFF0033AA), Color(0xFF0055FF), Color(0xFF4488FF)),
                     endX   = fillW,
                 ),
                 size         = Size(fillW, barH),

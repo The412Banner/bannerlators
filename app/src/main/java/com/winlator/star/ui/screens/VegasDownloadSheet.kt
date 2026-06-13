@@ -109,7 +109,7 @@ fun VegasDownloadSheet(
                 tonalElevation = 8.dp
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                    CircularProgressIndicator(color = Color(0xFF8B6BE0))
+                    CircularProgressIndicator(color = Color(0xFF0055FF))
                     Spacer(Modifier.height(16.dp))
                     Text("Installing VEGAS\u2026", color = Color.White)
                 }

@@ -264,7 +264,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp),
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF8B6BE0))
+                    CircularProgressIndicator(color = Color(0xFF0055FF))
                     Spacer(Modifier.height(16.dp))
                     Text(msg, color = Color.White)
                 }

@@ -15,7 +15,7 @@ object AppThemeState {
     private val _presetIndex = MutableStateFlow(1)
     val presetIndex: StateFlow<Int> = _presetIndex
 
-    private val _customAccent = MutableStateFlow(Color(0xFF8B6BE0))
+    private val _customAccent = MutableStateFlow(Color(0xFF0055FF))
     val customAccent: StateFlow<Color> = _customAccent
 
     private val _isDarkMode = MutableStateFlow(true)
@@ -39,7 +39,7 @@ object AppThemeState {
         themePrefs = context.getSharedPreferences("winlator_theme", Context.MODE_PRIVATE)
 
         _presetIndex.value = themePrefs.getInt("preset_index", 1).coerceIn(0, themePresets.size - 1)
-        val savedAccent = themePrefs.getInt("custom_accent", Color(0xFF8B6BE0).toArgb())
+        val savedAccent = themePrefs.getInt("custom_accent", Color(0xFF0055FF).toArgb())
         _customAccent.value = Color(savedAccent)
         _customBaseIndex.value = themePrefs.getInt("custom_base_index", 1).coerceIn(0, CUSTOM_PRESET_INDEX)
         _isDarkMode.value = true

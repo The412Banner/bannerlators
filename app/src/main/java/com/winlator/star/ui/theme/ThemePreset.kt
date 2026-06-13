@@ -62,7 +62,7 @@ val themePresets: List<ThemePreset> = listOf(
         background    = Color(0xFF1A1A1A),
         surface       = Color(0xFF2A2A2A),
         surfaceVariant= Color(0xFF333333),
-        primary       = Color(0xFF8B6BE0),
+        primary       = Color(0xFF0055FF),
     ),
     ThemePreset(
         name          = "AMOLED",
@@ -113,7 +113,7 @@ val themePresets: List<ThemePreset> = listOf(
         background    = Color(0xFF121212),
         surface       = Color(0xFF1E1E1E),
         surfaceVariant= Color(0xFF2A2A2A),
-        primary       = Color(0xFF8B6BE0),
+        primary       = Color(0xFF0055FF),
     ),
 )
 

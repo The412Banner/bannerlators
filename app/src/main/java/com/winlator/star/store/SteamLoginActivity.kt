@@ -268,7 +268,7 @@ private fun SteamGuardDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFBB86FC),
+                        focusedBorderColor = Color(0xFF0055FF),
                         unfocusedBorderColor = Color(0xFF2A2A2A),
                         cursorColor = Color.White,
                         focusedLabelColor = Color(0xFFAAAAAA),
@@ -285,7 +285,7 @@ private fun SteamGuardDialog(
                     Button(
                         onClick = { onSubmit(code.trim()) },
                         enabled = code.trim().isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                     ) { Text("Submit", color = Color.White) }
                 }
             }
@@ -332,7 +332,7 @@ private fun SteamLoginScreen(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFFBB86FC),
+                focusedBorderColor = Color(0xFF0055FF),
                 unfocusedBorderColor = Color(0xFF2A2A2A),
                 cursorColor = Color.White,
                 focusedLabelColor = Color(0xFFAAAAAA),
@@ -356,7 +356,7 @@ private fun SteamLoginScreen(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFFBB86FC),
+                focusedBorderColor = Color(0xFF0055FF),
                 unfocusedBorderColor = Color(0xFF2A2A2A),
                 cursorColor = Color.White,
                 focusedLabelColor = Color(0xFFAAAAAA),
@@ -369,7 +369,7 @@ private fun SteamLoginScreen(
             onClick = onLoginClick,
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth().height(52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             shape = RoundedCornerShape(8.dp),
         ) { Text("Sign In", color = Color.White) }
         Spacer(Modifier.height(12.dp))
@@ -382,7 +382,7 @@ private fun SteamLoginScreen(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 strokeWidth = 2.dp,
             )
             Spacer(Modifier.height(8.dp))

@@ -108,7 +108,7 @@ private fun AmazonLoginCard(onLoginClick: () -> Unit) {
             .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Amazon Games", fontSize = 32.sp, color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold)
+        Text("Amazon Games", fontSize = 32.sp, color = Color(0xFF0055FF), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Text(
             "Sign in to access your Amazon game library",
@@ -118,7 +118,7 @@ private fun AmazonLoginCard(onLoginClick: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onLoginClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             modifier = Modifier.height(48.dp),
             shape = RoundedCornerShape(8.dp),
         ) { Text("Login with Amazon", color = Color.White) }
@@ -138,20 +138,20 @@ private fun AmazonLoggedInCard(
             .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Amazon Games", fontSize = 32.sp, color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold)
+        Text("Amazon Games", fontSize = 32.sp, color = Color(0xFF0055FF), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Text(statusText, fontSize = 13.sp, color = Color(0xFFCCCCCC))
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onViewLibrary,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             modifier = Modifier.height(48.dp),
             shape = RoundedCornerShape(8.dp),
         ) { Text("View Game Library", color = Color.White) }
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = onSignOut,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             modifier = Modifier.height(48.dp),
             shape = RoundedCornerShape(8.dp),
         ) { Text("Sign Out", color = Color.White) }

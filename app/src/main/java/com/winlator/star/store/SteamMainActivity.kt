@@ -77,6 +77,6 @@ private fun SteamMainContent() {
             .background(Color(0xFF1B1B1B)),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = Color(0xFFBB86FC))
+        CircularProgressIndicator(color = Color(0xFF0055FF))
     }
 }

@@ -269,17 +269,17 @@ private fun SteamGamesScreen(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("\u2190", color = Color(0xFFBB86FC), fontSize = 18.sp) }
+            TextButton(onClick = onBack) { Text("\u2190", color = Color(0xFF0055FF), fontSize = 18.sp) }
             Text(
                 text = "Steam Library",
                 fontSize = 18.sp,
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f).padding(start = 8.dp),
             )
             Button(
                 onClick = onViewToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -292,7 +292,7 @@ private fun SteamGamesScreen(
             Spacer(Modifier.width(4.dp))
             Button(
                 onClick = onRefresh,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -300,7 +300,7 @@ private fun SteamGamesScreen(
             Spacer(Modifier.width(6.dp))
             Button(
                 onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -311,7 +311,7 @@ private fun SteamGamesScreen(
         Text(
             text = statusText,
             fontSize = 12.sp,
-            color = Color(0xFFBB86FC),
+            color = Color(0xFF0055FF),
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.Black)
@@ -360,7 +360,7 @@ private fun SteamGamesScreen(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFBB86FC),
+                    color = Color(0xFF0055FF),
                 )
             }
         }
@@ -436,7 +436,7 @@ private fun GameListItem(
                 Spacer(Modifier.height(3.dp))
                 Button(
                     onClick = onUninstall,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                     modifier = Modifier.fillMaxWidth().height(30.dp),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
@@ -444,7 +444,7 @@ private fun GameListItem(
                 Spacer(Modifier.height(3.dp))
                 Button(
                     onClick = onLaunch,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                     modifier = Modifier.fillMaxWidth().height(30.dp),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
@@ -484,7 +484,7 @@ private fun GameCoverArt(appId: Int, modifier: Modifier = Modifier) {
         } else {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 strokeWidth = 2.dp,
             )
         }
@@ -500,7 +500,7 @@ private fun GameGridTile(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black)
-            .border(1.dp, Color(0xFFBB86FC).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {

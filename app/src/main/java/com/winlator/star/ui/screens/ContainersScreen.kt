@@ -284,7 +284,7 @@ private fun ContainerItem(
         colors = CardDefaults.cardColors(
             containerColor = Color.Black,
         ),
-        border = BorderStroke(1.dp, Color(0xFFBB86FC).copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f)),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

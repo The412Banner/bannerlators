@@ -551,7 +551,7 @@ class GogGamesActivity : ComponentActivity() {
                         status = "Installed",
                         isInstalled = true,
                         buttonText = "Add Game",
-                        buttonColor = 0xFFBB86FC.toInt(),
+                        buttonColor = 0xFF0055FF.toInt(),
                         progressVisible = true,
                     )
                     applyFilter(searchQuery)
@@ -698,7 +698,7 @@ private data class GameDownloadState(
     val status: String = "",
     val progressVisible: Boolean = false,
     val buttonText: String = "Install",
-    val buttonColor: Int = 0xFFBB86FC.toInt(),
+    val buttonColor: Int = 0xFF0055FF.toInt(),
     val isInstalled: Boolean = false,
     val cancelRunnable: Runnable? = null,
 )
@@ -757,7 +757,7 @@ private fun GogGamesScreen(
         ) {
             Button(
                 onClick = onBack,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -766,13 +766,13 @@ private fun GogGamesScreen(
             Text(
                 "GOG Library",
                 fontSize = 18.sp,
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
             Button(
                 onClick = onViewToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -790,7 +790,7 @@ private fun GogGamesScreen(
             Button(
                 onClick = onRefresh,
                 enabled = !isSyncing,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
@@ -809,7 +809,7 @@ private fun GogGamesScreen(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFFBB86FC),
+                focusedBorderColor = Color(0xFF0055FF),
                 unfocusedBorderColor = Color(0xFF333333),
                 cursorColor = Color.White,
                 focusedContainerColor = Color.Black,
@@ -893,7 +893,7 @@ private fun GogGamesScreen(
             if (isSyncing) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center).size(32.dp),
-                    color = Color(0xFFBB86FC),
+                    color = Color(0xFF0055FF),
                     strokeWidth = 3.dp,
                 )
             }
@@ -1026,13 +1026,13 @@ private fun ExpandedSection(
             LinearProgressIndicator(
                 progress = { (downloadState.progress.coerceIn(0, 100)) / 100f },
                 modifier = Modifier.fillMaxWidth().height(6.dp).padding(top = 6.dp),
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 trackColor = Color(0xFF2A2A2A),
             )
             Text(
                 "${downloadState.progress}%",
                 fontSize = 12.sp,
-                color = Color(0xFFBB86FC),
+                color = Color(0xFF0055FF),
                 fontWeight = FontWeight.Bold,
             )
             Text(
@@ -1048,7 +1048,7 @@ private fun ExpandedSection(
         val btnText = downloadState?.buttonText
             ?: if (isInstalled) "Add to Launcher" else "Install"
         val btnColor = downloadState?.buttonColor
-            ?: if (isInstalled) 0xFFBB86FC.toInt() else 0xFFBB86FC.toInt()
+            ?: if (isInstalled) 0xFF0055FF.toInt() else 0xFF0055FF.toInt()
 
         Button(
             onClick = {
@@ -1081,7 +1081,7 @@ private fun GameGridTile(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black)
-            .border(1.dp, Color(0xFFBB86FC).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
         // Art area
@@ -1109,7 +1109,7 @@ private fun GameGridTile(
                         .align(Alignment.TopStart)
                         .padding(start = 4.dp, top = 4.dp)
                         .background(
-                            if (game.generation == 2) Color(0xCCBB86FC) else Color(0xCC9C5CFF),
+                            if (game.generation == 2) Color(0xCC0055FF) else Color(0xCC0044CC),
                             RoundedCornerShape(3.dp),
                         )
                         .padding(horizontal = 4.dp, vertical = 2.dp),
@@ -1152,7 +1152,7 @@ private fun GameGridTile(
             val btnText = downloadState?.buttonText
                 ?: if (isInstalled) "Add to Launcher" else "Install"
             val btnColor = downloadState?.buttonColor
-                ?: 0xFFBB86FC.toInt()
+                ?: 0xFF0055FF.toInt()
 
             Column(
                 modifier = Modifier
@@ -1164,7 +1164,7 @@ private fun GameGridTile(
                     LinearProgressIndicator(
                         progress = { (downloadState.progress.coerceIn(0, 100)) / 100f },
                         modifier = Modifier.fillMaxWidth().height(3.dp),
-                        color = Color(0xFFBB86FC),
+                        color = Color(0xFF0055FF),
                         trackColor = Color(0xFF2A2A2A),
                     )
                 }
@@ -1194,7 +1194,7 @@ private fun GenBadge(generation: Int) {
         color = Color.White,
         modifier = Modifier
             .background(
-                if (generation == 2) Color(0xFFBB86FC) else Color(0xFF9C5CFF),
+                if (generation == 2) Color(0xFF0055FF) else Color(0xFF0044CC),
                 RoundedCornerShape(3.dp),
             )
             .padding(horizontal = 5.dp, vertical = 2.dp),
@@ -1271,7 +1271,7 @@ private fun InstallConfirmDialog(
             TextButton(
                 onClick = onConfirm,
                 enabled = canInstall,
-            ) { Text("Install", color = if (canInstall) Color(0xFFBB86FC) else Color(0xFF666666)) }
+            ) { Text("Install", color = if (canInstall) Color(0xFF0055FF) else Color(0xFF666666)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel", color = Color(0xFFAAAAAA)) }

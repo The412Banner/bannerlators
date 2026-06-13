@@ -253,7 +253,7 @@ private fun QrLoginScreen(
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            color = androidx.compose.ui.graphics.Color(0xFFBB86FC),
+                            color = androidx.compose.ui.graphics.Color(0xFF0055FF),
                             strokeWidth = 3.dp,
                         )
                     }
@@ -265,7 +265,7 @@ private fun QrLoginScreen(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = androidx.compose.ui.graphics.Color(0xFFBB86FC),
+                color = androidx.compose.ui.graphics.Color(0xFF0055FF),
                 strokeWidth = 2.dp,
             )
             Spacer(Modifier.height(8.dp))
@@ -281,7 +281,7 @@ private fun QrLoginScreen(
         if (showRetry) {
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFFBB86FC)),
+                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF0055FF)),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(8.dp),
             ) { Text("Retry", color = androidx.compose.ui.graphics.Color.White) }
