@@ -19,7 +19,6 @@ import com.winlator.star.ui.screens.FileManagerScreen
 import com.winlator.star.ui.screens.FragmentScreen
 import com.winlator.star.ui.screens.SavesScreen
 import com.winlator.star.ui.screens.ShortcutsScreen
-import com.winlator.star.ui.screens.SetupScreen
 import com.winlator.star.ui.screens.LsfgSettingsScreen
 
 @Composable
@@ -65,14 +64,6 @@ fun AppNavGraph(
 
         composable(Screen.Games.route) {
             ShortcutsScreen()
-        }
-
-        composable(Screen.Setup.route) {
-            SetupScreen(
-                onSetupComplete = {
-                    navController.popBackStack()
-                },
-            )
         }
 
         composable(Screen.InputControls.route) {

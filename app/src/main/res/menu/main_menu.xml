@@ -15,6 +15,7 @@
                 <item
                     android:id="@+id/main_menu_settings"
                     android:icon="@drawable/icon_settings"
+                    app:iconTint="@color/colorAccent"
                     android:title="@string/settings" />
             </menu>
         </item>

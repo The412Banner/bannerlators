@@ -174,7 +174,6 @@ class MainActivity : AppCompatActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AppShell(
                         startRoute = startRoute,
-                        needsSetup = !prefs.getBoolean("setup_completed", false),
                         editInputControls = editInputControls,
                         selectedInputProfileId = selectedProfileId,
                         showAllFilesDialog = showAllFilesDialog.value,
@@ -279,7 +278,6 @@ class MainActivity : AppCompatActivity() {
 @Composable
 private fun AppShell(
     startRoute: String,
-    needsSetup: Boolean = false,
     editInputControls: Boolean,
     selectedInputProfileId: Int,
     showAllFilesDialog: Boolean,
@@ -295,14 +293,6 @@ private fun AppShell(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val topBarActionsState = remember { topBarActionsState() }
-
-    // Navigate to Setup on first launch (Setup is pushed on top of Games,
-    // never the startDestination — avoids back-stack corruption).
-    LaunchedEffect(needsSetup) {
-        if (needsSetup) {
-            navController.navigate(Screen.Setup.route) { launchSingleTop = true }
-        }
-    }
 
     val backstackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backstackEntry?.destination?.route ?: startRoute

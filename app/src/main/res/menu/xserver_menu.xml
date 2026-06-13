@@ -31,6 +31,7 @@
             android:title="@string/screen_effect" />
         <item
             android:icon="@drawable/icon_settings"
+            app:iconTint="@color/colorAccent"
             android:id="@+id/main_menu_fsr_control"
             android:title="Graphic Engine"/>
         <item
