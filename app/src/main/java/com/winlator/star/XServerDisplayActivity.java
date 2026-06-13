@@ -89,7 +89,6 @@ import com.winlator.star.renderer.effects.ColorEffect;
 import com.winlator.star.renderer.effects.FXAAEffect;
 import com.winlator.star.renderer.effects.NTSCCombinedEffect;
 import com.winlator.star.renderer.effects.ToonEffect;
-import com.winlator.star.renderer.effects.FSREffect;
 import com.winlator.star.renderer.effects.HDREffect;
 import com.winlator.star.widget.FrameRating;
 import com.winlator.star.widget.FrameRatingHorizontal;
@@ -353,7 +352,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         state.onKeyboard               = () -> AppUtils.showKeyboard(this);
         state.onInputControls          = () -> showInputControlsDialog();
         state.onScreenEffects          = () -> showScreenEffectsDialog();
-        state.onGraphicEngine          = () -> showFsrOverlay();
+        state.onGraphicEngine          = () -> { XServerDrawerState.INSTANCE.selectTab(com.winlator.star.ui.TabType.GRAPHICS); runOnUiThread(() -> drawerLayout.openDrawer(GravityCompat.START)); };
         state.onVibration              = () -> showVibrationDialog();
         state.onLsfgToggle              = () -> {
             boolean current = XServerDrawerState.INSTANCE.getLsfgEnabled();
@@ -1535,22 +1534,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         ds.onInitGraphicsTab = () -> {};
 
-        // FSR state
-        FSREffect fsr = (FSREffect) renderer.getEffectComposer().getEffect(FSREffect.class);
+        // SGSR state
         HDREffect hdr = (HDREffect) renderer.getEffectComposer().getEffect(HDREffect.class);
-        ds.setFsrEnabled(fsr != null);
-        ds.setFsrMode   (fsr != null ? fsr.getMode()  : 0);
-        ds.setFsrLevel  (fsr != null ? fsr.getLevel() : 1.0f);
+        ds.setSgsrEnabled(false);
+        ds.setSgsrSharpness(50);
         ds.setHdrEnabled(hdr != null);
 
-        ds.onFsrUpdate = (enabled, mode, level, hdrEn) -> {
+        ds.onSgsrUpdate = (enabled, sharpness, hdrEn) -> {
             if (renderer == null) return;
-            FSREffect cur = (FSREffect) renderer.getEffectComposer().getEffect(FSREffect.class);
+            com.winlator.star.renderer.effects.FSREffect cur = (com.winlator.star.renderer.effects.FSREffect) renderer.getEffectComposer().getEffect(com.winlator.star.renderer.effects.FSREffect.class);
             if (cur != null) renderer.getEffectComposer().removeEffect(cur);
             if (enabled) {
-                FSREffect newFsr = new FSREffect();
-                newFsr.setLevel(level);
-                newFsr.setMode(mode);
+                com.winlator.star.renderer.effects.FSREffect newFsr = new com.winlator.star.renderer.effects.FSREffect();
+                newFsr.setLevel((float)sharpness / 25.0f + 1.0f);
+                newFsr.setMode(com.winlator.star.renderer.effects.FSREffect.MODE_SUPER_RESOLUTION);
                 renderer.getEffectComposer().addEffect(newFsr);
             }
             HDREffect curHdr = (HDREffect) renderer.getEffectComposer().getEffect(HDREffect.class);
@@ -2594,40 +2591,6 @@ return true;
             newProfiles.add(n.equals(name) ? name + ":" + settings.toString() : p);
         }
         preferences.edit().putStringSet("screen_effect_profiles", newProfiles).apply();
-    }
-
-    private void showFsrOverlay() {
-        GLRenderer r = xServerView != null ? xServerView.getRenderer() : null;
-        XServerDialogState ds = XServerDialogState.INSTANCE;
-
-        FSREffect fsr = r != null ? (FSREffect) r.getEffectComposer().getEffect(FSREffect.class) : null;
-        HDREffect hdr = r != null ? (HDREffect) r.getEffectComposer().getEffect(HDREffect.class) : null;
-
-        ds.setFsrEnabled(fsr != null);
-        ds.setFsrMode   (fsr != null ? fsr.getMode()  : 0);
-        ds.setFsrLevel  (fsr != null ? fsr.getLevel() : 1.0f);
-        ds.setHdrEnabled(hdr != null);
-
-        ds.onFsrUpdate = (enabled, mode, level, hdrEn) -> {
-            if (r == null) return;
-            FSREffect cur = (FSREffect) r.getEffectComposer().getEffect(FSREffect.class);
-            if (cur != null) r.getEffectComposer().removeEffect(cur);
-            if (enabled) {
-                FSREffect newFsr = new FSREffect();
-                newFsr.setLevel(level);
-                newFsr.setMode(mode);
-                r.getEffectComposer().addEffect(newFsr);
-            }
-            HDREffect curHdr = (HDREffect) r.getEffectComposer().getEffect(HDREffect.class);
-            if (curHdr != null) r.getEffectComposer().removeEffect(curHdr);
-            if (hdrEn) {
-                HDREffect newHdr = new HDREffect();
-                newHdr.setStrength(1.0f);
-                r.getEffectComposer().addEffect(newHdr);
-            }
-        };
-
-        ds.setFsrVisible(true);
     }
 
     private void showMagnifierOverlay() {

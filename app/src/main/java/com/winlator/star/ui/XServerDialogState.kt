@@ -36,11 +36,8 @@ object XServerDialogState {
     @JvmField var onMagnifierHide: Runnable? = null
 
     // -------------------------------------------------------------------------
-    // SGSR overlay
+    // SGSR state
     // -------------------------------------------------------------------------
-    private val _sgsrVisible   = MutableStateFlow(false)
-    val sgsrVisible: StateFlow<Boolean> = _sgsrVisible
-
     private val _sgsrEnabled   = MutableStateFlow(false)
     val sgsrEnabled: StateFlow<Boolean> = _sgsrEnabled
 
@@ -50,21 +47,12 @@ object XServerDialogState {
     private val _hdrEnabled    = MutableStateFlow(false)
     val hdrEnabled: StateFlow<Boolean> = _hdrEnabled
 
-    fun setSgsrVisible(v: Boolean)    { _sgsrVisible.value = v }
     fun setSgsrEnabled(v: Boolean)    { _sgsrEnabled.value = v }
     fun setSgsrSharpness(v: Int)      { _sgsrSharpness.value = v }
     fun setHdrEnabled(v: Boolean)     { _hdrEnabled.value = v }
 
     fun interface SgsrUpdateCallback { fun invoke(enabled: Boolean, sharpness: Int, hdr: Boolean) }
     @JvmField var onSgsrUpdate: SgsrUpdateCallback? = null
-
-    // Backward-compatible FSR methods — bridge to SGSR for XServerDisplayActivity.java
-    fun setFsrEnabled(v: Boolean) { _sgsrEnabled.value = v }
-    fun setFsrMode(@Suppress("UNUSED_PARAMETER") v: Int) { }
-    fun setFsrLevel(v: Float) { _sgsrSharpness.value = (v * 100).toInt().coerceIn(0, 100) }
-    fun setFsrVisible(v: Boolean) { _sgsrVisible.value = v }
-    fun interface FsrUpdateCallback { fun invoke(enabled: Boolean, mode: Int, level: Float, hdr: Boolean) }
-    @JvmField var onFsrUpdate: FsrUpdateCallback? = null
 
     // -------------------------------------------------------------------------
     // Vibration dialog
@@ -267,7 +255,6 @@ object XServerDialogState {
         _activeDialog.value    = ActiveDialog.NONE
         _magnifierVisible.value = false
         _magnifierZoom.value   = 1.0f
-        _sgsrVisible.value     = false
         _sgsrEnabled.value     = false
         _sgsrSharpness.value   = 50
         _hdrEnabled.value      = false
@@ -296,7 +283,7 @@ object XServerDialogState {
         _tmMemInfo.value       = ""
         _tmCount.value         = 0
         onMagnifierZoom = null; onMagnifierHide = null
-        onSgsrUpdate = null; onFsrUpdate = null
+        onSgsrUpdate = null
         onVibrationSlotChanged = null
         onInputControlsConfirm = null; onInputControlsSettings = null
         onScreenEffectsApply = null; onSeAddProfile = null; onSeRemoveProfile = null
