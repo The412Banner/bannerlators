@@ -1,23 +1,12 @@
 name: Nightly CI Release Build (different pkg)
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Release tag (e.g. 1.7, 1.8)'
-        required: true
-      release_title:
-        description: 'Release title (e.g. Star 1.7)'
-        required: true
-      release_number:
-        description: 'Release number for APK name (e.g. 1.7)'
-        required: true
-
-permissions:
-  contents: write
 
 concurrency:
-  group: release-differentpkg-${{ github.event.inputs.release_tag }}
+  group: release-differentpkg
   cancel-in-progress: false
 
 jobs:
@@ -167,7 +156,7 @@ jobs:
     - name: Rename APK
       run: |
         SRC='${{ matrix.flavor.apkPath }}'
-        DEST="$(dirname "$SRC")/${{ matrix.flavor.apkLabel }}-${{ github.event.inputs.release_number }}.apk"
+        DEST="$(dirname "$SRC")/${{ matrix.flavor.apkLabel }}-${{ env.VERSION }}-${{ env.BUILD_DATE }}-${{ env.SHORT_SHA }}.apk"
         mv "$SRC" "$DEST"
         echo "RELEASE_APK=$DEST" >> $GITHUB_ENV
 
@@ -178,53 +167,3 @@ jobs:
         path: ${{ env.RELEASE_APK }}
         if-no-files-found: error
         retention-days: 7
-
-  # Single release job: runs only after every flavor build succeeds, then
-  # creates/updates the release ONCE with all APKs attached. This avoids the
-  # matrix race where parallel jobs hit action-gh-release on the same tag
-  # simultaneously and one loses with a 422 "must have a valid tag".
-  release:
-    needs: build
-    runs-on: ubuntu-22.04
-    steps:
-    - name: Clone repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 20
-
-    - name: Download all APK artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: dist
-        pattern: apk-*
-        merge-multiple: true
-
-    - name: Generate changelog table
-      run: |
-        {
-          echo "## Changelog"
-          echo ""
-          echo "| Commit | Title |"
-          echo "|--------|--------|"
-          git log -n 10 --pretty=format:"| \`%h\` | %s |"
-        } > changelog.md
-
-        {
-          echo "CHANGELOG<<__CHANGELOG_EOF__"
-          cat changelog.md
-          echo ""
-          echo "__CHANGELOG_EOF__"
-        } >> "$GITHUB_ENV"
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.event.inputs.release_tag }}
-        name: ${{ github.event.inputs.release_title }}
-        body: |
-          <img src="https://github.com/jacojayy/star/blob/main/20260418_134945.png" width="1500" height="500" alt="star" />
-          </p>
-
-          ${{ env.CHANGELOG }}
-        files: dist/*.apk
-        prerelease: true
