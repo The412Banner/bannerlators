@@ -57,11 +57,11 @@ import androidx.compose.ui.unit.sp
 import com.winlator.star.R
 
 private val PureBlack = Color(0xFF000000)
-private val DarkSurface = Color(0xFF0D0D0D)
-private val DimWhite = Color(0xFFE8E8E8)
+private val DarkSurface = Color(0xFF000000)
+private val DimWhite = Color(0xFFEEEEEE)
 private val MutedWhite = Color(0xFF999999)
-private val GlowPurple = Color(0xFFBB86FC)
-private val PrimaryDim = Color(0xFF482880)
+private val GlowBlue = Color(0xFF0055FF)
+private val PrimaryDim = Color(0xFF002277)
 
 private fun iconFor(screen: Screen): ImageVector = when (screen) {
     Screen.Containers    -> Icons.Filled.FolderOpen
@@ -155,7 +155,7 @@ private fun DrawerSection(title: String) {
                 .fillMaxWidth(0.3f)
                 .height(2.dp)
                 .background(
-                    Brush.horizontalGradient(listOf(GlowPurple, GlowPurple.copy(alpha = 0.1f))),
+                    Brush.horizontalGradient(listOf(GlowBlue, GlowBlue.copy(alpha = 0.1f))),
                     RoundedCornerShape(1.dp)
                 )
         )
@@ -166,10 +166,10 @@ private fun DrawerSection(title: String) {
 private fun DrawerItem(screen: Screen, currentRoute: String, onNavigate: (Screen) -> Unit) {
     val selected = currentRoute == screen.route
     val bgBrush = if (selected)
-        Brush.verticalGradient(listOf(PrimaryDim, GlowPurple.copy(alpha = 0.3f)))
+        Brush.verticalGradient(listOf(PrimaryDim, GlowBlue.copy(alpha = 0.3f)))
     else
         Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
-    val borderColor = if (selected) GlowPurple.copy(alpha = 0.6f) else Color.Transparent
+    val borderColor = if (selected) GlowBlue.copy(alpha = 0.6f) else Color.Transparent
     val contentColor = if (selected) Color.White else DimWhite
 
     Box(
@@ -185,7 +185,7 @@ private fun DrawerItem(screen: Screen, currentRoute: String, onNavigate: (Screen
             Canvas(Modifier.matchParentSize()) {
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(GlowPurple.copy(alpha = 0.15f), Color.Transparent),
+                        colors = listOf(GlowBlue.copy(alpha = 0.15f), Color.Transparent),
                         radius = size.minDimension / 2f
                     ),
                     radius = size.minDimension / 2f
@@ -301,13 +301,13 @@ private fun SupportLink(label: String, url: String, onOpenUrl: (String) -> Unit)
         Icon(
             imageVector = Icons.Filled.OpenInNew,
             contentDescription = null,
-            tint = GlowPurple,
+            tint = GlowBlue,
             modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = label,
-            color = GlowPurple,
+            color = GlowBlue,
             style = MaterialTheme.typography.bodyMedium
         )
     }

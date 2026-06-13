@@ -67,9 +67,11 @@ val themePresets: List<ThemePreset> = listOf(
     ThemePreset(
         name          = "AMOLED",
         background    = Color(0xFF000000),
-        surface       = Color(0xFF0D0D0D),
-        surfaceVariant= Color(0xFF181818),
-        primary       = Color(0xFFBB86FC),
+        surface       = Color(0xFF000000),
+        surfaceVariant= Color(0xFF050505),
+        primary       = Color(0xFF0055FF),
+        onSurface     = Color(0xFFEEEEEE),
+        divider       = Color(0xFF111111),
     ),
     ThemePreset(
         name          = "Ocean",
