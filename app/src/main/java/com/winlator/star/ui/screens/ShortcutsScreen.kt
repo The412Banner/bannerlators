@@ -275,14 +275,24 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                     }
                 }
             }
-        }
-        Button(
-            onClick = { showImportContainerPicker = true },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Add Shortcut")
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.5.dp, Color(0xFFBB86FC), RoundedCornerShape(12.dp))
+                    .background(Color.Black)
+                    .clickable { showImportContainerPicker = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Add Shortcut",
+                    tint = Color(0xFFBB86FC),
+                    modifier = Modifier.size(28.dp),
+                )
+            }
         }
     }
 

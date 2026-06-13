@@ -114,7 +114,6 @@ fun AppDrawerContent(
         DrawerSection("Tools")
         DrawerItem(Screen.InputControls, currentRoute, onNavigate)
         DrawerItem(Screen.AdrenoTools,   currentRoute, onNavigate)
-        DrawerItem(Screen.Saves,         currentRoute, onNavigate)
         DrawerItem(Screen.LsfgSettings,  currentRoute, onNavigate)
 
         HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(start = 20.dp, top = 6.dp, end = 20.dp, bottom = 6.dp))
