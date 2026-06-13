@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -331,9 +330,10 @@ private fun ContainerItem(
                     .clickable(onClick = onRun),
                 contentAlignment = Alignment.Center,
             ) {
-                Image(
+                Icon(
                     painter = painterResource(R.drawable.icon_popup_menu_run),
                     contentDescription = "Run",
+                    tint = Color.White,
                     modifier = Modifier.size(26.dp),
                 )
             }
