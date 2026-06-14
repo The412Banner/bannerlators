@@ -1343,6 +1343,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
 
+        String savedVisualStyle = preferences.getString("input_visual_style", VisualStyle.GAMEHUB.name());
+        inputControlsView.setVisualStyle(VisualStyle.fromPreference(savedVisualStyle));
+
 
         startTouchscreenTimeout();
 

@@ -152,6 +152,7 @@ public class InputControlsView extends View {
 
     public void setVisualStyle(VisualStyle style) {
         visualStyle = style != null ? style : VisualStyle.GAMEHUB;
+        invalidate();
     }
 
     public int getSnappingSize() {
