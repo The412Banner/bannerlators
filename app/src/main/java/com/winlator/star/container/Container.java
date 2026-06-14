@@ -76,7 +76,7 @@ public class Container {
     private String controllerMapping = new String(new char[XrControllerMapping.values().length]);
     private String box64Version;
     private String emulator;
-    private String renderer = "opengl";
+    private String renderer = "vulkan";
     private boolean exclusiveXInput = true;
     private ContainerManager containerManager;
 
