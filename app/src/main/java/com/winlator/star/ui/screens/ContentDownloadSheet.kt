@@ -59,8 +59,9 @@ fun ContentDownloadSheet(
     var installing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var isLoadingRemote by remember { mutableStateOf(true) }
+    var refreshKey by remember { mutableStateOf(0) }
 
-    LaunchedEffect(contentTypes) {
+    LaunchedEffect(contentTypes, refreshKey) {
         val json = withContext(Dispatchers.IO) {
             Downloader.downloadString(ContentsManager.REMOTE_PROFILES)
         }
@@ -180,10 +181,11 @@ fun ContentDownloadSheet(
                                             if (uri != null) {
                                                 installing = true
                                                 installContent(context, cm, uri) { ok ->
-                                                    installing = false
-                                                    if (ok) {
-                                                        loadProfiles(cm, contentTypes) { profiles = it }
-                                                        onContentChanged()
+                                                installing = false
+                                                if (ok) {
+                                                    loadProfiles(cm, contentTypes) { profiles = it }
+                                                    refreshKey++
+                                                    onContentChanged()
                                                     } else {
                                                         errorMsg = "Install failed."
                                                     }

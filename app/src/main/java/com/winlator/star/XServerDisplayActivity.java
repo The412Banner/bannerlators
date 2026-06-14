@@ -1402,7 +1402,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             String rendererMode = container != null && "vulkan".equals(container.getRenderer()) ? "Vulkan" : "OpenGL";
             String dxName = dxwrapper.contains("dxvk") ? "DXVK" : dxwrapper.contains("vegas") ? "VEGAS" : "WineD3D";
-            String hudRenderer = dxName + " (" + rendererMode + ")";
+            String hudRenderer = rendererMode + " | " + dxName;
             if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(hudRenderer);
             if (frameRating != null) frameRating.setRenderer(hudRenderer);
         }
