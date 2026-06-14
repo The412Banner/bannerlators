@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 package com.winlator.star.ui.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.view.ContextThemeWrapper
@@ -36,6 +37,7 @@ import com.winlator.star.R
 import com.winlator.star.contentdialog.DXVKConfigDialog
 import com.winlator.star.contentdialog.WineD3DConfigDialog
 import com.winlator.star.contents.AdrenotoolsManager
+import com.winlator.star.contents.ContentProfile
 import com.winlator.star.contents.ContentsManager
 import com.winlator.star.core.AppUtils
 import com.winlator.star.core.DefaultVersion
@@ -44,9 +46,12 @@ import com.winlator.star.core.GPUInformation
 import com.winlator.star.core.StringUtils
 import com.winlator.star.core.WineThemeManager
 import androidx.compose.foundation.lazy.items
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.util.concurrent.Executors
 import com.winlator.star.container.Container
 import com.winlator.star.widget.ColorPickerView
 import com.winlator.star.widget.CPUListView
@@ -309,15 +314,10 @@ private fun TopLevelFields(
                 onSelect = { viewModel.onWineVersionChanged(it) },
                 modifier = Modifier.weight(1f)
             )
-            OutlinedButton(
-                onClick = onShowWineDownloadSheet,
-                modifier = Modifier.size(40.dp),
-                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                contentPadding = PaddingValues(0.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Settings, contentDescription = "Download", tint = MaterialTheme.colorScheme.primary)
-            }
+            ContentInstallGear(
+                onDownloadFile = onShowWineDownloadSheet,
+                onContentInstalled = { viewModel.refreshWineVersions() }
+            )
         }
         Spacer(Modifier.height(8.dp))
 
@@ -719,15 +719,10 @@ private fun AdvancedTab(
                     onSelect = { viewModel.selectedBox64Version = it },
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedButton(
-                    onClick = onShowBox64DownloadSheet,
-                    modifier = Modifier.size(40.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                    contentPadding = PaddingValues(0.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Download", tint = MaterialTheme.colorScheme.primary)
-                }
+                ContentInstallGear(
+                    onDownloadFile = onShowBox64DownloadSheet,
+                    onContentInstalled = { viewModel.refreshBox64Versions() }
+                )
             }
             Spacer(Modifier.height(8.dp))
             LabeledDropdown(
@@ -749,15 +744,10 @@ private fun AdvancedTab(
                         onSelect = { viewModel.selectedFEXCoreVersion = it },
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedButton(
-                        onClick = onShowFexCoreDownloadSheet,
-                        modifier = Modifier.size(40.dp),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                        contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Download", tint = MaterialTheme.colorScheme.primary)
-                    }
+                    ContentInstallGear(
+                        onDownloadFile = onShowFexCoreDownloadSheet,
+                        onContentInstalled = { viewModel.refreshFEXCoreVersions() }
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledDropdown(
@@ -1288,6 +1278,7 @@ internal fun DxvkConfigDialog(
     onDownloadVkd3d: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val config = remember(initialConfig) { DXVKConfigDialog.parseConfig(initialConfig) }
 
     val allDxvkVersions = remember { mutableStateOf(listOf<String>()) }
@@ -1349,15 +1340,17 @@ internal fun DxvkConfigDialog(
                         stringResource(R.string.vkd3d_version), vkd3dVersions.value, selectedVkd3d, { selectedVkd3d = it },
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedButton(
-                        onClick = onDownloadVkd3d,
-                        modifier = Modifier.size(40.dp),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                        contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Download VKD3D", tint = MaterialTheme.colorScheme.primary)
-                    }
+                    ContentInstallGear(
+                        onDownloadFile = onDownloadVkd3d,
+                        onContentInstalled = {
+                            scope.launch(Dispatchers.IO) {
+                                val cm2 = ContentsManager(context)
+                                cm2.syncContents()
+                                val vkd3d = DXVKConfigDialog.loadVkd3dVersionList(context, cm2)
+                                withContext(Dispatchers.Main) { vkd3dVersions.value = vkd3d }
+                            }
+                        }
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1366,15 +1359,17 @@ internal fun DxvkConfigDialog(
                         allDxvkVersions.value, selectedDxvk, { selectedDxvk = it },
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedButton(
-                        onClick = onDownloadDxvk,
-                        modifier = Modifier.size(40.dp),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                        contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Download DXVK", tint = MaterialTheme.colorScheme.primary)
-                    }
+                    ContentInstallGear(
+                        onDownloadFile = onDownloadDxvk,
+                        onContentInstalled = {
+                            scope.launch(Dispatchers.IO) {
+                                val cm2 = ContentsManager(context)
+                                cm2.syncContents()
+                                val versions = DXVKConfigDialog.loadDxvkVersionList(context, cm2, isArm64EC)
+                                withContext(Dispatchers.Main) { allDxvkVersions.value = versions }
+                            }
+                        }
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 if (dxvkType != DXVKConfigDialog.DXVK_TYPE_NONE) {
@@ -1569,6 +1564,110 @@ internal fun FpsCounterConfigDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } }
     )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inline install helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+private fun installContentFromUri(activity: Activity, uri: Uri, onSuccess: () -> Unit) {
+    val cm = ContentsManager(activity)
+    Executors.newSingleThreadExecutor().execute {
+        try {
+            cm.extraContentFile(uri, object : ContentsManager.OnInstallFinishedCallback {
+                var phase = 0
+                override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
+                    activity.runOnUiThread {
+                        Toast.makeText(activity, "Install failed: $reason", Toast.LENGTH_LONG).show()
+                    }
+                }
+                override fun onSucceed(profile: ContentProfile) {
+                    try {
+                        if (phase == 0) {
+                            phase = 1
+                            cm.finishInstallContent(profile, this)
+                        } else {
+                            cm.syncContents()
+                            activity.runOnUiThread { onSuccess() }
+                        }
+                    } catch (e: Exception) {
+                        activity.runOnUiThread {
+                            Toast.makeText(activity, "Install error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            activity.runOnUiThread {
+                Toast.makeText(activity, "Install error: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContentInstallGear(
+    onDownloadFile: () -> Unit,
+    onContentInstalled: () -> Unit,
+) {
+    val context = LocalContext.current
+    var showDropdown by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf(false) }
+
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        result.data?.data?.let { uri ->
+            installing = true
+            installContentFromUri(context as Activity, uri) {
+                installing = false
+                onContentInstalled()
+            }
+        }
+    }
+
+    Box {
+        OutlinedButton(
+            onClick = { showDropdown = true },
+            modifier = Modifier.size(40.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+            contentPadding = PaddingValues(0.dp),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Icon(Icons.Default.Settings, contentDescription = "Install", tint = MaterialTheme.colorScheme.primary)
+        }
+
+        DropdownMenu(
+            expanded = showDropdown,
+            onDismissRequest = { showDropdown = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Open File") },
+                onClick = {
+                    showDropdown = false
+                    filePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "*/*"
+                    })
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Download File") },
+                onClick = {
+                    showDropdown = false
+                    onDownloadFile()
+                }
+            )
+        }
+    }
+
+    if (installing) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = Color(0xFF2A2A2A),
+            title = { Text("Installing", color = Color.White) },
+            text = { Text("Please wait...", color = Color(0xFFCCCCCC)) },
+            confirmButton = {},
+        )
+    }
 }
 
 
