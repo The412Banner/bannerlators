@@ -355,11 +355,10 @@ public class ControlElement {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
         int primaryColor = inputControlsView.getPrimaryColor();
-        int secondaryColor = inputControlsView.getSecondaryColor();
         int overlayAlpha = Color.alpha(primaryColor);
         int blackFill = Color.argb(overlayAlpha, 0, 0, 0);
 
-        paint.setColor(selected ? secondaryColor : primaryColor);
+        paint.setColor(selected ? 0xff0277bd : primaryColor);
         paint.setStyle(Paint.Style.STROKE);
         float strokeWidth = snappingSize * 0.25f;
         paint.setStrokeWidth(strokeWidth);
@@ -375,7 +374,7 @@ public class ControlElement {
                 int oldColor = paint.getColor();
                 Shape effectiveShape = isShoulderButton ? Shape.ROUND_RECT : shape;
                 boolean pressed = states[0];
-                int activeColor = pressed ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor;
+                int activeColor = pressed ? 0xff64ddff : 0xff0277bd;
 
                 if (isL3R3) {
                     // Render L3/R3 like joystick circles
@@ -462,10 +461,10 @@ public class ControlElement {
                 path.reset();
 
                 // 4 separate rounded rectangle buttons with arrows
-                float btnSize = snappingSize * 2.5f * scale;
-                float gap = snappingSize * 0.8f * scale;
-                float arrowSize = snappingSize * 0.6f * scale;
-                float arrowStem = snappingSize * 1.2f * scale;
+                float btnSize = snappingSize * 3.5f * scale;
+                float gap = snappingSize * 0.75f * scale;
+                float arrowSize = snappingSize * 0.7f * scale;
+                float arrowStem = snappingSize * 1.6f * scale;
                 float btnRadius = snappingSize * 0.5f * scale;
 
                 // Draw each directional button: up, down, left, right
@@ -481,12 +480,12 @@ public class ControlElement {
                 canvas.drawRoundRect(upCx - btnSize * 0.5f, upCy - btnSize * 0.5f, upCx + btnSize * 0.5f, upCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 // stroke
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[0] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[0] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawRoundRect(upCx - btnSize * 0.5f, upCy - btnSize * 0.5f, upCx + btnSize * 0.5f, upCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 // up arrow
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[0] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[0] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth * 1.2f);
                 path.moveTo(upCx, upCy - arrowStem);
                 path.lineTo(upCx - arrowSize, upCy - arrowStem + arrowSize);
@@ -502,11 +501,11 @@ public class ControlElement {
                 paint.setColor(blackFill);
                 canvas.drawRoundRect(downCx - btnSize * 0.5f, downCy - btnSize * 0.5f, downCx + btnSize * 0.5f, downCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[2] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[2] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawRoundRect(downCx - btnSize * 0.5f, downCy - btnSize * 0.5f, downCx + btnSize * 0.5f, downCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[2] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[2] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth * 1.2f);
                 path.moveTo(downCx, downCy + arrowStem);
                 path.lineTo(downCx - arrowSize, downCy + arrowStem - arrowSize);
@@ -522,11 +521,11 @@ public class ControlElement {
                 paint.setColor(blackFill);
                 canvas.drawRoundRect(leftCx - btnSize * 0.5f, leftCy - btnSize * 0.5f, leftCx + btnSize * 0.5f, leftCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[3] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[3] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawRoundRect(leftCx - btnSize * 0.5f, leftCy - btnSize * 0.5f, leftCx + btnSize * 0.5f, leftCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[3] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[3] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth * 1.2f);
                 path.moveTo(leftCx - arrowStem, leftCy);
                 path.lineTo(leftCx - arrowStem + arrowSize, leftCy - arrowSize);
@@ -542,11 +541,11 @@ public class ControlElement {
                 paint.setColor(blackFill);
                 canvas.drawRoundRect(rightCx - btnSize * 0.5f, rightCy - btnSize * 0.5f, rightCx + btnSize * 0.5f, rightCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[1] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[1] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawRoundRect(rightCx - btnSize * 0.5f, rightCy - btnSize * 0.5f, rightCx + btnSize * 0.5f, rightCy + btnSize * 0.5f, btnRadius, btnRadius, paint);
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(states[1] ? Color.argb(overlayAlpha, 100, 200, 255) : secondaryColor);
+                paint.setColor(states[1] ? 0xff64ddff : 0xff0277bd);
                 paint.setStrokeWidth(strokeWidth * 1.2f);
                 path.moveTo(rightCx + arrowStem, rightCy);
                 path.lineTo(rightCx + arrowStem - arrowSize, rightCy - arrowSize);
@@ -555,9 +554,9 @@ public class ControlElement {
                 canvas.drawPath(path, paint);
 
                 // Rounded center square
-                float centerSize = snappingSize * 0.5f * scale;
+                float centerSize = snappingSize * 1.2f * scale;
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(secondaryColor);
+                paint.setColor(0xff0277bd);
                 canvas.drawRoundRect(cx - centerSize, cy - centerSize, cx + centerSize, cy + centerSize, centerSize * 0.3f, centerSize * 0.3f, paint);
 
                 paint.setColor(oldColor);
@@ -654,7 +653,7 @@ public class ControlElement {
 
                 // Outer circle - light blue stroke
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(secondaryColor);
+                paint.setColor(0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawCircle(cx, cy, outerRadius, paint);
 
@@ -670,7 +669,7 @@ public class ControlElement {
 
                 // Thumb - light blue stroke
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(secondaryColor);
+                paint.setColor(0xff0277bd);
                 paint.setStrokeWidth(strokeWidth);
                 canvas.drawCircle(thumbstickX, thumbstickY, thumbRadius + strokeWidth * 0.5f, paint);
 
@@ -752,6 +751,7 @@ public class ControlElement {
         if (currentPointerId == -1 && containsPoint(x, y)) {
             currentPointerId = pointerId;
             if (type == Type.BUTTON) {
+                states[0] = true;
                 if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
                 if (!toggleSwitch || !selected) {
                     inputControlsView.handleInputEvent(getBindingAt(0), true);
@@ -934,6 +934,7 @@ public class ControlElement {
     public boolean handleTouchUp(int pointerId) {
         if (pointerId == currentPointerId) {
             if (type == Type.BUTTON) {
+                states[0] = false;
                 if (isKeepButtonPressedAfterMinTime() && touchTime != null) {
                     selected = (System.currentTimeMillis() - (long)touchTime) > BUTTON_MIN_TIME_TO_KEEP_PRESSED;
                     if (!selected) {
