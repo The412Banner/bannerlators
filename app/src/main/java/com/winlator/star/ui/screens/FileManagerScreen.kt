@@ -99,7 +99,7 @@ fun FileManagerScreen() {
     val scope = rememberCoroutineScope()
 
     val containerManager = mainActivity?.containerManager
-    val containers = remember { containerManager?.containerList?.toList() ?: emptyList<Container>() }
+    val containers = remember { containerManager?.getContainers()?.toList() ?: emptyList<Container>() }
 
     val rootDir = File("/storage/emulated/0")
     val winlatorDir = File("/storage/emulated/0/Winlator")
