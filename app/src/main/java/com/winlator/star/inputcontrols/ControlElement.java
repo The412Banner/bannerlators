@@ -767,7 +767,7 @@ public class ControlElement {
                     GameHubLayout.buildTriggerPath(
                             path, triggerShape,
                             boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom);
-                    paint.setShadowLayer(snappingSize * 0.08f, 0, snappingSize * 0.04f, 0x40001C85FE);
+                    paint.setShadowLayer(snappingSize * 0.08f, 0, snappingSize * 0.04f, 0x401C85FE);
                     paint.setStyle(Paint.Style.FILL);
                     paint.setColor(fillColor);
                     canvas.drawPath(path, paint);
@@ -783,7 +783,7 @@ public class ControlElement {
                     paint.setColor(engaged ? pressedStrokeColor : strokeColor);
                     canvas.drawPath(path, paint);
                 } else {
-                    paint.setShadowLayer(snappingSize * 0.08f, 0, snappingSize * 0.04f, 0x40001C85FE);
+                    paint.setShadowLayer(snappingSize * 0.08f, 0, snappingSize * 0.04f, 0x401C85FE);
                     drawGameHubShape(canvas, paint, boundingBox, fillColor, true);
                     paint.setShadowLayer(0f, 0f, 0f, 0);
                     if (engaged) drawGameHubShape(canvas, paint, boundingBox, pressedFillColor, true);
