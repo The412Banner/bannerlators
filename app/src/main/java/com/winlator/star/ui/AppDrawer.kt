@@ -151,40 +151,46 @@ private fun StorageWidget() {
         } catch (_: Exception) {}
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF1A1A1A))
+            .border(1.dp, GlowBlue, RoundedCornerShape(10.dp))
+            .padding(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Storage",
-                color = DimWhite,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (totalBytes > 0) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "${formatBytes(usedBytes)} / ${formatBytes(totalBytes)}",
-                    color = MutedWhite,
-                    fontSize = 11.sp,
+                    text = "Storage",
+                    color = DimWhite,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
+                if (totalBytes > 0) {
+                    Text(
+                        text = "${formatBytes(usedBytes)} / ${formatBytes(totalBytes)}",
+                        color = MutedWhite,
+                        fontSize = 11.sp,
+                    )
+                }
             }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = if (totalBytes > 0) usedBytes.toFloat() / totalBytes else 0f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = GlowBlue,
+                trackColor = Color(0xFF333333),
+            )
         }
-        Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = if (totalBytes > 0) usedBytes.toFloat() / totalBytes else 0f,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp)),
-            color = GlowBlue,
-            trackColor = Color(0xFF1A1A1A),
-        )
     }
 }
 

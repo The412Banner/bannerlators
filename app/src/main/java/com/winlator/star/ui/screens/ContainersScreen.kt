@@ -282,9 +282,9 @@ private fun ContainerItem(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Black,
+            containerColor = Color(0xFF1A1A1A),
         ),
-        border = BorderStroke(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, Color(0xFF0055FF)),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
