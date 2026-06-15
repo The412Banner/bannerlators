@@ -40,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -215,6 +214,7 @@ fun FileManagerScreen() {
         }
     }
 
+    var showDriveMenu by remember { mutableStateOf(false) }
     val drives = remember {
         buildList {
             add("Drive C:" to File("/storage/emulated/0/Winlator/drive_c"))
@@ -315,17 +315,41 @@ fun FileManagerScreen() {
             val currentDriveLabel = drives.firstOrNull { (_, d) ->
                 currentDir.absolutePath.startsWith(d.absolutePath)
             }?.first ?: "Storage"
-            Text(
-                text = "  $currentDriveLabel  ",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF0A0A0A))
-                    .clickable { /* drive selector */ }
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
+            Box {
+                Text(
+                    text = "  $currentDriveLabel  ",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF0A0A0A))
+                        .clickable { showDriveMenu = true }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+                DropdownMenu(
+                    expanded = showDriveMenu,
+                    onDismissRequest = { showDriveMenu = false },
+                ) {
+                    drives.forEach { (label, dir) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (label.startsWith("Drive")) Icons.Filled.SdStorage else Icons.Filled.Storage,
+                                    contentDescription = null,
+                                    tint = IconBlue,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            onClick = {
+                                showDriveMenu = false
+                                loadDirectory(dir)
+                            },
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.width(4.dp))
 
@@ -337,39 +361,6 @@ fun FileManagerScreen() {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-        }
-
-        HorizontalDivider(color = DividerColor)
-
-        // ── Drives row ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF0A0A0A))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            drives.forEach { (label, dir) ->
-                FilledTonalButton(
-                    onClick = { loadDirectory(dir) },
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = if (currentDir.absolutePath.startsWith(dir.absolutePath))
-                            CardStroke.copy(alpha = 0.2f)
-                        else
-                            Color(0xFF0A0A0A)
-                    ),
-                    modifier = Modifier.height(32.dp),
-                ) {
-                    Icon(
-                        imageVector = if (label.startsWith("Drive")) Icons.Filled.SdStorage else Icons.Filled.Storage,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = IconBlue,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(label, fontSize = 11.sp)
-                }
-            }
         }
 
         HorizontalDivider(color = DividerColor)
