@@ -215,10 +215,9 @@ fun FileManagerScreen() {
     }
 
     var showDriveMenu by remember { mutableStateOf(false) }
+    var showContainerPicker by remember { mutableStateOf(false) }
     val drives = remember {
         buildList {
-            add("Drive C:" to File("/storage/emulated/0/Winlator/drive_c"))
-            add("Drive Z:" to File(context.filesDir, "imagefs"))
             add("Internal" to File("/storage/emulated/0"))
             val external = File("/storage")
             if (external.exists()) {
@@ -296,6 +295,32 @@ fun FileManagerScreen() {
         )
     }
 
+    if (showContainerPicker) {
+        AlertDialog(
+            onDismissRequest = { showContainerPicker = false },
+            title = { Text("Choose container") },
+            text = {
+                Column {
+                    containers.forEach { container ->
+                        Text(
+                            text = container.name,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showContainerPicker = false
+                                    loadDirectory(File(container.rootDir, ".wine/drive_c"))
+                                }
+                                .padding(vertical = 10.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Path bar ──
         Row(
@@ -312,9 +337,12 @@ fun FileManagerScreen() {
                 Icon(Icons.Filled.ArrowBack, "Back", tint = IconBlue)
             }
 
-            val currentDriveLabel = drives.firstOrNull { (_, d) ->
-                currentDir.absolutePath.startsWith(d.absolutePath)
-            }?.first ?: "Storage"
+            val imagefsDir = File(context.filesDir, "imagefs")
+            val currentDriveLabel = when {
+                containers.any { currentDir.absolutePath.startsWith(File(it.rootDir, ".wine/drive_c").absolutePath) } -> "Drive C:"
+                currentDir.absolutePath.startsWith(imagefsDir.absolutePath) -> "Drive Z:"
+                else -> drives.firstOrNull { (_, d) -> currentDir.absolutePath.startsWith(d.absolutePath) }?.first ?: "Storage"
+            }
             Box {
                 Text(
                     text = "  $currentDriveLabel  ",
@@ -331,16 +359,36 @@ fun FileManagerScreen() {
                     expanded = showDriveMenu,
                     onDismissRequest = { showDriveMenu = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Drive C:") },
+                        leadingIcon = {
+                            Icon(Icons.Filled.SdStorage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
+                        },
+                        onClick = {
+                            showDriveMenu = false
+                            if (containers.size == 1) {
+                                loadDirectory(File(containers.first().rootDir, ".wine/drive_c"))
+                            }
+                            else if (containers.size > 1) {
+                                showContainerPicker = true
+                            }
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Drive Z:") },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Storage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
+                        },
+                        onClick = {
+                            showDriveMenu = false
+                            loadDirectory(imagefsDir)
+                        },
+                    )
                     drives.forEach { (label, dir) ->
                         DropdownMenuItem(
                             text = { Text(label) },
                             leadingIcon = {
-                                Icon(
-                                    imageVector = if (label.startsWith("Drive")) Icons.Filled.SdStorage else Icons.Filled.Storage,
-                                    contentDescription = null,
-                                    tint = IconBlue,
-                                    modifier = Modifier.size(18.dp),
-                                )
+                                Icon(Icons.Filled.Storage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
                             },
                             onClick = {
                                 showDriveMenu = false
