@@ -218,6 +218,7 @@ fun FileManagerScreen() {
     val drives = remember {
         buildList {
             add("Drive C:" to File("/storage/emulated/0/Winlator/drive_c"))
+            add("Drive Z:" to File(context.filesDir, "imagefs"))
             add("Internal" to File("/storage/emulated/0"))
             val external = File("/storage")
             if (external.exists()) {
