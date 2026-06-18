@@ -48,7 +48,11 @@ Repo: https://github.com/The412Banner/bannerlators (public). Created 2026-06-18.
 
 ## Build/run history
 - 2026-06-18 ~23:21 UTC — first action build (run **27795368178**, "Any branch compilation."
-  on `main`) triggered for marcescence + orientation fix. Status: in_progress at log time.
+  on `main`) for marcescence + orientation fix. **✅ SUCCESS** — artifact `compiled-debug`
+  (~541 MB APK). Awaiting device test of the Settings screen.
+- 2026-06-18 — README adopted from `The412Banner/star`, adapted for bannerlators (name, badge
+  → The412Banner/bannerlators, banner → logo.png). External frontends-guide link left pointing
+  at `star-emu/star` (doc not vendored here).
 
 ## Notes / TODO
 - Device-test the Settings screen after the action build (verify rows now stack vertically).
