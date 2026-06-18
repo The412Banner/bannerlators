@@ -144,7 +144,7 @@ jobs:
       run: |
         mkdir -p release-out
         cp ./app/build/outputs/apk/debug/app-debug.apk \
-           "release-out/bannerlators-${{ github.event.inputs.tag }}.apk"
+           "release-out/Bannerlator-${{ github.event.inputs.tag }}.apk"
         ls -lh release-out
 
     - name: Publish GitHub Release

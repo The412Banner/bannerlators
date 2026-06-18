@@ -6,7 +6,7 @@
 <p align="center"><b>Windows applications and games on Android.</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/The412Banner/bannerlators/total?style=for-the-badge&label=Downloads&color=ff2d9b" alt="Total Downloads">
+  <img src="https://img.shields.io/github/downloads/The412Banner/Bannerlator/total?style=for-the-badge&label=Downloads&color=ff2d9b" alt="Total Downloads">
   <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-7a4cff?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/License-GPL--3.0-2d9bff?style=for-the-badge" alt="License">
 </p>
