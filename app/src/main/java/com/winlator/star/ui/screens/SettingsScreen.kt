@@ -70,7 +70,6 @@ import androidx.compose.ui.unit.sp
 import androidx.preference.PreferenceManager
 import com.winlator.star.R
 import com.winlator.star.SettingsFragment
-import com.winlator.star.box64.Box64EditPresetDialog
 import com.winlator.star.box64.Box64Preset
 import com.winlator.star.box64.Box64PresetManager
 import com.winlator.star.contentdialog.ContentDialog
@@ -78,7 +77,6 @@ import com.winlator.star.contents.ContentsManager
 import com.winlator.star.core.AppUtils
 import com.winlator.star.core.FileUtils
 import com.winlator.star.core.PreloaderDialog
-import com.winlator.star.fexcore.FEXCoreEditPresetDialog
 import com.winlator.star.fexcore.FEXCorePreset
 import com.winlator.star.fexcore.FEXCorePresetManager
 import com.winlator.star.midi.MidiManager
@@ -150,6 +148,11 @@ fun SettingsScreen() {
     var isBackingUp by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var installSFCallback by remember { mutableStateOf<((Uri) -> Unit)?>(null) }
+
+    var showBox64EditDialog by remember { mutableStateOf(false) }
+    var box64EditPresetId by remember { mutableStateOf<String?>(null) }
+    var showFEXCoreEditDialog by remember { mutableStateOf(false) }
+    var fexcoreEditPresetId by remember { mutableStateOf<String?>(null) }
 
     fun refreshBox64Presets() {
         box64Presets = Box64PresetManager.getPresets("box64", context)
@@ -375,16 +378,10 @@ fun SettingsScreen() {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = {
-                    Box64EditPresetDialog(context, "box64", null).apply {
-                        setOnConfirmCallback { refreshBox64Presets() }
-                        show()
-                    }
+                    box64EditPresetId = null; showBox64EditDialog = true
                 }) { Icon(Icons.Default.Add, "Add", tint = Color(0xFFCCCCCC)) }
                 IconButton(onClick = {
-                    Box64EditPresetDialog(context, "box64", selectedBox64Preset).apply {
-                        setOnConfirmCallback { refreshBox64Presets() }
-                        show()
-                    }
+                    box64EditPresetId = selectedBox64Preset; showBox64EditDialog = true
                 }) { Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFCCCCCC)) }
                 IconButton(onClick = {
                     ContentDialog.confirm(context, R.string.do_you_want_to_duplicate_this_preset) {
@@ -435,16 +432,10 @@ fun SettingsScreen() {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = {
-                    FEXCoreEditPresetDialog(context, null).apply {
-                        setOnConfirmCallback { refreshFEXCorePresets() }
-                        show()
-                    }
+                    fexcoreEditPresetId = null; showFEXCoreEditDialog = true
                 }) { Icon(Icons.Default.Add, "Add", tint = Color(0xFFCCCCCC)) }
                 IconButton(onClick = {
-                    FEXCoreEditPresetDialog(context, selectedFEXCorePreset).apply {
-                        setOnConfirmCallback { refreshFEXCorePresets() }
-                        show()
-                    }
+                    fexcoreEditPresetId = selectedFEXCorePreset; showFEXCoreEditDialog = true
                 }) { Icon(Icons.Default.Edit, "Edit", tint = Color(0xFFCCCCCC)) }
                 IconButton(onClick = {
                     ContentDialog.confirm(context, R.string.do_you_want_to_duplicate_this_preset) {
@@ -770,6 +761,24 @@ fun SettingsScreen() {
             dismissButton = {
                 TextButton(onClick = { showDebugChannelDialog = false }) { Text("Cancel") }
             }
+        )
+    }
+
+    if (showBox64EditDialog) {
+        PresetEditDialog(
+            prefix = "box64",
+            presetId = box64EditPresetId,
+            onDismiss = { showBox64EditDialog = false },
+            onConfirm = { refreshBox64Presets() }
+        )
+    }
+
+    if (showFEXCoreEditDialog) {
+        PresetEditDialog(
+            prefix = "fexcore",
+            presetId = fexcoreEditPresetId,
+            onDismiss = { showFEXCoreEditDialog = false },
+            onConfirm = { refreshFEXCorePresets() }
         )
     }
 }
