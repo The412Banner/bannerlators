@@ -327,9 +327,10 @@ private fun LabeledSlider(
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (() -> Unit)? = null,
     steps: Int = 0,
+    enabled: Boolean = true,
     format: (Float) -> String = { "%.0f".format(it) }
 ) {
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(modifier = Modifier.padding(vertical = 4.dp).then(if (enabled) Modifier else Modifier.alpha(0.4f))) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -353,6 +354,7 @@ private fun LabeledSlider(
             onValueChangeFinished = onValueChangeFinished ?: {},
             valueRange = valueRange,
             steps = steps,
+            enabled = enabled,
             colors = SliderDefaults.colors(
                 thumbColor = GlowPurple,
                 activeTrackColor = Primary,
@@ -466,14 +468,23 @@ private fun GraphicsContent(state: XServerDrawerState) {
         XServerDialogState.onScreenEffectsApply?.invoke(localBrightness, localContrast, localGamma, localFxaa, localCrt, localToon, localNtsc, 0)
     }
 
-    LabeledSlider("Brightness", localBrightness, -100f..100f, { localBrightness = it; applySe() })
-    LabeledSlider("Contrast", localContrast, -100f..100f, { localContrast = it; applySe() })
-    LabeledSlider("Gamma", localGamma, 0.5f..3.0f, { localGamma = it; applySe() }, format = { "%.2f".format(it) })
+    LabeledSlider("Brightness", localBrightness, -100f..100f, { localBrightness = it; applySe() }, enabled = effectsSupported)
+    LabeledSlider("Contrast", localContrast, -100f..100f, { localContrast = it; applySe() }, enabled = effectsSupported)
+    LabeledSlider("Gamma", localGamma, 0.5f..3.0f, { localGamma = it; applySe() }, enabled = effectsSupported, format = { "%.2f".format(it) })
 
-    SeShaderToggle("FXAA", localFxaa) { localFxaa = it; applySe() }
-    SeShaderToggle("CRT", localCrt) { localCrt = it; applySe() }
-    SeShaderToggle("Toon", localToon) { localToon = it; applySe() }
-    SeShaderToggle("NTSC", localNtsc) { localNtsc = it; applySe() }
+    SeShaderToggle("FXAA", localFxaa, effectsSupported) { localFxaa = it; applySe() }
+    SeShaderToggle("CRT", localCrt, effectsSupported) { localCrt = it; applySe() }
+    SeShaderToggle("Toon", localToon, effectsSupported) { localToon = it; applySe() }
+    SeShaderToggle("NTSC", localNtsc, effectsSupported) { localNtsc = it; applySe() }
+
+    if (!effectsSupported) {
+        Text(
+            "Screen effects require the OpenGL renderer",
+            color = DimWhite.copy(alpha = 0.5f),
+            fontSize = 11.sp,
+            modifier = Modifier.padding(start = 12.dp, top = 2.dp)
+        )
+    }
 
     HorizontalDivider(color = Color(0xFF1A1A1A), modifier = Modifier.padding(vertical = 6.dp))
 
@@ -508,19 +519,20 @@ private fun IntSlider(label: String, value: Int, valueRange: IntRange, onValueCh
 }
 
 @Composable
-private fun SeShaderToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SeShaderToggle(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(DarkSurface)
-            .clickable { onCheckedChange(!checked) }
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier.alpha(0.4f))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Checkbox(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = CheckboxDefaults.colors(
                 checkedColor = Primary,
                 uncheckedColor = ToggleThumbOff,
