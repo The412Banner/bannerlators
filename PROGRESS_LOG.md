@@ -39,14 +39,43 @@ GameNative (utkarshdalal/GameNative, local ~/GameNative):
 
 **Device results (vkfix3):** ✅ OpenGL host renderer (native Vulkan 1432fps + D3D12/vkd3d
 1748fps, correct colors). ✅ Vulkan host renderer (native Vulkan 1449fps, correct colors).
-⏳ Native-rendering toggle ON: not yet tested (user testing later).
-
-**Next:** test native toggle -> if good, cut a tagged release (pick a real version; vkfix3 is
-just a build label). Cleanup: graphicsDriverConfig has two competing dialog formats writing the
-same field.
 
 APKs delivered: `/sdcard/Download/Bannerlator-vkfix3-standard.apk` (md5 eebfe339…),
 `-pubg.apk` (md5 a7c0acb3…).
+
+---
+
+## 2026-06-19 (PM) — Native Rendering toggle: device-tested + HUD-freeze fix
+
+User tested the previously-untested Native Rendering+ toggle on the Vulkan host renderer
+(AIO Graphics Test, native-Vulkan cube). Two findings:
+
+**1. Windowed content stretches/distorts — EXPECTED, not a bug.** With the graphics test in a
+*window* (sub-screen), enabling Native Rendering blits the active swapchain straight to the full
+device surface, stretched (LUNARG cube visibly squished). Direct scanout (`onUpdateWindowContent`
+FLIP branch → `nativeScanoutSetBuffer`) has no aspect-correct dst path for sub-screen windows;
+the aspect-preserving letterbox (`ViewTransformation`, `Math.min`-based) only applies on the
+copyArea path. ✅ With the test app **maximized to fullscreen**, native rendering renders the cube
+correctly proportioned (FPS still climbs 582→743→…). So for real fullscreen games — the actual use
+case — native rendering is correct. Windowed-distortion is a known limitation, not release-blocking.
+
+**2. Perf HUD freezes in Native Rendering — FIXED (commit `f724ec2`).** When Native Rendering was
+on, the horizontal perf HUD bar (Vulkan|DXVK|CPU|GPU|…|FPS) froze — values stopped updating while
+the game kept animating. Root cause: commit `779967a` wired `hudFrameTick` (which drives
+`frameRatingHorizontal.update()`, `XServerDisplayActivity.java:1345`) only into
+`onUpdateWindowContentDirect` (the COPY present path). Native rendering uses the FLIP/scanout path
+(`PresentExtension.java:154` → `VulkanRenderer.onUpdateWindowContent`), which never called it. Fix:
+added `if (hudFrameTick != null) hudFrameTick.accept(window.id);` in the scanout-delivered branch
+of `onUpdateWindowContent` (`VulkanRenderer.java:495`), mirroring the COPY path — ticks once per
+presented game frame in native mode.
+
+**Build:** `build-artifacts.yml` run `27852720105` (artifacts-only, no release, APK label `hudfix`),
+triggered off `main` @ `f724ec2`. ⏳ standard APK to be dropped in `/sdcard/Download/` when green;
+HUD fix in native mode still ⏳ device-unconfirmed.
+
+**Next:** device-confirm HUD ticks (and shows a sane FPS — native mode pauses X-side rendering) →
+then cut a tagged release (pick a real version; vkfix3/hudfix are just build labels). Cleanup:
+graphicsDriverConfig has two competing dialog formats writing the same field.
 
 ---
 
