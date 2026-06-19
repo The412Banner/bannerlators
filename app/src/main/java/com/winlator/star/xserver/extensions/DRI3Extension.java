@@ -154,7 +154,10 @@ public class DRI3Extension implements Extension {
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd) throws IOException, XRequestError {
         try {
             GPUImage gpuImage = new GPUImage(fd);
-            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, gpuImage.getStride(), height, depth);
+            // The socket-imported GPUImage never locks the buffer, so getStride()==0 here,
+            // which created a zero-width drawable -> copyArea composited nothing -> black
+            // Vulkan content. Use the real pixmap width (matches the SHM pixmapFromFd path).
+            Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, width, height, depth);
             drawable.setTexture(gpuImage);
             client.xServer.pixmapManager.createPixmap(drawable);
         }
