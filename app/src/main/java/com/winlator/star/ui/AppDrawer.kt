@@ -316,12 +316,12 @@ private fun HelpSupportDialog(onDismiss: () -> Unit, onOpenUrl: (String) -> Unit
                 )
                 SupportLink(
                     label = "GitHub Repository",
-                    url = "https://github.com/The412Banner/star-compose",
+                    url = "https://github.com/The412Banner/Bannerlator",
                     onOpenUrl = onOpenUrl
                 )
                 SupportLink(
                     label = "Report an Issue",
-                    url = "https://github.com/The412Banner/star-compose/issues",
+                    url = "https://github.com/The412Banner/Bannerlator/issues",
                     onOpenUrl = onOpenUrl
                 )
             }

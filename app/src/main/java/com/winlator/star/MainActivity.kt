@@ -412,9 +412,11 @@ private fun AboutDialog(onDismiss: () -> Unit) {
             ) {
                 // Logo + name
                 Image(
-                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                    painter = painterResource(R.drawable.splash_logo),
                     contentDescription = null,
-                    modifier = androidx.compose.ui.Modifier.size(72.dp)
+                    modifier = androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
                 )
                 Text(
                     text = "Bannerlator Bionic",

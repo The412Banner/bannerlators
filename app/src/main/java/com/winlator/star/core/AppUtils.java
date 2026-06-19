@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Looper;
 import android.text.Html;
@@ -204,11 +205,22 @@ public abstract class AppUtils {
     }
 
     public static void showHelpBox(Context context, View anchor, String text) {
-        int padding = (int)UnitUtils.dpToPx(8);
+        int padding = (int)UnitUtils.dpToPx(12);
         TextView textView = new TextView(context);
         textView.setLayoutParams(new ViewGroup.LayoutParams((int)UnitUtils.dpToPx(284), ViewGroup.LayoutParams.WRAP_CONTENT));
         textView.setPadding(padding, padding, padding, padding);
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        textView.setTextColor(0xFFFFFFFF);
+
+        // Give the help popup a visible outline + dark fill so it isn't just a
+        // black/transparent box (matches the FieldSet styling used elsewhere).
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setColor(0xFF1A1A2E);
+        bg.setStroke((int)UnitUtils.dpToPx(1), 0xFF3A3A4E);
+        bg.setCornerRadius(UnitUtils.dpToPx(8));
+        textView.setBackground(bg);
+
         textView.setText(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
         int widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         int heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
