@@ -126,6 +126,13 @@ item cross-checked against actual code, NO invented features like AI frame-gen w
 app); bumped Information-table version V 1.0→V 1.2; added a centered shields.io **Download button**
 linking to `/releases/latest` + a "Download" entry in the nav row.
 
+**GameNative render-fix credit** (commit `8792f6d`): expanded the README GameNative credit row to
+state its rendering pipeline was the **reference used to fix/rewire the render options** (AHB present
+path → Vulkan/DXVK/VKD3D on both renderers: GPUImage socket-buffer lock + EGLImage sampling, DRI3
+direct-scanout, Present FLIP/COPY branches, Native Rendering+ scanout). Also appended a **Credits**
+section to the **1.2 GitHub release notes** (`gh release edit 1.2`) crediting GameNative (utkarshdalal)
+for the same, linking back to the README Credits.
+
 **Next:** device-confirm HUD-tick + new icon on 1.2; cleanup graphicsDriverConfig's 2 competing
 dialog formats.
 
