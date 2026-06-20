@@ -426,7 +426,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "V 1.0",
+                    text = "V 1.3",
                     fontSize = 13.sp,
                     color = com.winlator.star.ui.theme.OnSurfaceVariant
                 )
