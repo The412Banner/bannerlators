@@ -139,13 +139,19 @@ public class FEXCoreEditPresetDialog extends ContentDialog {
                     editText.setVisibility(View.VISIBLE);
                     editText.setEnabled(!readonly);
                     editText.setText(value);
+                    applyDarkThemeToEditText(editText);
                     if (readonly) editText.setAlpha(0.5f);
                 }
                 else {
-                    spinner.setPopupBackgroundResource(isDarkMode ? R.drawable.dialog_background_dark_blue : R.drawable.content_dialog_background);
+                    // The preset dialog is always dark (window background is #000000), so the
+                    // popup must be dark too; the conditional left it white when the dark_mode
+                    // pref was off, making the white-text dropdown items invisible.
+                    spinner.setPopupBackgroundResource(R.drawable.dialog_background_dark_blue);
                     spinner.setVisibility(View.VISIBLE);
                     spinner.setEnabled(!readonly);
-                    spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, values));
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, values);
+                    adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark);
+                    spinner.setAdapter(adapter);
                     AppUtils.setSpinnerSelectionFromValue(spinner, value);
                 }
 
@@ -170,14 +176,10 @@ public class FEXCoreEditPresetDialog extends ContentDialog {
     }
 
     private void applyDarkThemeToEditText(EditText editText) {
-        if (isDarkMode) {
-            editText.setTextColor(Color.WHITE); // Set text color to white for dark theme
-            editText.setHintTextColor(Color.GRAY); // Set hint color to gray
-            editText.setBackgroundResource(R.drawable.edit_text_dark); // Custom dark background drawable
-        } else {
-            editText.setTextColor(Color.BLACK); // Default text color
-            editText.setHintTextColor(Color.GRAY); // Default hint color
-            editText.setBackgroundResource(R.drawable.edit_text); // Custom light background drawable
-        }
+        // This dialog is always dark (window background #000000), so theme the field dark
+        // unconditionally instead of keying off the dark_mode pref (which left it a white box).
+        editText.setTextColor(Color.WHITE);
+        editText.setHintTextColor(Color.GRAY);
+        editText.setBackgroundResource(R.drawable.edit_text_dark);
     }
 }

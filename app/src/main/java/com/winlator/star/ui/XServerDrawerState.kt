@@ -39,6 +39,28 @@ object XServerDrawerState {
     @get:JvmName("getNativeRenderingEnabledState")
     val nativeRenderingEnabled: StateFlow<Boolean> = _nativeRenderingEnabled
 
+    // bionic-fg live controls (frame generation + fps limiter), driven from the in-game drawer.
+    // bionicFgActive = the layer is loaded this session (FG or limiter was on at launch); live
+    // tuning only takes effect when true.
+    private val _bionicFgActive = MutableStateFlow(false)
+    val bionicFgActive: StateFlow<Boolean> = _bionicFgActive
+
+    private val _frameGenEnabled = MutableStateFlow(false)
+    val frameGenEnabled: StateFlow<Boolean> = _frameGenEnabled
+
+    // 0 = Off, else 2/3/4.
+    private val _frameGenMultiplier = MutableStateFlow(2)
+    val frameGenMultiplier: StateFlow<Int> = _frameGenMultiplier
+
+    private val _frameGenFlowScale = MutableStateFlow(0.6f)
+    val frameGenFlowScale: StateFlow<Float> = _frameGenFlowScale
+
+    private val _fpsLimiterEnabled = MutableStateFlow(false)
+    val fpsLimiterEnabled: StateFlow<Boolean> = _fpsLimiterEnabled
+
+    private val _fpsLimit = MutableStateFlow(60)
+    val fpsLimit: StateFlow<Int> = _fpsLimit
+
     private val _fpsExpanded = MutableStateFlow(false)
     val fpsExpanded: StateFlow<Boolean> = _fpsExpanded
 
@@ -67,6 +89,11 @@ object XServerDrawerState {
     @JvmField var onDisableMouse:           Runnable? = null
     @JvmField var onNativeRenderingToggle: Runnable? = null
     @JvmField var onFpsConfigApply: XServerDialogState.FpsConfigCallback? = null
+
+    // Fired after any bionic-fg control changes; the handler reads the StateFlows above and
+    // rewrites conf.toml (hot-reload) + persists. Runnable avoids Java void-lambda mismatch.
+    @JvmField var onBionicFgConfigChange: Runnable? = null
+
     var onCursorExpandedChanged: ((Boolean) -> Unit)? = null
 
     // Setters called from Java
@@ -87,6 +114,13 @@ object XServerDrawerState {
     fun setNativeRenderingEnabled(v: Boolean) { _nativeRenderingEnabled.value = v }
     fun getNativeRenderingEnabled(): Boolean = _nativeRenderingEnabled.value
 
+    fun setBionicFgActive(v: Boolean)      { _bionicFgActive.value = v }
+    fun setFrameGenEnabled(v: Boolean)     { _frameGenEnabled.value = v }
+    fun setFrameGenMultiplier(v: Int)      { _frameGenMultiplier.value = v }
+    fun setFrameGenFlowScale(v: Float)     { _frameGenFlowScale.value = v }
+    fun setFpsLimiterEnabled(v: Boolean)   { _fpsLimiterEnabled.value = v }
+    fun setFpsLimit(v: Int)                { _fpsLimit.value = v }
+
     fun setFpsExpanded(v: Boolean) { _fpsExpanded.value = v }
     fun setFpsConfig(v: String) { _fpsConfig.value = v }
     fun toggleFpsExpanded() { _fpsExpanded.value = !_fpsExpanded.value }
@@ -100,6 +134,12 @@ object XServerDrawerState {
         _showLogs.value = false
         _showMagnifier.value = true
         _nativeRenderingEnabled.value = false
+        _bionicFgActive.value = false
+        _frameGenEnabled.value = false
+        _frameGenMultiplier.value = 2
+        _frameGenFlowScale.value = 0.6f
+        _fpsLimiterEnabled.value = false
+        _fpsLimit.value = 60
         _cursorExpanded.value = false
         _fpsExpanded.value = false
         _fpsConfig.value = ""
@@ -110,6 +150,7 @@ object XServerDrawerState {
         onLogs = null; onExit = null; onMoveCursorToTouchpoint = null
         onRelativeMouseMovement = null; onDisableMouse = null
         onNativeRenderingToggle = null; onFpsConfigApply = null
+        onBionicFgConfigChange = null
         onCursorExpandedChanged = null
     }
 }

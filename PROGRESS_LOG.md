@@ -138,6 +138,98 @@ dialog formats.
 
 ---
 
+## 2026-06-19 (PM) — bionic-fg frame generation: recon + branch `feature/bionic-fg-framegen`
+
+New feature kicked off: integrate [bionic-fg](https://github.com/xXJSONDeruloXx/bionic-fg) (Android/
+bionic Vulkan frame-generation layer, LSFG lineage — same engine GameHub ships as `libGameScopeVK.so`)
+as **(a)** a per-container option and **(b)** a live in-game side-menu control.
+
+**Author permission GRANTED** (xXJSONDeruloXx). Terms: (1) credit in README, (2) if source goes in
+tree do it as a **git submodule** (his preference), (3) feedback/PRs welcome.
+
+**Recon findings:**
+- Guest Vulkan goes through a **wrapper ICD** (`wrapper_icd.aarch64.json` + `GALLIUM_DRIVER=zink` +
+  `WRAPPER_*` at `XServerDisplayActivity.java:1823–1861`) bridging to the **Android bionic GPU driver**
+  via **adrenotools** — exactly the context bionic-fg targets.
+- Tree already has frame-gen groundwork: `app/src/main/cpp/lsfg-vk/` (stub CMakeLists, build excluded)
+  + root `build-lsfg-android.sh`. bionic-fg = the bionic-targeted sibling.
+- **All 3 CI workflows already use `submodules: recursive`** → adding the submodule needs NO CI change.
+- In-game drawer (`XServerDrawerState.kt`) uses StateFlow+Runnable; Native Rendering toggle is a
+  turnkey template for a Frame-Gen toggle. bionic-fg **hot-reloads its TOML** → in-game live control
+  by rewriting the config (multiplier 0=off / 2–4× / model 0-1 / flow_scale).
+- ⚠️ **Critical unknown:** does the wrapper expose a `VkSwapchainKHR` for the layer to hook, or does
+  it AHB-export with no WSI swapchain? Resolve with a verification spike BEFORE building UI.
+
+**Deliverable this session:** branch `feature/bionic-fg-framegen` created off `main`; full recon +
+phased job task list written to **`BIONIC_FG_INTEGRATION_REPORT.md`** (Phase 0 honor-terms → 1 native
+build → 2 spike/de-risk → 3 container setting → 4 in-game menu → 5 polish/release/give-back).
+
+**Next on branch:** Phase 0 — add bionic-fg as a submodule under `app/src/main/cpp/bionic-fg` +
+README credit; then the Phase 2 verification spike (gate the rest on it).
+
+### ✅ Phase 0 DONE (2026-06-19) — author terms honored
+- Added **bionic-fg as a git submodule** at `app/src/main/cpp/bionic-fg` (his preference), pinned at
+  `4f71770`; new root `.gitmodules`. CI needs no change (all 3 workflows already `submodules: recursive`).
+- **README credit**: added xXJSONDeruloXx / bionic-fg to the Credits table (frame-generation layer,
+  in-tree as a submodule with permission) + a "Frame Generation (bionic-fg)" row in the upstream-stack
+  table.
+- ⚠️ Submodule has **no LICENSE** → carry to Phase 5.2 (ask author before bundling in a release).
+- **Next:** Phase 2 verification spike — build `libbionic_fg.so`, hand-wire one container's env +
+  `conf.toml`, launch a DXVK game, confirm via logcat whether the layer engages (wrapper exposes a
+  `VkSwapchainKHR`?) BEFORE any UI work.
+
+### ✅ Phase 1 DONE (2026-06-19) — native build
+- `build-bionic-fg.yml` (standalone, NDK 26.1.10909125 + cmake 3.22.1, arm64-v8a/android-26). Run
+  **27854824786 ✅** → artifact `bionic-fg-arm64` (1.65 MB) = `libbionic_fg.so` (ELF aarch64,
+  Android 26, NDK r26b — matches our minSdk 26) + `VkLayer_BIONIC_framegen.json`. Workflow also added
+  to `main` (dispatch-only/inert) since workflow_dispatch requires the file on the default branch.
+- **Manifest insights (sharpen the spike):** layer is **IMPLICIT** (`enable_environment
+  BIONIC_FG_ENABLE=1`); `library_path ../../../lib/libbionic_fg.so` → manifest goes in
+  `…/share/vulkan/implicit_layer.d/`, .so in sibling `lib/`. Implicit layers are found via system
+  dirs / `VK_ADD_IMPLICIT_LAYER_PATH` (NOT `VK_LAYER_PATH`, which is explicit-only). Hooks
+  vkGetInstance/DeviceProcAddr → sits above the ICD.
+- **Refined crux:** bionic `.so` CANNOT load in the glibc guest (box64/Wine) → must load **host-side**
+  where the wrapper-ICD server runs Turnip via adrenotools. Spike must confirm (1) host loader honors
+  the implicit layer, (2) a real `VkSwapchainKHR` exists to hook (vs AHB-export = nothing to
+  intercept). Copy GameHub `libGameScopeVK` imagefs placement.
+- Artifact staged for device spike: `/sdcard/Download/bionic-fg/{libbionic_fg.so,VkLayer_BIONIC_framegen.json}`.
+- **Next:** Phase 2 spike (needs a device launch — log to crash-surviving `/sdcard/Download/*.txt`
+  per the device-launch rule; hold the actual launch for the user).
+
+### Phase 2 spike — runbook written + device recon (2026-06-19)
+- **`BIONIC_FG_SPIKE_RUNBOOK.md`** written: full device steps (place `.so` in `imagefs/usr/lib`,
+  manifest in `implicit_layer.d`, `BIONIC_FG_ENABLE=1` + `VK_LOADER_DEBUG=all` in container Env Vars,
+  conf.toml at guest `$HOME/.config/bionic-fg/`, logcat→`/sdcard/Download/bionicfg_spike.txt`) +
+  a decision table + cleanup.
+- **Device recon (root bridge):** guest uses its **own glibc Khronos loader**
+  `imagefs/usr/lib/libvulkan.so.1.4.315` and already loads **glibc** implicit layers — **MangoHud**
+  (`VK_LAYER_MANGOHUD_overlay_aarch64`) + `libutil_layer` — from `usr/share/vulkan/implicit_layer.d/`.
+  MangoHud's manifest is structurally identical to bionic-fg's (enable_environment, `../../../lib/…`,
+  same proc-addr hooks) → **discovery works**.
+- ⚠️ **KEY HYPOTHESIS:** our NDK/**bionic** `libbionic_fg.so` (links libandroid/liblog/Android
+  libvulkan) **will not load in the glibc guest loader** → real path is a **glibc aarch64 build**
+  (new Phase 1.5), mirroring how MangoHud + GameHub `libGameScopeVK` ship in imagefs. The spike's
+  Test A is designed to confirm this fast (expect a `cannot open shared object`/`libandroid` load
+  error), then pivot.
+- Standard pkg confirmed `com.winlator.banner` (pubg `com.tencent.ig`); both installed.
+- **Next (user):** run the spike launch per the runbook; report the log signals.
+
+### Phase 2 spike ARMED on device (2026-06-19) — awaiting user launch
+- Test workload = **DOOMBLADE** (user's choice; real DX11/DXVK game) in **container 2 "P10arm"**
+  (`imagefs/home/xuser-2`, the ACTIVE container; arm64ec, DXVK 2.4.1+vkd3d, Turnip, FPS HUD on).
+- Staged via root bridge: `libbionic_fg.so` → `imagefs/usr/lib/`, `VkLayer_BIONIC_framegen.json` →
+  `imagefs/usr/share/vulkan/implicit_layer.d/`, `conf.toml` (multiplier=2) →
+  `imagefs/home/xuser-2/.config/bionic-fg/`. All chown'd back to app uid `u0_a478`.
+- Container 2 `.container` env vars **prepended** `BIONIC_FG_ENABLE=1 VK_LOADER_DEBUG=all`
+  (backup at `.container.bak_bfg`).
+- Logcat capture → `/sdcard/Download/bionicfg_spike.txt`.
+- **REVERT if needed:** restore `imagefs/home/xuser-2/.container.bak_bfg`; rm the staged
+  `.so`/manifest/`.config/bionic-fg`.
+- ⚠️ Expectation: bionic `.so` likely fails to load in glibc guest loader (ABI) → then Phase 1.5
+  glibc build. Spike confirms.
+
+---
+
 ## How to Resume a Session
 
 1. Read this file top to bottom

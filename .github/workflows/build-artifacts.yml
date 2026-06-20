@@ -132,7 +132,9 @@ jobs:
       run: ./build-lsfg-android.sh
 
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      # Build only the standard flavor: packaging all 3 ~588MB flavors in parallel
+      # OOM-kills the runner (exit 143). Standard is the flavor we test/deliver.
+      run: ./gradlew assembleStandardDebug
 
     - name: Get version info
       run: |
@@ -145,10 +147,11 @@ jobs:
         N="${{ github.event.inputs.release_number }}"
         mv app/build/outputs/apk/standard/debug/app-standard-debug.apk \
            app/build/outputs/apk/standard/debug/Bannerlator-${N}-standard.apk
+        # ludashi/pubg only exist when all flavors are built; tolerate their absence
         mv app/build/outputs/apk/ludashi/debug/app-ludashi-debug.apk \
-           app/build/outputs/apk/ludashi/debug/Bannerlator-${N}-ludashi.apk
+           app/build/outputs/apk/ludashi/debug/Bannerlator-${N}-ludashi.apk || true
         mv app/build/outputs/apk/pubg/debug/app-pubg-debug.apk \
-           app/build/outputs/apk/pubg/debug/Bannerlator-${N}-pubg.apk
+           app/build/outputs/apk/pubg/debug/Bannerlator-${N}-pubg.apk || true
 
     - name: Upload standard APK artifact
       uses: actions/upload-artifact@v4
@@ -163,7 +166,7 @@ jobs:
       with:
         name: Bannerlator-${{ github.event.inputs.release_number }}-ludashi
         path: app/build/outputs/apk/ludashi/debug/Bannerlator-${{ github.event.inputs.release_number }}-ludashi.apk
-        if-no-files-found: error
+        if-no-files-found: ignore
         retention-days: 7
 
     - name: Upload pubg APK artifact
@@ -171,5 +174,5 @@ jobs:
       with:
         name: Bannerlator-${{ github.event.inputs.release_number }}-pubg
         path: app/build/outputs/apk/pubg/debug/Bannerlator-${{ github.event.inputs.release_number }}-pubg.apk
-        if-no-files-found: error
+        if-no-files-found: ignore
         retention-days: 7

@@ -19,7 +19,9 @@ import com.winlator.star.core.StringUtils;
 import com.winlator.star.ui.XServerDrawerState;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class FrameRatingHorizontal extends FrameLayout implements Runnable {
@@ -47,6 +49,10 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
         "/sys/devices/virtual/thermal/thermal_zone0/temp", "/sys/class/hwmon/hwmon0/temp1_input",
         "/sys/devices/system/cpu/cpu0/cpufreq/cpu_temp"
     };
+
+    // CPU `temp` files discovered by matching each thermal zone's `type` against CPU sensor
+    // names (the hardcoded zone indices above are wrong on many SoCs -> CPU read 0.0°C). Cached.
+    private String[] cpuThermalPaths = null;
 
     // Drag handling
     private float lastX = 0;
@@ -228,16 +234,54 @@ public class FrameRatingHorizontal extends FrameLayout implements Runnable {
         return ((mi.totalMem - mi.availMem) * 100.0f) / mi.totalMem;
     }
 
-    private float getCPUTemperature() {
-        for (String path : THERMAL_PATHS) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
-                String line = reader.readLine();
-                if (line != null) {
-                    float temp = Float.parseFloat(line.trim());
-                    // Many sensors report temperature in milli-degrees Celsius.
-                    return temp > 1000 ? temp / 1000.0f : temp;
+    // Scan /sys/class/thermal/thermal_zone* once, keep `temp` files whose `type` names a CPU
+    // sensor (cpu, cpuss, cpu-*-usr, mtktscpu, …). Caches the result (even if empty).
+    private String[] discoverCpuThermalPaths() {
+        if (cpuThermalPaths != null) return cpuThermalPaths;
+        ArrayList<String> found = new ArrayList<>();
+        try {
+            File[] zones = new File("/sys/class/thermal")
+                    .listFiles((dir, name) -> name.startsWith("thermal_zone"));
+            if (zones != null) {
+                for (File zone : zones) {
+                    try (BufferedReader r = new BufferedReader(new FileReader(new File(zone, "type")))) {
+                        String type = r.readLine();
+                        if (type == null) continue;
+                        type = type.trim().toLowerCase(Locale.ENGLISH);
+                        if (type.contains("cpu") && !type.contains("gpu")) {
+                            File tempFile = new File(zone, "temp");
+                            if (tempFile.canRead()) found.add(tempFile.getAbsolutePath());
+                        }
+                    } catch (Exception ignored) {}
                 }
-            } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        cpuThermalPaths = found.toArray(new String[0]);
+        return cpuThermalPaths;
+    }
+
+    private float readTemp(String path) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+            String line = reader.readLine();
+            if (line != null) {
+                float temp = Float.parseFloat(line.trim());
+                if (temp > 1000) temp /= 1000.0f;
+                if (temp > 0 && temp < 150) return temp;
+            }
+        } catch (Exception ignored) {}
+        return 0;
+    }
+
+    private float getCPUTemperature() {
+        float max = 0;
+        for (String path : discoverCpuThermalPaths()) {
+            float t = readTemp(path);
+            if (t > max) max = t;
+        }
+        if (max > 0) return max;
+        for (String path : THERMAL_PATHS) {
+            float t = readTemp(path);
+            if (t > 0) return t;
         }
         return 0;
     }

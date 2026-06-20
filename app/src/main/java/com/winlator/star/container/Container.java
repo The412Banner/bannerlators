@@ -336,6 +336,77 @@ public class Container {
         catch (JSONException e) {}
     }
 
+    // --- bionic-fg frame generation (per-container), stored in extraData ---
+    // The on/off flag is set in the container settings; multiplier & flow scale
+    // are tuned live from the in-game side menu (both hot-reload via conf.toml).
+    public static final int FRAMEGEN_DEFAULT_MULTIPLIER = 2;
+    public static final float FRAMEGEN_DEFAULT_FLOW_SCALE = 0.6f;
+
+    public boolean isFrameGenEnabled() {
+        return getExtra("frameGenEnabled", "0").equals("1");
+    }
+
+    public void setFrameGenEnabled(boolean enabled) {
+        putExtra("frameGenEnabled", enabled ? "1" : "0");
+    }
+
+    // Allowed values: 0 (Off, set live from the in-game menu) or 2-4. Anything else -> default.
+    public int getFrameGenMultiplier() {
+        try {
+            int m = Integer.parseInt(getExtra("frameGenMultiplier", String.valueOf(FRAMEGEN_DEFAULT_MULTIPLIER)));
+            if (m == 0) return 0;
+            return (m < 2 || m > 4) ? FRAMEGEN_DEFAULT_MULTIPLIER : m;
+        }
+        catch (NumberFormatException e) {
+            return FRAMEGEN_DEFAULT_MULTIPLIER;
+        }
+    }
+
+    public void setFrameGenMultiplier(int multiplier) {
+        putExtra("frameGenMultiplier", String.valueOf(multiplier));
+    }
+
+    public float getFrameGenFlowScale() {
+        try {
+            float f = Float.parseFloat(getExtra("frameGenFlowScale", String.valueOf(FRAMEGEN_DEFAULT_FLOW_SCALE)));
+            // Mirror the layer's clamp range (layer.cpp parseConfigFile).
+            return (f < 0.2f || f > 1.0f) ? FRAMEGEN_DEFAULT_FLOW_SCALE : f;
+        }
+        catch (NumberFormatException e) {
+            return FRAMEGEN_DEFAULT_FLOW_SCALE;
+        }
+    }
+
+    public void setFrameGenFlowScale(float flowScale) {
+        putExtra("frameGenFlowScale", String.valueOf(flowScale));
+    }
+
+    // FPS limiter (implemented by the bionic-fg layer: paces the real/base frames, so with
+    // frame gen on the on-screen rate is limit × multiplier). Tuned live from the in-game menu.
+    public static final int FPS_LIMITER_DEFAULT = 60;
+
+    public boolean isFpsLimiterEnabled() {
+        return getExtra("fpsLimiterEnabled", "0").equals("1");
+    }
+
+    public void setFpsLimiterEnabled(boolean enabled) {
+        putExtra("fpsLimiterEnabled", enabled ? "1" : "0");
+    }
+
+    public int getFpsLimiterValue() {
+        try {
+            int v = Integer.parseInt(getExtra("fpsLimiterValue", String.valueOf(FPS_LIMITER_DEFAULT)));
+            return (v < 10 || v > 200) ? FPS_LIMITER_DEFAULT : v;
+        }
+        catch (NumberFormatException e) {
+            return FPS_LIMITER_DEFAULT;
+        }
+    }
+
+    public void setFpsLimiterValue(int value) {
+        putExtra("fpsLimiterValue", String.valueOf(value));
+    }
+
     public String getWineVersion() {
         return wineVersion;
     }

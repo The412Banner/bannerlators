@@ -1,0 +1,461 @@
+diff --git a/VkLayer_BIONIC_framegen.json b/VkLayer_BIONIC_framegen.json
+index 032a00e..d2879fa 100644
+--- a/VkLayer_BIONIC_framegen.json
++++ b/VkLayer_BIONIC_framegen.json
+@@ -13,6 +13,9 @@
+         },
+         "enable_environment": {
+             "BIONIC_FG_ENABLE": "1"
++        },
++        "disable_environment": {
++            "BIONIC_FG_DISABLE": "1"
+         }
+     }
+ }
+diff --git a/src/framegen_context.cpp b/src/framegen_context.cpp
+index 27e2f58..10dd9a9 100644
+--- a/src/framegen_context.cpp
++++ b/src/framegen_context.cpp
+@@ -188,6 +188,7 @@ static Pass makeModel1Pass(const vk::Device& dev,
+ 
+ #ifdef __ANDROID__
+ std::unique_ptr<FramegenContext> FramegenContext::create(
++        const vk::Device& device,
+         AHardwareBuffer* prevAhb, AHardwareBuffer* currAhb,
+         const std::vector<AHardwareBuffer*>& outputAhbs,
+         VkExtent2D extent, VkFormat format, const Config& cfg) {
+@@ -210,13 +211,25 @@ std::unique_ptr<FramegenContext> FramegenContext::create(
+             BFG_LOGI("model=1 requested: using traced 100-dispatch graph (shader_03, 30..53, final 04), not model-0 hybrid fallback");
+         }
+ 
+-        ctx->device_        = vk::Device::create();
++        // Single-device mode: adopt the application's device (not owned) instead
++        // of spinning up a standalone instance/device. All vk:: helpers call
++        // global vkXxx routed by handle, and the layer hooks none of the
++        // functions they use, so they operate on the app device with no
++        // recursion — and the AHB producer/consumer are now one device, so the
++        // sync that previously deadlocked across two devices resolves.
++        ctx->device_        = device;
++        BFG_LOGI("CHK single-device create begin: dev=%p phys=%p queue=%p qf=%u",
++                 (void*)device.handle(), (void*)device.physical(),
++                 (void*)device.computeQueue(), device.computeFamily());
+         ctx->cmdPool_       = vk::CommandPool(ctx->device_);
++        BFG_LOGI("CHK cmdPool ok");
+         ctx->linearSampler_ = vk::Sampler(ctx->device_, VK_FILTER_LINEAR,
+                                            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
+         ctx->nearestSampler_= vk::Sampler(ctx->device_, VK_FILTER_NEAREST,
+                                            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
++        BFG_LOGI("CHK samplers ok");
+         ctx->descPool_ = makeDescPool(ctx->device_, 128);
++        BFG_LOGI("CHK descPool ok");
+ 
+         // ── AHB-backed images ──────────────────────────────────────────────
+         vk::ImageInfo ahbInfo;
+@@ -225,9 +238,11 @@ std::unique_ptr<FramegenContext> FramegenContext::create(
+                        | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+         ctx->prevFrame_ = vk::Image(ctx->device_, ahbInfo, prevAhb);
+         ctx->currFrame_ = vk::Image(ctx->device_, ahbInfo, currAhb);
++        BFG_LOGI("CHK input AHB import ok");
+         ctx->outputImages_.reserve(outputAhbs.size());
+         for (auto* ahb : outputAhbs)
+             ctx->outputImages_.emplace_back(ctx->device_, ahbInfo, ahb);
++        BFG_LOGI("CHK output AHB import ok (%zu)", outputAhbs.size());
+ 
+         // ── Pyramid images (R8_UNORM, 6 levels) ───────────────────────────
+         ctx->pyramidA_.reserve(6); ctx->pyramidB_.reserve(6);
+diff --git a/src/framegen_context.hpp b/src/framegen_context.hpp
+index 7175d1f..492a024 100644
+--- a/src/framegen_context.hpp
++++ b/src/framegen_context.hpp
+@@ -56,7 +56,12 @@ public:
+     FramegenContext() = default;
+ 
+ #ifdef __ANDROID__
++    // `device` is the application's own VkDevice (wrapped, not owned). Running
++    // the interpolation on the SAME device the swapchain/AHBs live on avoids the
++    // cross-device fence deadlock that hangs a standalone second device on
++    // wrapper-ICD stacks (Winlator/Turnip). See BIONIC_FG_INTEGRATION_REPORT.md.
+     static std::unique_ptr<FramegenContext> create(
++        const vk::Device& device,
+         AHardwareBuffer* prevAhb,
+         AHardwareBuffer* currAhb,
+         const std::vector<AHardwareBuffer*>& outputAhbs,
+diff --git a/src/jni_bridge.cpp b/src/jni_bridge.cpp
+index b7f3e03..e5fa182 100644
+--- a/src/jni_bridge.cpp
++++ b/src/jni_bridge.cpp
+@@ -136,7 +136,10 @@ Java_io_github_bionicfg_BionicFGNative_nativeCreateContext(
+     extent.width  = static_cast<uint32_t>(width);
+     extent.height = static_cast<uint32_t>(height);
+ 
++    // Standalone JNI test path: create our own device (owned). The Vulkan-layer
++    // path instead passes the application's wrapped device (single-device mode).
+     auto ctx = bionic_fg::FramegenContext::create(
++        bionic_fg::vk::Device::create(),
+         prevBuf, currBuf, outBufs, extent, VK_FORMAT_R8G8B8A8_UNORM, cfg);
+     if (!ctx) { BFG_LOGE("nativeCreateContext: FramegenContext::create failed"); return 0L; }
+     return bionic_fg::ctxToHandle(ctx.release());
+diff --git a/src/vk_layer/layer.cpp b/src/vk_layer/layer.cpp
+index 66d1934..78ceefd 100644
+--- a/src/vk_layer/layer.cpp
++++ b/src/vk_layer/layer.cpp
+@@ -16,6 +16,7 @@
+ 
+ #include <algorithm>
+ #include <cctype>
++#include <cerrno>
+ #include <cstdint>
+ #include <cstdlib>
+ #include <cstring>
+@@ -27,6 +28,7 @@
+ #include <stdexcept>
+ #include <string>
+ #include <sys/stat.h>
++#include <time.h>
+ #include <unordered_map>
+ #include <vector>
+ 
+@@ -81,6 +83,8 @@ struct LayerConf {
+     int         multiplier = 2;
+     float       flowScale  = 0.6f;
+     int         model      = 0;
++    int         fpsLimit   = 0;     // base real-frame cap (0 = off, else 10-200). Paces real
++                                    // frames BEFORE interpolation, so on-screen fps = limit × multiplier.
+     std::string configPath;
+     int64_t     configStamp = 0;
+ };
+@@ -148,6 +152,23 @@ static int64_t fileStamp(const std::string& path) {
+ #endif
+ }
+ 
++static int64_t nowNs() {
++    struct timespec ts{};
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec;
++}
++
++// Sleep until `targetNs` (CLOCK_MONOTONIC). nanosleep is relative, so compute the delta.
++static void sleepUntilNs(int64_t targetNs) {
++    int64_t delta = targetNs - nowNs();
++    if (delta <= 0) return;
++    struct timespec req;
++    req.tv_sec  = static_cast<time_t>(delta / 1000000000LL);
++    req.tv_nsec = static_cast<long>(delta % 1000000000LL);
++    // Loop to absorb EINTR.
++    while (nanosleep(&req, &req) == -1 && errno == EINTR) {}
++}
++
+ static std::string defaultConfigPath() {
+     if (const char* explicitPath = std::getenv("BIONIC_FG_CONFIG")) {
+         if (explicitPath[0] != '\0') return explicitPath;
+@@ -185,6 +206,9 @@ static void parseConfigFile(const std::string& path, LayerConf& c) {
+                 c.flowScale = std::max(0.2f, std::min(1.0f, static_cast<float>(std::atof(unquote(value).c_str()))));
+             } else if (key == "model") {
+                 c.model = std::max(0, std::min(1, std::atoi(unquote(value).c_str())));
++            } else if (key == "fps_limit" || key == "fpslimit") {
++                int v = std::atoi(unquote(value).c_str());
++                c.fpsLimit = (v <= 0) ? 0 : std::max(10, std::min(200, v));
+             }
+         } catch (...) {
+             BFG_LAYER_E("Ignoring invalid config value: %s", line.c_str());
+@@ -208,6 +232,10 @@ static LayerConf readConf() {
+         c.flowScale = std::max(0.2f, std::min(1.0f, static_cast<float>(std::atof(v))));
+     if (auto* v = std::getenv("BIONIC_FG_MODEL"))
+         c.model = std::max(0, std::min(1, std::atoi(v)));
++    if (auto* v = std::getenv("BIONIC_FG_FPS_LIMIT")) {
++        int iv = std::atoi(v);
++        c.fpsLimit = (iv <= 0) ? 0 : std::max(10, std::min(200, iv));
++    }
+ 
+     c.configPath = defaultConfigPath();
+     if (!c.configPath.empty()) {
+@@ -388,6 +416,11 @@ static void freeExtImage(const DeviceData& dd, VkDevice device, ExtImage& img) {
+ 
+ struct SwapState {
+     VkDevice   device = VK_NULL_HANDLE;
++    // App-device handles for single-device framegen (wrapped, not owned).
++    VkInstance       instance     = VK_NULL_HANDLE;
++    VkPhysicalDevice physical     = VK_NULL_HANDLE;
++    VkQueue          computeQueue = VK_NULL_HANDLE;
++    PFN_vkGetPhysicalDeviceMemoryProperties getPhysMemProps = nullptr; // next-layer instance dispatch
+     VkExtent2D extent = {};
+     VkFormat   format = VK_FORMAT_UNDEFINED;
+     std::vector<VkImage> images;
+@@ -415,6 +448,8 @@ struct SwapState {
+ 
+     uint64_t frameCount = 0;
+     bool     inPresent  = false;
++    uint32_t fenceTimeouts = 0;   // consecutive cross-context fence timeouts; disables framegen past a threshold
++    int64_t  lastPresentNs = 0;   // for the fps_limit base-frame pacer (CLOCK_MONOTONIC)
+ 
+     void cleanup(const DeviceData& dd, VkDevice dev) {
+         if (dd.deviceWaitIdle) dd.deviceWaitIdle(dev);
+@@ -455,7 +490,13 @@ static std::unique_ptr<bionic_fg::FramegenContext> createFramegenContext(
+         const SwapState& st,
+         const LayerConf& conf) {
+     DisableLayerEnvGuard disableLayerForInternalVulkan;
++    // Wrap the application's own device (not owned) so interpolation runs on the
++    // same device as the swapchain/AHBs — single-device mode.
++    bionic_fg::vk::Device appDevice = bionic_fg::vk::Device::wrap(
++        st.instance, st.physical, st.device, st.copyQueueFamily, st.computeQueue,
++        st.getPhysMemProps);
+     return bionic_fg::FramegenContext::create(
++        appDevice,
+         st.prevAhb,
+         st.currAhb,
+         st.outAhbs,
+@@ -897,6 +938,17 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_CreateSwapchainKHR(
+         cpci.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+         dd.createCmdPool(device, &cpci, nullptr, &st.copyPool);
+ 
++        // App-device handles for single-device framegen. Reuse the same queue the
++        // copy path submits to (the present/graphics queue) so all framegen work
++        // is ordered on one queue from the present thread.
++        st.instance = dd.instance;
++        st.physical = dd.physical;
++        st.getPhysMemProps = dd.getPhysDevMemProps; // route phys-dev queries via layer dispatch
++        BFG_LAYER("CHK pre-getDeviceQueue qf=%u getDeviceQueue=%p", dd.queueFamilyIdx, (void*)dd.getDeviceQueue);
++        if (dd.getDeviceQueue)
++            dd.getDeviceQueue(device, dd.queueFamilyIdx, 0, &st.computeQueue);
++        BFG_LAYER("CHK post-getDeviceQueue computeQueue=%p", (void*)st.computeQueue);
++
+         VkCommandBufferAllocateInfo cbai{};
+         cbai.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+         cbai.commandPool        = st.copyPool;
+@@ -931,6 +983,7 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_CreateSwapchainKHR(
+         // The swapchain/AHB set is still provisioned for full 2x..4x hot-reload,
+         // so turning framegen on later does not require app-side swapchain rebuilds.
+         if (requestedGeneratedFrames > 0) {
++            BFG_LAYER("CHK calling createFramegenContext (mult=%d)", conf.multiplier);
+             st.fgCtx = createFramegenContext(st, conf);
+             if (!st.fgCtx) {
+                 BFG_LAYER_E("FramegenContext creation failed — layer will passthrough");
+@@ -1031,6 +1084,27 @@ static VkResult acquireGeneratedImage(const DeviceData& dd, VkDevice device,
+ 
+ // ─── QueuePresentKHR ──────────────────────────────────────────────────────────
+ 
++// Bound the cross-context fence waits in the present path. The copy command
++// buffer is submitted waiting on the application's *own* present semaphores
++// (DXVK's, here), then we wait on its fence. On some ICDs that bridge to a
++// separate host driver (e.g. Winlator/Bannerlator's wrapper_icd -> Turnip via
++// adrenotools) the host queue/semaphore model differs and that fence never
++// signals, hanging the present thread forever (-> ANR/SIGQUIT; observed as a
++// 36s freeze on first interpolated frame). A bounded wait degrades to a normal
++// real-frame present instead of hanging, and after a few timeouts we disable
++// framegen for this swapchain entirely so the app runs at full speed.
++static constexpr uint64_t kFenceTimeoutNs   = 250000000ull; // 250 ms
++static constexpr uint32_t kMaxFenceTimeouts = 2;
++
++static void noteFenceTimeout(SwapState& st) {
++    if (++st.fenceTimeouts >= kMaxFenceTimeouts && st.conf.enabled) {
++        st.conf.enabled = false;
++        BFG_LAYER_E("disabling framegen for this swapchain after %u fence timeouts "
++                    "(present-path sync incompatible with this ICD); real frames only",
++                    st.fenceTimeouts);
++    }
++}
++
+ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_QueuePresentKHR(
+         VkQueue queue,
+         const VkPresentInfoKHR* pPresentInfo) {
+@@ -1122,6 +1196,25 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_QueuePresentKHR(
+         }
+     }
+ 
++    // Base frame-rate limiter. Paces the REAL game frame here, before any interpolated
++    // frames are injected below, so with framegen N× the on-screen rate is fps_limit × N
++    // (GameHub/LSFG semantics: cap the base, let framegen multiply it). Applies in pure
++    // passthrough too (framegen off) for a plain live fps cap. Only on real frames
++    // (inPresent == false); injected generated-frame presents must not be paced.
++    if (!st.inPresent && st.conf.fpsLimit > 0) {
++        const int64_t targetNs = 1000000000LL / st.conf.fpsLimit;
++        const int64_t now = nowNs();
++        if (st.lastPresentNs != 0 && now < st.lastPresentNs + targetNs) {
++            const int64_t due = st.lastPresentNs + targetNs;
++            sleepUntilNs(due);
++            st.lastPresentNs = due;          // anchor to schedule to avoid drift
++        } else {
++            st.lastPresentNs = now;          // first frame or we're already behind
++        }
++    } else if (st.conf.fpsLimit <= 0) {
++        st.lastPresentNs = 0;                // reset so re-enabling starts clean
++    }
++
+     if (st.inPresent || !st.conf.enabled || !st.fgCtx)
+         return callNextPresent(queue, pPresentInfo);
+     if (imgIdx >= st.images.size()) {
+@@ -1155,8 +1248,13 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_QueuePresentKHR(
+     // --- Step 1: Copy real swapchain image into current AHB input. The copy
+     // waits on the application's original present semaphores, so the final real
+     // present must not wait on those same binary semaphores again.
+-    if (dd.waitForFences(device, 1, &st.copyFences[fi], VK_TRUE, UINT64_MAX) != VK_SUCCESS ||
+-        dd.resetFences(device, 1, &st.copyFences[fi]) != VK_SUCCESS) {
++    VkResult copyPreWait = dd.waitForFences(device, 1, &st.copyFences[fi], VK_TRUE, kFenceTimeoutNs);
++    if (copyPreWait == VK_TIMEOUT) {
++        BFG_LAYER_E("copy fence (pre-submit) wait timed out; passing through");
++        noteFenceTimeout(st);
++        return callNextPresent(queue, pPresentInfo);
++    }
++    if (copyPreWait != VK_SUCCESS || dd.resetFences(device, 1, &st.copyFences[fi]) != VK_SUCCESS) {
+         BFG_LAYER_E("copy fence wait/reset failed; passing through");
+         return callNextPresent(queue, pPresentInfo);
+     }
+@@ -1234,11 +1332,17 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_QueuePresentKHR(
+         finalPresent.pWaitSemaphores = nullptr;
+     }
+ 
+-    VkResult copyWait = dd.waitForFences(device, 1, &st.copyFences[fi], VK_TRUE, UINT64_MAX);
++    VkResult copyWait = dd.waitForFences(device, 1, &st.copyFences[fi], VK_TRUE, kFenceTimeoutNs);
+     if (copyWait != VK_SUCCESS) {
+-        BFG_LAYER_E("copy fence wait failed after submit: %d", copyWait);
++        if (copyWait == VK_TIMEOUT) {
++            BFG_LAYER_E("copy fence (post-submit) wait timed out; presenting real frame only");
++            noteFenceTimeout(st);
++        } else {
++            BFG_LAYER_E("copy fence wait failed after submit: %d", copyWait);
++        }
+         return dd.queuePresent(queue, &finalPresent);
+     }
++    st.fenceTimeouts = 0;   // cross-context sync is working this frame
+ 
+     // --- Step 2: Run framegen after we have both previous and current inputs.
+     if (st.frameCount > 0) {
+@@ -1267,7 +1371,11 @@ VKAPI_ATTR VkResult VKAPI_CALL BionicFG_QueuePresentKHR(
+                 continue;
+             }
+ 
+-            dd.waitForFences(device, 1, &st.genFences[k], VK_TRUE, UINT64_MAX);
++            if (dd.waitForFences(device, 1, &st.genFences[k], VK_TRUE, kFenceTimeoutNs) != VK_SUCCESS) {
++                BFG_LAYER_E("generated-frame fence wait timed out; skipping injected frame %d", k);
++                noteFenceTimeout(st);
++                continue;
++            }
+             dd.resetFences(device, 1, &st.genFences[k]);
+             VkCommandBuffer genCmd = st.genCmds[k];
+             dd.resetCmdBuf(genCmd, 0);
+diff --git a/src/vulkan/vk_impl.cpp b/src/vulkan/vk_impl.cpp
+index 4f864eb..aaa1bb0 100644
+--- a/src/vulkan/vk_impl.cpp
++++ b/src/vulkan/vk_impl.cpp
+@@ -10,10 +10,10 @@ namespace bionic_fg::vk {
+ 
+ // ─── Utils ───────────────────────────────────────────────────────────────────
+ 
+-uint32_t findMemoryType(VkPhysicalDevice phys, uint32_t typeBits,
++uint32_t findMemoryType(const Device& dev, uint32_t typeBits,
+                         VkMemoryPropertyFlags props) {
+     VkPhysicalDeviceMemoryProperties memProps;
+-    vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
++    dev.memPropsFn()(dev.physical(), &memProps);
+     for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+         if ((typeBits & (1u << i)) &&
+             (memProps.memoryTypes[i].propertyFlags & props) == props) {
+@@ -34,8 +34,12 @@ static const char* kRequiredDeviceExts[] = {
+     "VK_KHR_get_memory_requirements2",
+     "VK_KHR_bind_memory2",
+     "VK_KHR_maintenance1",
+-    "VK_KHR_external_memory_capabilities",
+-    "VK_KHR_get_physical_device_properties2",
++    // NOTE: VK_KHR_external_memory_capabilities and
++    // VK_KHR_get_physical_device_properties2 are *instance* extensions (and core
++    // since Vulkan 1.1) — they are enabled on the instance below, not the device.
++    // Listing them here made vkEnumerateDeviceExtensionProperties always report
++    // them missing ("Device ext not available"); harmless (they were filtered
++    // out before vkCreateDevice) but misleading, so they are removed.
+ #endif
+ };
+ 
+@@ -149,7 +153,8 @@ Device Device::create() {
+ }
+ 
+ Device Device::wrap(VkInstance inst, VkPhysicalDevice phys, VkDevice dev,
+-                    uint32_t computeFamily, VkQueue queue) {
++                    uint32_t computeFamily, VkQueue queue,
++                    PFN_vkGetPhysicalDeviceMemoryProperties memPropsFn) {
+     Device d;
+     d.owned_         = false;
+     d.instance_      = inst;
+@@ -157,6 +162,7 @@ Device Device::wrap(VkInstance inst, VkPhysicalDevice phys, VkDevice dev,
+     d.device_        = dev;
+     d.computeFamily_ = computeFamily;
+     d.computeQueue_  = queue;
++    d.memPropsFn_    = memPropsFn;
+     return d;
+ }
+ 
+@@ -192,7 +198,7 @@ Image::Image(const Device& dev, const ImageInfo& info) {
+ 
+     VkMemoryRequirements memReq{};
+     vkGetImageMemoryRequirements(dev.handle(), image_, &memReq);
+-    uint32_t mt = findMemoryType(dev.physical(), memReq.memoryTypeBits,
++    uint32_t mt = findMemoryType(dev, memReq.memoryTypeBits,
+                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+ 
+     VkMemoryAllocateInfo mai{};
+@@ -283,7 +289,7 @@ Image::Image(const Device& dev, const ImageInfo& info, AHardwareBuffer* ahb) {
+     mai.memoryTypeIndex = 0;
+     // find compatible mem type from AHB props
+     VkPhysicalDeviceMemoryProperties memProps{};
+-    vkGetPhysicalDeviceMemoryProperties(dev.physical(), &memProps);
++    dev.memPropsFn()(dev.physical(), &memProps);
+     for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+         if (ahbProps.memoryTypeBits & (1u << i)) { mai.memoryTypeIndex = i; break; }
+     }
+@@ -344,7 +350,7 @@ Buffer::Buffer(const Device& dev, VkDeviceSize size, VkBufferUsageFlags usage,
+ 
+     VkMemoryRequirements memReq{};
+     vkGetBufferMemoryRequirements(dev.handle(), buffer_, &memReq);
+-    uint32_t mt = findMemoryType(dev.physical(), memReq.memoryTypeBits,
++    uint32_t mt = findMemoryType(dev, memReq.memoryTypeBits,
+         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+ 
+     VkMemoryAllocateInfo mai{};
+diff --git a/src/vulkan/vk_types.hpp b/src/vulkan/vk_types.hpp
+index 82c2f6c..589aa96 100644
+--- a/src/vulkan/vk_types.hpp
++++ b/src/vulkan/vk_types.hpp
+@@ -36,14 +36,25 @@ public:
+     // Creates a standalone Vulkan device on the first capable physical device.
+     // On Android, requests the AHB extension chain automatically.
+     static Device create();
+-    // Wrap an existing device (owned=false: destroy() does nothing)
++    // Wrap an existing device (owned=false: destroy() does nothing).
++    // `memPropsFn` should be the next-layer dispatch for
++    // vkGetPhysicalDeviceMemoryProperties (obtained via the layer's
++    // nextGetInstanceProcAddr): calling the global loader symbol from inside a
++    // layer with a chain-level physical-device handle can crash. Pass nullptr
++    // (e.g. the standalone path) to fall back to the global symbol.
+     static Device wrap(VkInstance inst, VkPhysicalDevice phys, VkDevice dev,
+-                       uint32_t computeFamily, VkQueue queue);
++                       uint32_t computeFamily, VkQueue queue,
++                       PFN_vkGetPhysicalDeviceMemoryProperties memPropsFn = nullptr);
+ 
+     VkDevice handle()           const { return device_; }
+     VkPhysicalDevice physical() const { return physical_; }
+     uint32_t computeFamily()    const { return computeFamily_; }
+     VkQueue  computeQueue()     const { return computeQueue_; }
++    // Physical-device memory-properties query routed through the layer dispatch
++    // when wrapped; falls back to the global symbol otherwise.
++    PFN_vkGetPhysicalDeviceMemoryProperties memPropsFn() const {
++        return memPropsFn_ ? memPropsFn_ : &vkGetPhysicalDeviceMemoryProperties;
++    }
+     bool valid() const { return device_ != VK_NULL_HANDLE; }
+ 
+     void destroy();
+@@ -55,6 +66,7 @@ private:
+     VkPhysicalDevice physical_ = VK_NULL_HANDLE;
+     uint32_t     computeFamily_= 0;
+     VkQueue      computeQueue_ = VK_NULL_HANDLE;
++    PFN_vkGetPhysicalDeviceMemoryProperties memPropsFn_ = nullptr;
+ };
+ 
+ // ─── Image ───────────────────────────────────────────────────────────────────
+@@ -266,7 +278,7 @@ void releaseToExternal(VkCommandBuffer cmd, const Image& img,
+ 
+ // ─── Utilities ───────────────────────────────────────────────────────────────
+ 
+-uint32_t findMemoryType(VkPhysicalDevice phys, uint32_t typeBits,
++uint32_t findMemoryType(const Device& dev, uint32_t typeBits,
+                         VkMemoryPropertyFlags props);
+ 
+ } // namespace bionic_fg::vk

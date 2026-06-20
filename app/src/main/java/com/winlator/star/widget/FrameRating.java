@@ -19,7 +19,9 @@ import com.winlator.star.core.StringUtils;
 import com.winlator.star.ui.XServerDrawerState;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
@@ -56,13 +58,18 @@ public class FrameRating extends FrameLayout implements Runnable {
 
     private final HashMap<String, ?> graphicsDriverConfig;
 
-    // Expanded thermal paths for better compatibility across different devices
+    // Fallback thermal paths (used only if zone auto-discovery finds nothing).
     private static final String[] THERMAL_PATHS = {
         "/sys/class/thermal/thermal_zone0/temp", "/sys/class/thermal/thermal_zone1/temp",
         "/sys/class/thermal/thermal_zone7/temp", "/sys/class/thermal/thermal_zone10/temp",
         "/sys/devices/virtual/thermal/thermal_zone0/temp", "/sys/class/hwmon/hwmon0/temp1_input",
         "/sys/devices/system/cpu/cpu0/cpufreq/cpu_temp"
     };
+
+    // CPU temp `temp` files discovered by matching each thermal zone's `type` against CPU sensor
+    // names. The hardcoded zone indices above are wrong on many SoCs (e.g. SM8350/Pocket FIT),
+    // which is why CPU read 0.0°C. Discovered once and cached.
+    private String[] cpuThermalPaths = null;
 
     public FrameRating(Context context, HashMap<String, ?> graphicsDriverConfig) {
         this(context, graphicsDriverConfig, null);
@@ -179,16 +186,61 @@ public class FrameRating extends FrameLayout implements Runnable {
         return StringUtils.formatBytes(usedMem, false);
     }
 
-    private float getCPUTemperature() {
-        for (String path : THERMAL_PATHS) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
-                String line = reader.readLine();
-                if (line != null) {
-                    float temp = Float.parseFloat(line.trim());
-                    // Many sensors return temp * 1000
-                    return temp > 1000 ? temp / 1000.0f : temp;
+    // Scan /sys/class/thermal/thermal_zone* once and keep the `temp` files whose `type` names a
+    // CPU sensor (cpu, cpuss, cpu-*-usr, mtktscpu, …). Caches the result (even if empty) so we
+    // only scan once. Returns the list (possibly empty).
+    private String[] discoverCpuThermalPaths() {
+        if (cpuThermalPaths != null) return cpuThermalPaths;
+        ArrayList<String> found = new ArrayList<>();
+        try {
+            File thermalDir = new File("/sys/class/thermal");
+            File[] zones = thermalDir.listFiles((dir, name) -> name.startsWith("thermal_zone"));
+            if (zones != null) {
+                for (File zone : zones) {
+                    try (BufferedReader r = new BufferedReader(new FileReader(new File(zone, "type")))) {
+                        String type = r.readLine();
+                        if (type == null) continue;
+                        type = type.trim().toLowerCase(Locale.ENGLISH);
+                        // CPU cores on Qualcomm/MediaTek expose types like cpuss, cpu-0-0-usr,
+                        // mtktscpu, cpu_thermal. Exclude GPU/non-cpu zones.
+                        if (type.contains("cpu") && !type.contains("gpu")) {
+                            File tempFile = new File(zone, "temp");
+                            if (tempFile.canRead()) found.add(tempFile.getAbsolutePath());
+                        }
+                    } catch (Exception ignored) {}
                 }
-            } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        cpuThermalPaths = found.toArray(new String[0]);
+        return cpuThermalPaths;
+    }
+
+    private float readTemp(String path) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+            String line = reader.readLine();
+            if (line != null) {
+                float temp = Float.parseFloat(line.trim());
+                // Sensors report milli-°C or °C.
+                if (temp > 1000) temp /= 1000.0f;
+                // Reject implausible readings (offline sensors report 0 or huge values).
+                if (temp > 0 && temp < 150) return temp;
+            }
+        } catch (Exception ignored) {}
+        return 0;
+    }
+
+    private float getCPUTemperature() {
+        // Prefer auto-discovered CPU zones; report the hottest core.
+        float max = 0;
+        for (String path : discoverCpuThermalPaths()) {
+            float t = readTemp(path);
+            if (t > max) max = t;
+        }
+        if (max > 0) return max;
+        // Fallback to the legacy hardcoded list.
+        for (String path : THERMAL_PATHS) {
+            float t = readTemp(path);
+            if (t > 0) return t;
         }
         return 0;
     }

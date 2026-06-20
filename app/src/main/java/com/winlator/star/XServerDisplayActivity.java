@@ -364,6 +364,26 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 ((com.winlator.star.renderer.vulkan.VulkanRenderer) r).setNativeMode(next);
             }
         };
+        // bionic-fg live controls (frame gen multiplier/flow + fps limiter). Each in-menu slider
+        // updates the drawer StateFlows then fires this; we rewrite conf.toml (hot-reloads in the
+        // layer) and persist to the container. Only effective when the layer is loaded this session
+        // (bionicFgActive). NOTE: initial drawer state is synced after `container` is loaded (below);
+        // this callback is lazy so it safely captures the field.
+        state.onBionicFgConfigChange = () -> {
+            XServerDrawerState s = XServerDrawerState.INSTANCE;
+            if (!s.getBionicFgActive().getValue()) return; // layer not loaded -> needs a relaunch
+            boolean fgOn   = s.getFrameGenEnabled().getValue();
+            int   mult     = fgOn ? s.getFrameGenMultiplier().getValue() : 0;
+            float flow     = s.getFrameGenFlowScale().getValue();
+            boolean limOn  = s.getFpsLimiterEnabled().getValue();
+            int   limit    = limOn ? s.getFpsLimit().getValue() : 0;
+            writeBionicFgConfig(mult, flow, limit);
+            if (fgOn) container.setFrameGenMultiplier(mult);
+            container.setFrameGenFlowScale(flow);
+            container.setFpsLimiterEnabled(limOn);
+            if (limit > 0) container.setFpsLimiterValue(limit);
+            container.saveData();
+        };
         state.onToggleFullscreen       = () -> {
             xServerView.getRenderer().toggleFullscreen();
             touchpadView.toggleFullscreen();
@@ -496,6 +516,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
             finish();  // Gracefully exit the activity to avoid crashing
             return;
         }
+
+        // Sync the in-game frame-generation + fps-limiter controls with this container's saved
+        // values. bionicFgActive = is the layer actually loaded this session (FG or limiter on at
+        // launch)? Live tuning only works when it is; the drawer uses this to gate/hint the UI.
+        boolean bionicFgActive = container.isFrameGenEnabled() || container.isFpsLimiterEnabled();
+        XServerDrawerState.INSTANCE.setBionicFgActive(bionicFgActive);
+        XServerDrawerState.INSTANCE.setFrameGenEnabled(container.isFrameGenEnabled());
+        XServerDrawerState.INSTANCE.setFrameGenMultiplier(container.getFrameGenMultiplier());
+        XServerDrawerState.INSTANCE.setFrameGenFlowScale(container.getFrameGenFlowScale());
+        XServerDrawerState.INSTANCE.setFpsLimiterEnabled(container.isFpsLimiterEnabled());
+        XServerDrawerState.INSTANCE.setFpsLimit(container.getFpsLimiterValue());
 
         containerManager.activateContainer(container);
 
@@ -875,6 +906,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
 
+    // Writes the bionic-fg layer config (TOML) into the guest HOME so it is present before the
+    // first swapchain present. The layer hot-reloads this file, so it doubles as the live-control
+    // path (see in-game drawer). Keys: multiplier (2-4), flow_scale (0.2-1.0), model (0/1).
+    // multiplier: 0 = frame gen off (Off in the menu), else 2-4. fpsLimit: 0 = no cap, else 10-200.
+    private void writeBionicFgConfig(int multiplier, float flowScale, int fpsLimit) {
+        try {
+            File configDir = new File(imageFs.home_path, ".config/bionic-fg");
+            configDir.mkdirs();
+            File confFile = new File(configDir, "conf.toml");
+            String toml = "# Written by Bannerlator (per-container frame generation)\n"
+                    + "multiplier = " + multiplier + "\n"
+                    + "flow_scale = " + String.format(java.util.Locale.US, "%.2f", flowScale) + "\n"
+                    + "model = 0\n"
+                    + "fps_limit = " + fpsLimit + "\n";
+            FileUtils.writeString(confFile, toml);
+        }
+        catch (Exception e) {
+            Log.e("BionicFG", "Failed to write bionic-fg conf.toml", e);
+        }
+    }
+
     private void savePlaytimeData() {
         long endTime = System.currentTimeMillis();
         long playtime = endTime - startTime;
@@ -1215,6 +1267,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 
             envVars.putAll(container.getEnvVars());
+
+            // bionic-fg layer: load it if frame generation OR the fps limiter is enabled (both are
+            // implemented by the layer + hot-reloaded via conf.toml). multiplier=0 -> frame gen Off
+            // (layer loaded, paces only); fps_limit=0 -> no cap.
+            boolean fgOn = container.isFrameGenEnabled();
+            boolean limiterOn = container.isFpsLimiterEnabled();
+            if (fgOn || limiterOn) {
+                envVars.put("BIONIC_FG_ENABLE", "1");
+                writeBionicFgConfig(
+                        fgOn ? container.getFrameGenMultiplier() : 0,
+                        container.getFrameGenFlowScale(),
+                        limiterOn ? container.getFpsLimiterValue() : 0);
+            }
 
             if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
 

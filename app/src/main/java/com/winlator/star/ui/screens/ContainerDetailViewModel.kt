@@ -90,6 +90,12 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
     var fpsCounterConfig by mutableStateOf(Container.DEFAULT_FPS_COUNTER_CONFIG)
     var fullscreenStretched by mutableStateOf(false)
 
+    // bionic-fg frame generation (per-container). Only the on/off lives here;
+    // multiplier & flow scale are tuned live from the in-game side menu.
+    var frameGenEnabled by mutableStateOf(false)
+    // FPS limiter on/off (loads the layer); the cap value is set live in-game.
+    var fpsLimiterEnabled by mutableStateOf(false)
+
     // ── Renderer ──────────────────────────────────────────────────────────────
     var rendererEntries by mutableStateOf(emptyList<String>()); private set
     var selectedRenderer by mutableStateOf("opengl")
@@ -285,6 +291,9 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
         showFPS           = c?.isShowFPS == true
         fpsCounterConfig  = c?.getFPSCounterConfig() ?: Container.DEFAULT_FPS_COUNTER_CONFIG
         fullscreenStretched = c?.isFullscreenStretched == true
+
+        frameGenEnabled    = c?.isFrameGenEnabled == true
+        fpsLimiterEnabled  = c?.isFpsLimiterEnabled == true
 
         // Renderer
         selectedRenderer = c?.renderer ?: "opengl"
@@ -545,6 +554,8 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
             c.setShowFPS(showFPS)
             c.setFPSCounterConfig(fpsConfig)
             c.setFullscreenStretched(fullscreenStretched)
+            c.setFrameGenEnabled(frameGenEnabled)
+            c.setFpsLimiterEnabled(fpsLimiterEnabled)
             c.setExclusiveXInput(exclusiveXInput)
             c.setRenderer(StringUtils.parseIdentifier(selectedRenderer))
             c.setInputType(inputType)
@@ -598,7 +609,12 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
             // createContainerAsync posts callback to main thread when done
             manager.createContainerAsync(data, contentsManager) { created ->
                 container = created
-                if (created != null) saveMouseWarp(created)
+                if (created != null) {
+                    created.setFrameGenEnabled(frameGenEnabled)
+                    created.setFpsLimiterEnabled(fpsLimiterEnabled)
+                    created.saveData()
+                    saveMouseWarp(created)
+                }
                 onComplete()
             }
         }
