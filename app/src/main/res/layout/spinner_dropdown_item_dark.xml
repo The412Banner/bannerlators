@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dropdown item for spinners inside the always-dark preset dialogs (Box64/FEXCore).
+     The platform simple_spinner_dropdown_item resolves its text color from the theme,
+     which renders white-on-white (invisible) over our dark popup background. This forces
+     visible white text. -->
+<CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="?android:attr/listPreferredItemHeightSmall"
+    android:textColor="#ffffff"
+    android:textSize="16sp"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:singleLine="true"
+    android:ellipsize="marquee" />
