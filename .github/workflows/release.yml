@@ -144,7 +144,10 @@ jobs:
       run: ./build-lsfg-android.sh
 
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      # Serialize per-flavor packaging: building all 3 ~588MB APKs in parallel
+      # OOM-kills the runner (exit 143). --no-parallel + --max-workers=1 + a
+      # larger Gradle heap package one at a time. (Mirrors build-artifacts.yml.)
+      run: ./gradlew assembleDebug --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx5g -XX:MaxMetaspaceSize=1g"
 
     - name: Get version info
       run: |
