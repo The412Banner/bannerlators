@@ -138,6 +138,37 @@ dialog formats.
 
 ---
 
+## 2026-06-19 (PM) — bionic-fg frame generation: recon + branch `feature/bionic-fg-framegen`
+
+New feature kicked off: integrate [bionic-fg](https://github.com/xXJSONDeruloXx/bionic-fg) (Android/
+bionic Vulkan frame-generation layer, LSFG lineage — same engine GameHub ships as `libGameScopeVK.so`)
+as **(a)** a per-container option and **(b)** a live in-game side-menu control.
+
+**Author permission GRANTED** (xXJSONDeruloXx). Terms: (1) credit in README, (2) if source goes in
+tree do it as a **git submodule** (his preference), (3) feedback/PRs welcome.
+
+**Recon findings:**
+- Guest Vulkan goes through a **wrapper ICD** (`wrapper_icd.aarch64.json` + `GALLIUM_DRIVER=zink` +
+  `WRAPPER_*` at `XServerDisplayActivity.java:1823–1861`) bridging to the **Android bionic GPU driver**
+  via **adrenotools** — exactly the context bionic-fg targets.
+- Tree already has frame-gen groundwork: `app/src/main/cpp/lsfg-vk/` (stub CMakeLists, build excluded)
+  + root `build-lsfg-android.sh`. bionic-fg = the bionic-targeted sibling.
+- **All 3 CI workflows already use `submodules: recursive`** → adding the submodule needs NO CI change.
+- In-game drawer (`XServerDrawerState.kt`) uses StateFlow+Runnable; Native Rendering toggle is a
+  turnkey template for a Frame-Gen toggle. bionic-fg **hot-reloads its TOML** → in-game live control
+  by rewriting the config (multiplier 0=off / 2–4× / model 0-1 / flow_scale).
+- ⚠️ **Critical unknown:** does the wrapper expose a `VkSwapchainKHR` for the layer to hook, or does
+  it AHB-export with no WSI swapchain? Resolve with a verification spike BEFORE building UI.
+
+**Deliverable this session:** branch `feature/bionic-fg-framegen` created off `main`; full recon +
+phased job task list written to **`BIONIC_FG_INTEGRATION_REPORT.md`** (Phase 0 honor-terms → 1 native
+build → 2 spike/de-risk → 3 container setting → 4 in-game menu → 5 polish/release/give-back).
+
+**Next on branch:** Phase 0 — add bionic-fg as a submodule under `app/src/main/cpp/bionic-fg` +
+README credit; then the Phase 2 verification spike (gate the rest on it).
+
+---
+
 ## How to Resume a Session
 
 1. Read this file top to bottom
