@@ -15,6 +15,115 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
+## 2026-06-21 (evening) — lsfg-vk as a SECOND, selectable frame-gen engine (recon → spike → integration → in-game live)
+
+New feature on branch **`feature/lsfg-vk-engine`** (off `main`; NOT merged): add **lsfg-vk** (Lossless
+Scaling FG, PancakeTAS lineage) alongside the existing **bionic-fg** so users pick the engine per
+container. User supplies their own `Lossless.dll` (we bundle nothing proprietary).
+
+**Recon (3-repo lineage):** lsfg-vk source = `FrankBarretta/lsfg-vk-android@b55b182` (Android AHB port);
+built by `The412Banner/LLS` CI (NDK 27, `-DLSFGVK_ANDROID_WINE=ON`, 2-line color-fix patch). Ludashi-plus
+itself has NO lsfg-vk (it dropped the feature). LLS run `25313482636` has a clean prebuilt artifact (NO
+`libc++_shared` dep — the libc++ blocker was only the old dead APK `.so`).
+
+**Device spike (✅ SUCCESS):** staged the LLS prebuilt `.so` + manifest + the user's `Lossless.dll` into a
+container's imagefs, env `LSFG_LEGACY=1 LSFG_DLL_PATH=… LSFG_MULTIPLIER=2 BIONIC_FG_DISABLE=1`. After fixing
+my guest-relative DLL path → full Android path (guest is NOT chrooted), **DOOMBLADE ran with lsfg-vk doing
+2× frame gen** (DXVK 39.3 → overlay 79). DEFINITIVELY confirmed lsfg-vk (not bionic) via live `/proc/*/maps`:
+`liblsfg-vk.so` mapped r-xp in the game procs, `libbionic_fg.so` mapped in zero. lsfg-vk = plain implicit
+layer, NO wrapper-ICD hack needed (unlike bionic-fg). ⚠️ it HARD-EXITS (bricks the container) if it can't read
+the DLL → the feature must gate on a valid DLL.
+
+**In-game LIVE control (GameNative recon):** stock lsfg-vk reads config once. GameNative makes mult/flow apply
+mid-game by rewriting `conf.toml` → their **forked layer** watches the file mtime in its present hook → returns
+`VK_ERROR_OUT_OF_DATE_KHR` → game recreates swapchain → layer re-reads config (the ~100ms "pause" the user sees
+= that rebuild). NO SIGSTOP, no app-side swapchain call. So we **re-vendored GameNative's fork** (`.so` md5
+`93fa20bb`, has the `Rereading configuration` mtime-watch) and drive via **conf.toml**, not `LSFG_LEGACY` env.
+
+**Integration (commits `a8974d9`,`1b96cb4`,`1997a55`,`7f7ffb5`):**
+- Layer staged opt-in: `assets/lsfg-vk/{liblsfg-vk.so,manifest}` + `ImageFsInstaller.installLsfgVkLayer()`;
+  added `enable_environment ENABLE_LSFG=1` to the manifest so the on-by-default upstream layer can't brick
+  other containers (loads only when a container selects lsfg-vk).
+- Launch wiring (`XServerDisplayActivity`): engine==lsfg → `ENABLE_LSFG=1` + `LSFG_CONFIG=<home>/.config/lsfg-vk/conf.toml`
+  + `LSFG_PROCESS=bannerlator-lsfg` + `writeLsfgConfig()` ([global].dll + [[game]] mult/flow/present=fifo),
+  gated on the imported DLL existing; else bionic-fg path unchanged. Mutual exclusion = one engine's enable env.
+- Data model (`Container`): `getFrameGenEngine/setFrameGenEngine/isLsfgEngine` ("off"/"bionic"/"lsfg"; default
+  migrates legacy `frameGenEnabled`).
+- UI: container FG control = engine selector ONLY (Off/bionic-fg/lsfg-vk); **lsfg-vk grayed out until a
+  `Lossless.dll` is imported** (`LabeledDropdown` gained `disabledOptions`). DLL picker at the bottom of
+  Settings (SAF → **copies into `filesDir/lsfg-vk/Lossless.dll`**, loads from the copy).
+- **Unified in-game control:** the single in-game multiplier toggle + flow slider drive WHICHEVER engine the
+  container runs — `onBionicFgConfigChange` branches to `writeLsfgConfig` for lsfg (live reload via the fork's
+  mtime-watch); drawer activated for lsfg containers. No per-container mult/flow control.
+
+**APK signing:** all builds now signed with the AOSP **testkey v1+v2+v3** (`keystore/testkey.p12`, commit
+`e09ac71`) so releases/updates install over previous installs (one-time uninstall on first testkey build).
+
+**Build:** test APK run `27920491173` @ `7f7ffb5` (label `lsfg-vk-ui-test3`) IN PROGRESS. ⚠️ Dispatch-race
+gotcha hit again — verify `git ls-remote` tip == local before `gh workflow run`. **STILL UNVERIFIED ON DEVICE:**
+GameNative fork `.so` loading on our Turnip stack + the live conf.toml reload mid-game (the test APK verifies).
+
+## 2026-06-21 (later) — sticky sync-failure force-disable fix + new `.so` `9136405c` STAGED/SWAPPED
+
+Found (via Jason's PR #6 `layer.cpp:1093` follow-up) that the runtime auto-disable wasn't sticky:
+`noteFenceTimeout` stored the kill in `conf.enabled`, which the hot-reload path overwrites wholesale
+(`st.conf = newConf`) — so any conf.toml touch (notably the in-game flow slider) silently re-armed
+framegen on an ICD path already proven sync-incompatible. **Fix:** new sticky `SwapState::framegenForceDisabled`
+that hot-reload never clears; QueuePresent gate honours it; clean re-attempt point stays a swapchain
+recreate. Fork `The412Banner/bionic-fg`@`bannerlator-android-wrapper-icd-fixes` commit `c861d8c`
+(4th unpushed commit ahead of PR remote `ac2f5c0`). App branch `feature/bionic-fg-pr-followups`
+`6807e83` (patch regen 597→608L, applies clean).
+
+**Build gotcha logged:** first dispatch (run 27916226393) checked out the STALE tip `56c6735`
+(dispatched a beat too fast after push → byte-identical `4b99b2d1`, no change). Re-dispatched
+27916284710 on confirmed remote tip `6807e83` → **new `.so` md5 `9136405c`**, `will NOT re-enable`
+log string confirmed compiled in. RULE: after `git push`, verify `git ls-remote` tip == local before
+`gh workflow run`, or the run may use the old ref.
+
+**Hot-swapped onto device** (no reinstall — pure layer-internal change, no conf/JNI/ABI surface):
+`imagefs/usr/lib/libbionic_fg.so` 4b99b2d1→`9136405c` (owner u0_a484, chmod 600); backups `.bak_c8e4`
+(shipped) + `.bak_prev` (4b99b2d1). App force-stopped. Staged `/sdcard/Download/libbionic_fg_9136405c.so`.
+
+⚠️ **Test scope:** the sticky-disable only ENGAGES on a sync-incompatible ICD (6 consecutive fence
+timeouts). On the known-good Proton 11 + Turnip path framegen never force-disables, so the fix is
+logic-verified by code; on-device this run is a **regression check** = confirm 2× still works + flow
+slider still hot-reloads cleanly (i.e. my change didn't break the happy path). ⏳ awaiting user launch;
+logcat → `/sdcard/Download/bionicfg_sticky_disable_test.txt`.
+
+---
+
+## 2026-06-21 — PR #6 review-followup `.so` (`4b99b2d1`) DEVICE-CONFIRMED ✅
+
+Hot-swapped the new layer (`libbionic_fg_4b99b2d1.so`, build run 27915620310, fork HEAD `5f4fc03`)
+into the installed app's imagefs — **no reinstall** — and tested on device. **All green.**
+
+- **Frame gen 2× confirmed** (game "FOLLOW MY LIGHT", Screenshot_20260621-155950): DXVK base HUD
+  **29.9 fps** → Banner overlay **60 fps** = 2.00×. Adreno 750, GPU 58%.
+- **FPS-limiter pacing confirmed** (Screenshot_20260621-160008): in-game FPS Limiter "Limit FPS" ON,
+  Max FPS = 30 → overlay ≈ **60–63 fps** (cap × mult). The relaxed clamp + new variance-aware
+  pacing path work.
+- **New container:** ran on **Proton 11.0-5-arm64ec** + Mesa Turnip v26.2.0 + zink (prior proofs
+  were on older containers). Layer loads clean: `VK_LAYER_BIONIC_framegen Device created` →
+  `SwapchainState provisioned 1280x720` → `FramegenContext ready mult=2 model=0
+  graph=model0-full-of-chain`; config hot-reload flow 0.90→1.00 live.
+- **CPU-temp HUD fix holds** (79.7 / 86.6 °C real values).
+- **No app crash.** No FATAL/SIGSEGV/tombstone for `com.winlator.banner` or `libbionic_fg`. Display
+  went `committedState OFF` at 15:59:41 (backgrounded); the ANR storm after 16:01 is
+  `com.qti.diagservices` = AYANEO firmware nvkeeper/diag bug, unrelated. The Claude session is what
+  died (known device-launch issue).
+- **Benign noise (cleanup candidate):** `failed to load layer libVkLayer_LSFGVK_frame_generation.so:
+  libc++_shared.so not found` — that's the *old* LSFGVK-named layer in the APK `lib/arm64`, not our
+  layer. Our `VK_LAYER_BIONIC_framegen` (imagefs/usr/lib) loads fine. Strip-or-bundle-libc++ before
+  the PR push.
+
+Log `/sdcard/Download/bionicfg_pr_followups_test.txt`; `.so` staged `/sdcard/Download/libbionic_fg_4b99b2d1.so`.
+
+**NEXT (now unblocked):** post the 3 drafted replies to Jason (1093/1334/manifest:17) → push fork
+`5f4fc03` to PR #6 branch `bannerlator-android-wrapper-icd-fixes` (one clean batch) → build APK from
+`feature/bionic-fg-pr-followups` for the app-side niceties (next reinstall). GN #1443 verify deferred.
+
+---
+
 ## 2026-06-20 — 1.3 shipped public + upstream PR review cycle (in progress)
 
 **1.3 released (public).** Repo flipped public (secret-scanned first), `Bannerlator 1.3` release
