@@ -86,9 +86,31 @@ android {
         freeCompilerArgs += ['-Xskip-metadata-version-check']
     }
 
+    signingConfigs {
+        // AOSP testkey (android@android.com, SHA-256 A4:0D:A8:0A:59:D1:70:CA…). A fixed,
+        // publicly-known key so every build shares ONE signature — new releases/updates
+        // install over a previously installed version instead of forcing an uninstall.
+        // Signed with v1 (JAR) + v2 + v3 for broadest installer/OS compatibility.
+        testkey {
+            storeFile file("${rootDir}/keystore/testkey.p12")
+            storeType "PKCS12"
+            storePassword "android"
+            keyAlias "testkey"
+            keyPassword "android"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
+            signingConfig signingConfigs.testkey
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.testkey
         }
     }
 
