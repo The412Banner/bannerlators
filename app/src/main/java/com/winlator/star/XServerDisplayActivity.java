@@ -931,6 +931,33 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
 
+    // lsfg-vk (GameNative fork) conf.toml. The layer watches this file's mtime in its present hook
+    // and forces a swapchain recreate when it changes, re-reading multiplier/flow — so rewriting it
+    // from the in-game menu re-applies live. exe MUST equal the LSFG_PROCESS env value.
+    void writeLsfgConfig(int multiplier, float flowScale, String dllPath) {
+        try {
+            File configDir = new File(imageFs.home_path, ".config/lsfg-vk");
+            configDir.mkdirs();
+            File confFile = new File(configDir, "conf.toml");
+            String toml = "# Written by Bannerlator (per-container lsfg-vk frame generation)\n"
+                    + "version = 1\n\n"
+                    + "[global]\n"
+                    + "dll = \"" + dllPath + "\"\n"
+                    + "no_fp16 = false\n\n"
+                    + "[[game]]\n"
+                    + "exe = \"bannerlator-lsfg\"\n"
+                    + "multiplier = " + multiplier + "\n"
+                    + "flow_scale = " + String.format(java.util.Locale.US, "%.2f", flowScale) + "\n"
+                    + "performance_mode = false\n"
+                    + "hdr_mode = false\n"
+                    + "experimental_present_mode = \"fifo\"\n";
+            FileUtils.writeString(confFile, toml);
+        }
+        catch (Exception e) {
+            Log.e("lsfg-vk", "Failed to write lsfg-vk conf.toml", e);
+        }
+    }
+
     private void savePlaytimeData() {
         long endTime = System.currentTimeMillis();
         long playtime = endTime - startTime;
@@ -1276,18 +1303,21 @@ public class XServerDisplayActivity extends AppCompatActivity {
             boolean limiterOn = container.isFpsLimiterEnabled();
             if (container.isLsfgEngine()) {
                 // lsfg-vk engine (mutually exclusive with bionic-fg). Opt-in via ENABLE_LSFG so the
-                // staged layer stays inert elsewhere. It reads the user-imported Lossless.dll and
-                // HARD-EXITS (bricks the container) if it can't, so only enable when the imported
-                // copy actually exists. Multiplier/flow are launch-time (the layer reads them once).
+                // staged layer stays inert elsewhere. Driven by conf.toml (NOT the LSFG_LEGACY env):
+                // the GameNative-fork layer watches the conf.toml mtime in its present hook and forces
+                // a swapchain recreate on change, so rewriting the file re-applies multiplier/flow LIVE
+                // in-game. It HARD-EXITS if it can't read the Lossless.dll, so only enable when the
+                // user-imported copy exists. LSFG_PROCESS must match the conf.toml [[game]].exe (under
+                // Wine /proc/self/exe is the loader, so the real exe name is unusable).
                 File losslessDll = new File(getFilesDir(), "lsfg-vk/Lossless.dll");
                 if (losslessDll.isFile()) {
                     int mult = container.getFrameGenMultiplier();
                     if (mult < 2) mult = 2;
+                    writeLsfgConfig(mult, container.getFrameGenFlowScale(), losslessDll.getAbsolutePath());
+                    File lsfgConf = new File(imageFs.home_path, ".config/lsfg-vk/conf.toml");
                     envVars.put("ENABLE_LSFG", "1");
-                    envVars.put("LSFG_LEGACY", "1");
-                    envVars.put("LSFG_DLL_PATH", losslessDll.getAbsolutePath());
-                    envVars.put("LSFG_MULTIPLIER", String.valueOf(mult));
-                    envVars.put("LSFG_FLOW_SCALE", String.valueOf(container.getFrameGenFlowScale()));
+                    envVars.put("LSFG_CONFIG", lsfgConf.getAbsolutePath());
+                    envVars.put("LSFG_PROCESS", "bannerlator-lsfg");
                 } else {
                     Log.w("XServerDisplayActivity", "lsfg-vk selected but no Lossless.dll imported (Settings) — leaving frame gen off");
                 }

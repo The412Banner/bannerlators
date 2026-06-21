@@ -469,6 +469,8 @@
     <string name="frame_generation_off">Off</string>
     <string name="frame_generation_bionic">bionic-fg</string>
     <string name="frame_generation_lsfg">lsfg-vk (Lossless Scaling)</string>
+    <string name="frame_generation_multiplier">Multiplier</string>
+    <string name="frame_generation_lsfg_needs_dll">lsfg-vk is unavailable — import a Lossless.dll at the bottom of Settings to enable it.</string>
     <string name="frame_generation_ingame_hint">Tune the multiplier &amp; flow scale live from the in-game side menu.</string>
     <string name="frame_generation_lsfg_hint">Uses your imported Lossless.dll (set it at the bottom of Settings). Multiplier is per-container.</string>
     <string name="fps_limiter">FPS Limiter</string>

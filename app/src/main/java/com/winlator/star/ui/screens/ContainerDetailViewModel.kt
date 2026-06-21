@@ -93,6 +93,9 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
     // Frame-gen engine (per-container): "off" | "bionic" | "lsfg" (mutually exclusive).
     // multiplier & flow scale are tuned live from the in-game side menu (bionic-fg).
     var frameGenEngine by mutableStateOf("off")
+    // lsfg-vk launch defaults (2|3|4, 0.2..1.0). Also live-adjustable in-game (conf.toml reload).
+    var frameGenMultiplier by mutableStateOf(2)
+    var frameGenFlowScale by mutableStateOf(0.6f)
     // FPS limiter on/off (loads the layer); the cap value is set live in-game.
     var fpsLimiterEnabled by mutableStateOf(false)
 
@@ -293,6 +296,8 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
         fullscreenStretched = c?.isFullscreenStretched == true
 
         frameGenEngine     = c?.frameGenEngine ?: "off"
+        frameGenMultiplier = c?.frameGenMultiplier ?: 2
+        frameGenFlowScale  = c?.frameGenFlowScale ?: 0.6f
         fpsLimiterEnabled  = c?.isFpsLimiterEnabled == true
 
         // Renderer
@@ -555,6 +560,8 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
             c.setFPSCounterConfig(fpsConfig)
             c.setFullscreenStretched(fullscreenStretched)
             c.setFrameGenEngine(frameGenEngine)
+            c.setFrameGenMultiplier(frameGenMultiplier)
+            c.setFrameGenFlowScale(frameGenFlowScale)
             c.setFpsLimiterEnabled(fpsLimiterEnabled)
             c.setExclusiveXInput(exclusiveXInput)
             c.setRenderer(StringUtils.parseIdentifier(selectedRenderer))
@@ -611,6 +618,8 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
                 container = created
                 if (created != null) {
                     created.setFrameGenEngine(frameGenEngine)
+                    created.setFrameGenMultiplier(frameGenMultiplier)
+                    created.setFrameGenFlowScale(frameGenFlowScale)
                     created.setFpsLimiterEnabled(fpsLimiterEnabled)
                     created.saveData()
                     saveMouseWarp(created)

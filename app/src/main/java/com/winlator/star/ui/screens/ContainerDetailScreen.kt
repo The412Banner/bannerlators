@@ -537,22 +537,33 @@ private fun TopLevelFields(
             Text(stringResource(R.string.fullscreen_stretched))
         }
 
-        // Frame Generation engine: Off / bionic-fg / lsfg-vk (mutually exclusive). For bionic-fg
-        // the multiplier & flow scale are tuned live from the in-game side menu; lsfg-vk reads them
-        // once at launch and uses the Lossless.dll imported in Settings.
+        // Frame Generation engine: Off / bionic-fg / lsfg-vk (mutually exclusive). lsfg-vk is grayed
+        // out until a Lossless.dll is imported (Settings). The multiplier/flow set here are the
+        // launch defaults; both engines also re-apply them live from the in-game side menu.
         val fgEngines = listOf("off", "bionic", "lsfg")
         val fgEngineLabels = listOf(
             stringResource(R.string.frame_generation_off),
             stringResource(R.string.frame_generation_bionic),
             stringResource(R.string.frame_generation_lsfg)
         )
+        val lsfgDllAvailable = remember { java.io.File(context.filesDir, "lsfg-vk/Lossless.dll").isFile }
+        val fgDisabledOpts = if (lsfgDllAvailable) emptySet() else setOf(fgEngineLabels[2])
         val fgSelIdx = fgEngines.indexOf(viewModel.frameGenEngine).coerceAtLeast(0)
         LabeledDropdown(
             label = stringResource(R.string.frame_generation),
             options = fgEngineLabels,
             selectedOption = fgEngineLabels[fgSelIdx],
-            onSelect = { viewModel.frameGenEngine = fgEngines[fgEngineLabels.indexOf(it)] }
+            onSelect = { viewModel.frameGenEngine = fgEngines[fgEngineLabels.indexOf(it)] },
+            disabledOptions = fgDisabledOpts
         )
+        if (!lsfgDllAvailable) {
+            Text(
+                text = stringResource(R.string.frame_generation_lsfg_needs_dll),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 52.dp, top = 2.dp, bottom = 4.dp)
+            )
+        }
         if (viewModel.frameGenEngine == "bionic") {
             Text(
                 text = stringResource(R.string.frame_generation_ingame_hint),
@@ -567,6 +578,26 @@ private fun TopLevelFields(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 52.dp, top = 2.dp, bottom = 4.dp)
+            )
+            val lsfgMults = listOf(2, 3, 4)
+            val lsfgMultLabels = listOf("2×", "3×", "4×")
+            val lsfgMultIdx = lsfgMults.indexOf(viewModel.frameGenMultiplier.coerceIn(2, 4)).coerceAtLeast(0)
+            LabeledDropdown(
+                label = stringResource(R.string.frame_generation_multiplier),
+                options = lsfgMultLabels,
+                selectedOption = lsfgMultLabels[lsfgMultIdx],
+                onSelect = { viewModel.frameGenMultiplier = lsfgMults[lsfgMultLabels.indexOf(it)] }
+            )
+            Text(
+                text = "Flow Scale: " + String.format(java.util.Locale.US, "%.2f", viewModel.frameGenFlowScale),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Slider(
+                value = viewModel.frameGenFlowScale,
+                onValueChange = {
+                    viewModel.frameGenFlowScale = (kotlin.math.round(it * 100f) / 100f).coerceIn(0.2f, 1.0f)
+                },
+                valueRange = 0.2f..1.0f
             )
         }
 
@@ -1138,6 +1169,7 @@ internal fun LabeledDropdown(
     selectedOption: String,
     onSelect: (String) -> Unit,
     enabled: Boolean = true,
+    disabledOptions: Set<String> = emptySet(),
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -1157,9 +1189,11 @@ internal fun LabeledDropdown(
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { opt ->
+                val optEnabled = opt !in disabledOptions
                 DropdownMenuItem(
                     text = { Text(opt) },
-                    onClick = { onSelect(opt); expanded = false }
+                    enabled = optEnabled,
+                    onClick = { if (optEnabled) { onSelect(opt); expanded = false } }
                 )
             }
         }
