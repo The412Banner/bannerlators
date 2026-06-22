@@ -165,3 +165,15 @@ Repo: https://github.com/The412Banner/bannerlators (public). Created 2026-06-18.
   dialogs (not the Compose AndroidView host), so they're NOT affected by this regression.
 - `app/build/outputs/apk/debug/app-debug.apk` is the single debug output path the workflows
   use (confirm flavor handling if multi-flavor APKs are ever needed here).
+
+## 2026-06-22 (PM) — Release builds shipped + 1.5 cut
+- Switched all CI workflows debug→release (`chore/release-builds`); fixes laggy Compose UI
+  (debug Compose 2–10× slower). Release-build gotchas fixed: `crunchPngs false` (GIF-as-.png
+  drawables), `lint{abortOnError false}`, excluded dup okhttp-coroutines artifact, dropped
+  hand-committed baseline.prof(m). CI green run `27971367549`.
+- ✅ DEVICE-CONFIRMED — user ran release APK, UI lag gone ("works just fine").
+- Merged `chore/release-builds` → main; bumped versionCode 22→23, versionName 1.4→1.5
+  (`a31bc4b`); splash auto-reads BuildConfig.VERSION_NAME → shows "V 1.5".
+- Repo flipped PUBLIC again (was private during bionic-fg work).
+- Cut **1.5 release** via release.yml (run 27973731778): release builds + GOG login fix +
+  start-menu apps (AIO Graphics Test / Game Controller Test) + WFM drive-icon fix.
