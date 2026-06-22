@@ -12,6 +12,10 @@
         ]
     },
     {
+        "name" : "Game Controller Test",
+        "path" : "C:/Game Controller Test/GameConTest.exe"
+    },
+    {
     "name" : "Programs",
     "children" : [
         {
