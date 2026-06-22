@@ -70,6 +70,7 @@ Everything Bannerlator offers, at a glance. No PC and no root required — it ru
 
 ### 🖥️ Renderers
 - Multiple host renderers — **Vulkan**, **OpenGL**, and **VirGL**.
+- > ℹ️ The **Vulkan host renderer** uses the rendering path from **[StevenMXZ](https://github.com/StevenMXZ/Winlator-Ludashi)** (Winlator-Ludashi); its `AHardwareBuffer` present path — what makes Vulkan / DXVK / VKD3D content actually display correctly — was ported from / cross-examined against **[GameNative](https://github.com/utkarshdalal/GameNative)**. See [Credits](#-credits).
 - **Native Rendering+** — low-latency direct-scanout presentation on the Vulkan renderer.
 - **Screen effects** on the OpenGL renderer — FXAA, SGSR, HDR, CRT, Toon, and NTSC.
 - Adjustable resolution and frame-rate limit.
