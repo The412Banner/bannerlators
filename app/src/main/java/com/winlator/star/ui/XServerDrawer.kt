@@ -512,9 +512,47 @@ private fun FrameGenSection(state: XServerDrawerState) {
     val frameGenEnabled by state.frameGenEnabled.collectAsState()
     val initFgMult by state.frameGenMultiplier.collectAsState()
     val initFgFlow by state.frameGenFlowScale.collectAsState()
+    val engine by state.frameGenEngine.collectAsState()
+    val layerActive by state.bionicFgActive.collectAsState()
 
-    Text("Frame Generation (AI)", color = Primary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-    Spacer(Modifier.height(6.dp))
+    // Title on the left, engine badge on the right (green dot = engine actually running this
+    // session). Replaces the old standalone "Frame Generation (AI)" header so the engine isn't
+    // labeled twice. Badge shows bionic-fg / lsfg-vk depending on the container's selection.
+    val engineLabel = when (engine) {
+        "lsfg"   -> "lsfg-vk"
+        "bionic" -> "bionic-fg"
+        else     -> "Off"
+    }
+    val isRunning = layerActive && engine != "off"
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Frame Generation", color = Primary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF1A1A1A))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(7.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isRunning) Color(0xFF4CAF50) else DimWhite.copy(alpha = 0.35f))
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                engineLabel,
+                color = if (isRunning) DimWhite else DimWhite.copy(alpha = 0.6f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+    Spacer(Modifier.height(8.dp))
 
     if (frameGenEnabled) {
         var fgMult by remember(initFgMult) { mutableIntStateOf(initFgMult) }

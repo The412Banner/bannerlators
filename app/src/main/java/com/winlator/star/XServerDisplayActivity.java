@@ -543,6 +543,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         XServerDrawerState.INSTANCE.setFrameGenMultiplier(
                 lsfgOn ? Math.max(2, container.getFrameGenMultiplier()) : container.getFrameGenMultiplier());
         XServerDrawerState.INSTANCE.setFrameGenFlowScale(container.getFrameGenFlowScale());
+        XServerDrawerState.INSTANCE.setFrameGenEngine(container.getFrameGenEngine());
         XServerDrawerState.INSTANCE.setFpsLimiterEnabled(container.isFpsLimiterEnabled());
         XServerDrawerState.INSTANCE.setFpsLimit(container.getFpsLimiterValue());
 

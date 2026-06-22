@@ -55,6 +55,11 @@ object XServerDrawerState {
     private val _frameGenFlowScale = MutableStateFlow(0.6f)
     val frameGenFlowScale: StateFlow<Float> = _frameGenFlowScale
 
+    // Which FG engine the container runs: "off" / "bionic" / "lsfg". Shown as a label above the
+    // in-game multiplier/flow controls so the user knows which engine they're tuning.
+    private val _frameGenEngine = MutableStateFlow("off")
+    val frameGenEngine: StateFlow<String> = _frameGenEngine
+
     private val _fpsLimiterEnabled = MutableStateFlow(false)
     val fpsLimiterEnabled: StateFlow<Boolean> = _fpsLimiterEnabled
 
@@ -118,6 +123,7 @@ object XServerDrawerState {
     fun setFrameGenEnabled(v: Boolean)     { _frameGenEnabled.value = v }
     fun setFrameGenMultiplier(v: Int)      { _frameGenMultiplier.value = v }
     fun setFrameGenFlowScale(v: Float)     { _frameGenFlowScale.value = v }
+    fun setFrameGenEngine(v: String)       { _frameGenEngine.value = v }
     fun setFpsLimiterEnabled(v: Boolean)   { _fpsLimiterEnabled.value = v }
     fun setFpsLimit(v: Int)                { _fpsLimit.value = v }
 
@@ -138,6 +144,7 @@ object XServerDrawerState {
         _frameGenEnabled.value = false
         _frameGenMultiplier.value = 2
         _frameGenFlowScale.value = 0.6f
+        _frameGenEngine.value = "off"
         _fpsLimiterEnabled.value = false
         _fpsLimit.value = 60
         _cursorExpanded.value = false
