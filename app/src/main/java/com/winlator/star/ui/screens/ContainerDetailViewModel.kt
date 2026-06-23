@@ -106,7 +106,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Renderer ──────────────────────────────────────────────────────────────
     var rendererEntries by mutableStateOf(emptyList<String>()); private set
-    var selectedRenderer by mutableStateOf("opengl")
+    var selectedRenderer by mutableStateOf("OpenGL")
 
     var lcAll by mutableStateOf("")
     var lcAllEntries by mutableStateOf(emptyList<String>()); private set
@@ -309,7 +309,10 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
         fpsLimiterEnabled  = c?.isFpsLimiterEnabled == true
 
         // Renderer
-        selectedRenderer = c?.renderer ?: "opengl"
+        // Map the stored identifier ("opengl"/"vulkan") to its display label ("OpenGL"/"Vulkan") so
+        // the dropdown shows the proper case AND the Vulkan-settings gear (gated on == "Vulkan") shows
+        // on load — not only after the user re-picks from the list.
+        selectedRenderer = identifierToDisplay(c?.renderer ?: "opengl", rendererEntries)
 
         val locale = java.util.Locale.getDefault()
         lcAll = c?.getLC_ALL() ?: "${locale.language}_${locale.country}.UTF-8"
