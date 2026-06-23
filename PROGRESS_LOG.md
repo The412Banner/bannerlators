@@ -25,11 +25,40 @@ Everything queued for the next release:
 3. Per-game (shortcut) overrides for Renderer + Frame-Gen engine + FPS limiter (`08878be`).
 4. Frame gen starts OFF in-game on every launch (`a669b8b`).
 
-**Pending merge** — branch `feat/standalone-fps-limiter`:
-5. Standalone FPS limiter — guest-side X11 Present IdleNotify pacing (`bd990b2`); caps fps with Off / bionic-fg / lsfg-vk, both host renderers, live. ✅ device-confirmed both renderers, all 3 modes.
-6. lsfg multiplier≥2 guard (`4909549`) — limiter steps aside while lsfg multiplies. CI `28046025979`; ⏳ device-spot-check pending.
+5. Standalone FPS limiter — guest-side X11 Present IdleNotify pacing (`bd990b2`) + lsfg≥2 guard (`4909549`); caps fps with Off / bionic-fg / lsfg-vk, both host renderers, live. ✅ merged to main (`a2ebd35`), GameNative credit (`0eadf16`).
+6. Advanced Vulkan present settings now actually apply (native/presentMode/filter/swapRB) + renderer-dropdown label/gear fix. ✅ merged to main (`dcd9d47`).
 
-Next: guard CI green → merge branch → main → cut 1.6 (bump versionCode from 23 + splash).
+**In progress (before 1.6, user's call)** — branch `feat/layer-download-menu`:
+7. Compatibility-layer download menu rework — adrenotools-style cards, cloud opens the sheet directly, install-from-file in the sheet, Wine/Proton chips, in-use marker, byte-accurate install bar. See the dated section below.
+
+Next: finish the download menu → merge → cut 1.6 (bump versionCode from 23 + splash).
+
+---
+
+## 2026-06-23 — Compatibility-layer download menu rework (branch `feat/layer-download-menu`, in progress)
+
+Reworked the per-component download entry points into an adrenotools-style menu. The backend
+(`ContentDownloadSheet` + `ContentsManager` + one remote `contents.json`) already covered all five
+layers — the work is front-end consolidation + a real install bar. Confirmed design (HTML preview
+first, then implemented):
+
+- **Cloud icons replace the gears** on every layer (Wine/Proton, DXVK, VKD3D, Box64/WOWBox64, FEXCore);
+  the cloud opens the download sheet **directly**. "Install from file" moved **into** the sheet header.
+- **Adrenotools-style rows** — flat rows, `Memory` icon, name + "In use"/"Installed"/desc subtitle,
+  trailing `CloudDownload`; chips restyled to the adrenotools `SourceChip` look. **Wine/Proton chips**
+  split the compatibility-layer sheet; the others are single-type.
+- **In-use marker** for the container's current version (Wine/Box64/FEXCore). Author/size are NOT in
+  the manifest (`ContentProfile` has only type/verName/verCode/desc) — would need a manifest extension
+  or a HEAD request; deferred.
+- **Two determinate 0→100 bars** — blue "Downloading" (byte-accurate) and green "Installing", now also
+  **byte-accurate**: `TarCompressorUtils` got a `CountingInputStream` + `OnReadProgressListener` and an
+  `extract(…, total, listener)` overload reporting `bytesRead/total` off the compressed stream
+  (single-pass, denominator = downloaded .wcp size); `ContentsManager.extraContentFile` got a matching
+  overload; the sheet feeds it monotonically (ignoring the brief XZ-probe before the ZSTD pass).
+
+VEGAS and the adrenotools GPU-driver downloader are left untouched. Kept as a centered `Dialog` for now
+(bottom-sheet vs centered to be decided on device). First impl device-tested ("looks good"); restyle +
+byte-accurate install in the build that follows.
 
 ---
 

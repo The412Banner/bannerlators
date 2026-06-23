@@ -125,6 +125,61 @@ public abstract class TarCompressorUtils {
         return extract(type, context, source, destination, null);
     }
 
+    /** Reports how many compressed bytes have been read out of [total] (byte-accurate progress). */
+    public interface OnReadProgressListener {
+        void onReadProgress(long bytesRead, long total);
+    }
+
+    /**
+     * Extract while reporting byte-accurate read progress. [total] is the size of the compressed
+     * source (e.g. the downloaded .wcp file length); progress = bytesRead / total.
+     */
+    public static boolean extract(Type type, Context context, Uri source, File destination,
+                                  long total, OnReadProgressListener progressListener) {
+        if (source == null) return false;
+        try {
+            InputStream raw = source.toString().startsWith("/")
+                ? new FileInputStream(source.toString())
+                : context.getContentResolver().openInputStream(source);
+            if (raw == null) return false;
+            if (progressListener != null && total > 0) raw = new CountingInputStream(raw, total, progressListener);
+            return extract(type, raw, destination, null);
+        }
+        catch (FileNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** Wraps an InputStream and reports cumulative bytes read (throttled to whole-percent steps). */
+    private static final class CountingInputStream extends java.io.FilterInputStream {
+        private final long total;
+        private final OnReadProgressListener listener;
+        private long count = 0;
+        private long lastPct = -1;
+        CountingInputStream(InputStream in, long total, OnReadProgressListener listener) {
+            super(in);
+            this.total = total;
+            this.listener = listener;
+        }
+        private void report() {
+            long pct = count * 100 / total;
+            if (pct != lastPct) {
+                lastPct = pct;
+                listener.onReadProgress(Math.min(count, total), total);
+            }
+        }
+        @Override public int read() throws IOException {
+            int b = super.read();
+            if (b >= 0) { count++; report(); }
+            return b;
+        }
+        @Override public int read(byte[] b, int off, int len) throws IOException {
+            int n = super.read(b, off, len);
+            if (n > 0) { count += n; report(); }
+            return n;
+        }
+    }
+
     public static boolean extract(Type type, Context context, Uri source, File destination, OnExtractFileListener onExtractFileListener) {
         if (source == null) return false;
         try {

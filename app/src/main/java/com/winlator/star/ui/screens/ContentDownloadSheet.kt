@@ -35,10 +35,10 @@ import androidx.compose.ui.window.Dialog
 import com.winlator.star.contents.ContentProfile
 import com.winlator.star.contents.ContentsManager
 import com.winlator.star.contents.Downloader
+import com.winlator.star.core.TarCompressorUtils
 import com.winlator.star.ui.findActivity
 import com.winlator.star.ui.theme.Divider as DividerColor
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -90,7 +90,7 @@ fun ContentDownloadSheet(
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         result.data?.data?.let { uri ->
             fileInstalling = true
-            installContent(context, cm, uri) { ok ->
+            installContent(context, cm, uri, onProgress = {}) { ok ->
                 fileInstalling = false
                 if (ok) {
                     loadProfiles(cm, contentTypes) { profiles = it }
@@ -244,14 +244,11 @@ fun ContentDownloadSheet(
                                                     downloadingKeys = downloadingKeys - key
                                                     downloadProgress = downloadProgress - key
                                                     installProgress = installProgress + (key to 0f)
-                                                    scope.launch {
-                                                        var p = 0f
-                                                        while (key in installingKeys && p < 0.95f) {
-                                                            delay(70); p += 0.05f
-                                                            installProgress = installProgress + (key to p.coerceAtMost(0.95f))
-                                                        }
-                                                    }
-                                                    installContent(context, cm, uri) { ok ->
+                                                    installContent(context, cm, uri, onProgress = { f ->
+                                                        // Monotonic: ignore the brief XZ-probe reset before the ZSTD pass.
+                                                        val prev = installProgress[key] ?: 0f
+                                                        installProgress = installProgress + (key to maxOf(prev, f))
+                                                    }) { ok ->
                                                         installingKeys = installingKeys - key
                                                         installProgress = installProgress - key
                                                         if (ok) {
@@ -415,13 +412,19 @@ private fun installContent(
     context: Context,
     cm: ContentsManager,
     uri: Uri,
+    onProgress: (Float) -> Unit,
     onDone: (Boolean) -> Unit,
 ) {
     val activity = context.findActivity()
     if (activity == null) { onDone(false); return }
+    // Byte-accurate denominator = the compressed source size (file uris only; 0 for content uris).
+    val total = uri.path?.let { runCatching { File(it).length() }.getOrDefault(0L) } ?: 0L
     Executors.newSingleThreadExecutor().execute {
         try {
-            cm.extraContentFile(uri, object : ContentsManager.OnInstallFinishedCallback {
+            val progress = TarCompressorUtils.OnReadProgressListener { read, tot ->
+                if (tot > 0) activity.runOnUiThread { onProgress((read.toFloat() / tot).coerceIn(0f, 1f)) }
+            }
+            cm.extraContentFile(uri, total, progress, object : ContentsManager.OnInstallFinishedCallback {
                 var phase = 0
                 override fun onFailed(reason: ContentsManager.InstallFailedReason, e: Exception?) {
                     activity.runOnUiThread { onDone(false) }
@@ -433,7 +436,7 @@ private fun installContent(
                             cm.finishInstallContent(profile, this)
                         } else {
                             cm.syncContents()
-                            activity.runOnUiThread { onDone(true) }
+                            activity.runOnUiThread { onProgress(1f); onDone(true) }
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()

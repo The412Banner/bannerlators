@@ -169,14 +169,19 @@ public class ContentsManager {
     }
 
     public void extraContentFile(Uri uri, OnInstallFinishedCallback callback) {
+        extraContentFile(uri, 0, null, callback);
+    }
+
+    // Variant that reports byte-accurate extraction progress (total = compressed source size).
+    public void extraContentFile(Uri uri, long total, TarCompressorUtils.OnReadProgressListener progress, OnInstallFinishedCallback callback) {
         cleanTmpDir(context);
 
         File file = getTmpDir(context);
 
         boolean ret;
-        ret = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, uri, file);
+        ret = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, context, uri, file, total, progress);
         if (!ret)
-            ret = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, uri, file);
+            ret = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, uri, file, total, progress);
         if (!ret) {
             callback.onFailed(InstallFailedReason.ERROR_BADTAR, null);
             return;
