@@ -215,3 +215,36 @@ Repo: https://github.com/The412Banner/bannerlators (public). Created 2026-06-18.
   byte-for-byte against Ludashi 3.1 (`StevenMXZ/Winlator-Ludashi@ludashi-3.1`). Universal fix
   (all flavors). ⚠️ CRLF file → byte-exact python edit. Replied on #5. Test build
   `build-artifacts.yml` run 27983069051. NEXT: device-test multitouch → merge → next release.
+
+## 2026-06-23 — File Manager: Back-button nav + Run-exe-in-container (device-found, branch `fix/file-manager-bugs`)
+Two device-found bugs in the in-app File Manager (`ui/screens/FileManagerScreen.kt`).
+⏳ **STAGED, UNCOMMITTED — not built, not device-confirmed** (user was mid-test on the prior
+fix5b build `888c796` when these were written).
+
+**Bug 1 — system Back exited the File Manager from any depth.** The path-bar ArrowBack button
+already went up one dir (clamped to `currentRoot`), but the Android system/gesture Back was
+never intercepted, so it popped the whole `FileManager` nav route (`AppNavGraph.kt:85`). Fix:
+added `BackHandler(enabled = currentDir != currentRoot)` that goes up exactly one directory;
+at the drive's top layer it's disabled so Back propagates and closes the File Manager.
+(`androidx.activity.compose.BackHandler`, dep `activity-compose:1.8.2` already present.)
+
+**Bug 2 — Run/tap-exe launched the container but the exe never executed.** `runFileInContainer`
+wrote `Exec=<android path>` (no `wine ` prefix, an Android path Wine can't run), the exe's
+folder wasn't mapped into the container's drives, AND it passed the extra `desktop_file` while
+`XServerDisplayActivity` reads `shortcut_path` (so the shortcut was ignored → fell back to
+`wfm.exe`). Root-cause confirmation of the user's "it's listed as Drive F not C" hunch: **F:
+vs C: was never the problem** — `Container.DEFAULT_DRIVES = "F:"+externalStorage + "D:"+Downloads`
+so internal storage is already F:; Wine runs an exe from any letter (C: is the prefix's internal
+`drive_c`, unrelated to phone storage). Fix mirrors the Games "add EXE" flow
+(`ShortcutsViewModel.writeExeShortcut`/`resolveWindowsPath`): map the exe folder to a Wine drive
+(existing F: for internal storage, else allocate+persist a new letter G–Y), write a `.desktop`
+with `Exec=wine <X:\…>` (4-backslash escaping per `StringUtils.unescape`), launch via
+`container_id`+`shortcut_path`+`shortcut_name`. User chose **transient run**: `.desktop` written
+to app `filesDir/desktops` (NOT the container desktop dir) so it does **not** create a permanent
+Games entry. Off-main-thread + failure toast.
+
+**Refactor:** extracted the drive-mapping/path logic into a new shared `core/WinePath.kt`
+(`resolveWindowsPath`, `bestDriveMatch`, `allocateDriveLetter`, `escapeForExec`);
+`ShortcutsViewModel` now delegates to it so Games-import and File-Manager-Run share one
+device-proven code path. Scope = `.exe` (`.msi`/`.bat`/`.sh` get plain `wine <path>`, not
+special-cased). NEXT: commit to `fix/file-manager-bugs` → CI build → device-test Back + Run.

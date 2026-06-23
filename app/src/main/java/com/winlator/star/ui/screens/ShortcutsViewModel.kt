@@ -15,6 +15,7 @@ import com.winlator.star.container.Container
 import com.winlator.star.container.ContainerManager
 import com.winlator.star.container.Shortcut
 import com.winlator.star.core.FileUtils
+import com.winlator.star.core.WinePath
 import com.winlator.star.store.StarLaunchBridge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -176,9 +177,9 @@ class ShortcutsViewModel(app: Application) : AndroidViewModel(app) {
         // map to imagefs root (chroot view) and not reach external storage, so we use
         // F:/D:/etc. as defined in container.drives. If no existing drive contains the
         // EXE path we add and persist a new letter pointing at the parent directory.
-        val winPath = resolveWindowsPath(container, exeFile.absolutePath)
+        val winPath = WinePath.resolveWindowsPath(container, exeFile.absolutePath)
         // 4-backslash separators per Winlator's two-pass StringUtils.unescape().
-        val escaped = winPath.replace("\\", "\\\\\\\\")
+        val escaped = WinePath.escapeForExec(winPath)
         val content = buildString {
             append("[Desktop Entry]\n")
             append("Name=").append(displayName).append("\n")
@@ -192,60 +193,6 @@ class ShortcutsViewModel(app: Application) : AndroidViewModel(app) {
         shortcutFile.writeText(content)
         Log.d(TAG, "Wrote EXE shortcut: ${shortcutFile.path} -> $winPath ($exeFile)")
         return shortcutFile
-    }
-
-    /**
-     * Builds a Wine-side Windows path for `exePath` using the container's drive map.
-     * If no existing drive contains the EXE, a new letter is allocated to the EXE's
-     * parent folder and persisted on the container.
-     */
-    private fun resolveWindowsPath(container: Container, exePath: String): String {
-        val match = bestDriveMatch(container, exePath)
-        if (match != null) {
-            val (letter, mountPath) = match
-            val rel = exePath.removePrefix(mountPath).removePrefix("/").replace("/", "\\")
-            return "$letter:\\$rel"
-        }
-        // No existing drive — allocate one for the parent folder and persist.
-        val parent = File(exePath).parentFile?.absolutePath ?: "/"
-        val letter = allocateDriveLetter(container)
-            ?: throw IOException("No free drive letter available to map $parent")
-        val newDrives = container.drives + "$letter:$parent"
-        container.drives = newDrives
-        try {
-            container.saveData()
-            Log.d(TAG, "Auto-added drive $letter: -> $parent (container ${container.id})")
-        } catch (e: Exception) {
-            Log.w(TAG, "Drive persist failed (continuing with in-memory mapping)", e)
-        }
-        val fileName = File(exePath).name.replace("/", "\\")
-        return "$letter:\\$fileName"
-    }
-
-    /** Returns (letter, mountPath) of the longest-matching drive prefix, or null. */
-    private fun bestDriveMatch(container: Container, exePath: String): Pair<String, String>? {
-        var best: Pair<String, String>? = null
-        for (entry in container.drivesIterator()) {
-            val letter = entry[0]
-            val mountPath = entry[1].trimEnd('/')
-            if (mountPath.isEmpty()) continue
-            val matches = exePath == mountPath ||
-                    exePath.startsWith(if (mountPath.endsWith("/")) mountPath else "$mountPath/")
-            if (matches && (best == null || mountPath.length > best!!.second.length)) {
-                best = letter to mountPath
-            }
-        }
-        return best
-    }
-
-    /** Picks the next free drive letter (skips C: and Z:, plus anything already mapped). */
-    private fun allocateDriveLetter(container: Container): String? {
-        val used = mutableSetOf("C", "Z")
-        for (entry in container.drivesIterator()) used += entry[0].uppercase()
-        // Try G..Y first to avoid stomping on common user-set letters (D/E/F).
-        val order = ('G'..'Y').map { it.toString() } +
-                listOf("A", "B", "D", "E", "F")
-        return order.firstOrNull { it !in used }
     }
 
     private fun resolveLocalPath(ctx: Context, uri: Uri): String? {

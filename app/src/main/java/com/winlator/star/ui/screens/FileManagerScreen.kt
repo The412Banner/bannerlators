@@ -3,6 +3,7 @@ package com.winlator.star.ui.screens
 import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -83,12 +84,12 @@ import com.winlator.star.container.Container
 import com.winlator.star.core.FileUtils
 import com.winlator.star.core.PeIconExtractor
 import com.winlator.star.core.StringUtils
+import com.winlator.star.core.WinePath
 import com.winlator.star.ui.theme.OnSurfaceVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.PrintWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -171,29 +172,58 @@ fun FileManagerScreen() {
 
     LaunchedEffect(Unit) { openDrive(rootDir) }
 
+    // System/gesture Back goes up one directory; only when we're at the current drive's
+    // root (top layer) is it disabled, letting Back propagate to close the File Manager.
+    BackHandler(enabled = currentDir != currentRoot) {
+        val parent = currentDir.parentFile
+        if (parent != null && parent.exists()) loadDirectory(parent)
+    }
+
     fun canRun(file: File): Boolean {
         val name = file.name.lowercase()
         return name.endsWith(".exe") || name.endsWith(".bat") || name.endsWith(".msi") || name.endsWith(".sh")
     }
 
+    // Launch [file] inside [container] the same way the Games importer does: map the
+    // file's folder to a Wine drive letter (persisted on the container), then hand
+    // XServerDisplayActivity a shortcut whose Exec is `wine <X:\path>`. We don't add a
+    // permanent Games entry — the .desktop lives in app storage, not the container's
+    // desktop dir, so it never shows up in the Shortcuts list.
     fun runFileInContainer(file: File, container: Container) {
-        val desktopDir = File(context.filesDir, "desktops")
-        desktopDir.mkdirs()
-        val desktopFile = File(desktopDir, "opencode_file_${file.name}.desktop")
-        PrintWriter(desktopFile).use { pw ->
-            pw.println("[Desktop Entry]")
-            pw.println("Name=${file.nameWithoutExtension}")
-            pw.println("Exec=${file.absolutePath}")
-            pw.println("Icon=wine")
-            pw.println("Path=${file.parent ?: ""}")
-            pw.println("Terminal=false")
-            pw.println("Type=Application")
-            pw.println("StartupNotify=true")
+        scope.launch {
+            val shortcutFile = withContext(Dispatchers.IO) {
+                runCatching {
+                    val winPath = WinePath.resolveWindowsPath(container, file.absolutePath)
+                    val escaped = WinePath.escapeForExec(winPath)
+                    val desktopDir = File(context.filesDir, "desktops").apply { mkdirs() }
+                    val safeName = file.nameWithoutExtension
+                        .replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifEmpty { "run" }
+                    File(desktopDir, "$safeName.desktop").apply {
+                        writeText(
+                            buildString {
+                                append("[Desktop Entry]\n")
+                                append("Name=").append(file.nameWithoutExtension).append("\n")
+                                append("Exec=wine ").append(escaped).append("\n")
+                                append("Icon=").append(safeName).append("\n")
+                                append("Type=Application\n")
+                                append("StartupWMClass=explorer\n")
+                                append("\ncontainer_id:").append(container.id).append("\n")
+                                append("\n[Extra Data]\n")
+                            }
+                        )
+                    }
+                }.getOrNull()
+            }
+            if (shortcutFile == null) {
+                Toast.makeText(context, "Couldn't prepare ${file.name} to run", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val intent = Intent(context, XServerDisplayActivity::class.java)
+            intent.putExtra("container_id", container.id)
+            intent.putExtra("shortcut_path", shortcutFile.absolutePath)
+            intent.putExtra("shortcut_name", shortcutFile.nameWithoutExtension)
+            context.startActivity(intent)
         }
-        val intent = Intent(context, XServerDisplayActivity::class.java)
-        intent.putExtra("container_id", container.id)
-        intent.putExtra("desktop_file", desktopFile.absolutePath)
-        context.startActivity(intent)
     }
 
     fun runFile(file: File) {
