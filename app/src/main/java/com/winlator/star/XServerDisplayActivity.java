@@ -2501,6 +2501,9 @@ return true;
     // >>> IF USERS REPORT "THE FPS LIMITER DOESN'T WORK / NO CAP" ON lsfg-vk, THIS GUARD IS WHY:
     //     the limiter is intentionally disabled while lsfg-vk multiplies (mult >= 2). It is NOT
     //     disabled for bionic-fg, for Off, or for lsfg at 1x (passthrough) -- those still cap.
+    //
+    // Behavior ported from GameNative (its "limiterControlledByLsfg"):
+    // https://github.com/utkarshdalal/GameNative. See README Credits.
     private boolean lsfgGovernsFps() {
         XServerDrawerState s = XServerDrawerState.INSTANCE;
         return "lsfg".equals(resolvedFrameGenEngine())

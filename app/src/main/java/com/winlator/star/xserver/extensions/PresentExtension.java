@@ -84,7 +84,9 @@ public class PresentExtension implements Extension {
     // The guest (DXVK/vkd3d/...) blocks waiting for the IdleNotify that says its presented buffer
     // is free to reuse. By DELAYING that IdleNotify to a paced cadence we throttle the GAME itself
     // (not just the display) — so the in-game HUD reflects the cap and GPU load drops. Live + all
-    // host renderers + all APIs (every guest present goes through here). Mirrors GameNative.
+    // host renderers + all APIs (every guest present goes through here).
+    // Mechanism (IdleNotify-delay pacing + WindowTiming) ported from GameNative
+    // (https://github.com/utkarshdalal/GameNative). See README Credits.
     private volatile int frameRateLimit = 0;
     public void setFrameRateLimit(int limit) { this.frameRateLimit = Math.max(0, limit); }
 
