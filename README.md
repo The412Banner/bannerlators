@@ -49,19 +49,22 @@
 |---|---|
 | **App label** | `Bannerlator Bionic` (standard) · `Bannerlator Bionic PuBG` (pubg) · `Bannerlator Bionic Ludashi` (ludashi) |
 | **Packages** | `com.winlator.banner` (standard) · `com.tencent.ig` (pubg) · `com.ludashi.benchmark` (ludashi) |
-| **Version** | Bannerlator **V 1.5** — built from Star **marcescence** (`versionName 1.5`, `versionCode 23`) |
+| **Version** | Bannerlator **V 1.6** — built from Star **marcescence** (`versionName 1.6`, `versionCode 24`) |
 | **Android SDK** | `compileSdk 34` · `targetSdk 28` · `minSdk 26` (Android 8.0+) |
 | **Lineage** | Winlator → cmod → Bionic Nightly → Star Bionic → **marcescence** → **Bannerlator** |
 
 ---
 
-## 🆕 What's New in 1.5
+## 🆕 What's New in 1.6
 
-- **Optimized release builds.** Every build now ships as an **optimized release build** instead of a debug build. This was implemented to reduce the user-interface lag that some users had noticed; the Jetpack Compose UI is now noticeably smoother. Builds are still AOSP-testkey signed, so updates install over previous installs without an uninstall.
-  - **⚠️ Updating over 1.4?** You must **reinstall imageFS** after updating — open the app's **Settings**, scroll to the **bottom**, and tap **Reinstall imageFS**.
-- **GOG store sign-in fixed.** The GOG store login no longer shows a blank white screen — the OAuth login now completes correctly so you can sign in and access your GOG library.
-- **New bundled Start-menu utilities** in fresh containers — **AIO Graphics Test** and **Game Controller Test** — alongside the bundled **Winlator File Manager (WFM)**, with `.lnk` working-directory ("Start in") support so folder-locked apps launch correctly.
-- **WFM drive icons fixed.** The bundled Winlator File Manager now shows the correct **"Local Disk"** icon for drives instead of a generic document icon.
+- **New Compatibility Layers download menu.** Browse, download and install **Wine/Proton, DXVK, VKD3D, Box64/WOWBox64 and FEXCore** from one cloud menu on each row — with **Wine/Proton tabs**, an **"in use"** marker for the version the container is using, **install-from-file**, and **live download + install progress bars**. (The download UI follows the pattern of the built-in Adrenotools GPU-driver downloader.)
+- **Standalone FPS limiter.** The in-game FPS cap now works with **any** frame-generation engine — **Off / bionic-fg / lsfg-vk** — on **both** the OpenGL and Vulkan host renderers, live. (Pacing mechanism ported from **GameNative**; when lsfg-vk is multiplying ≥2×, the limiter steps aside so lsfg's own pacing governs.)
+- **Advanced Vulkan settings now apply.** Native Rendering+, present mode, filter and swap-R/B from the container's Vulkan Settings actually take effect now; the Renderer dropdown also shows the correct name and its settings button right away.
+- **Per-game overrides** for **Renderer**, **Frame-Gen engine** and **FPS limiter** — set them per game, falling back to the container default.
+- **File Manager fixes** — safe paste/move (no more data loss), run a `.exe` directly in its container, system **Back** goes up a folder, and accurate copy progress.
+- **On-screen controls fix** — the D-pad / analog stick no longer freezes on multi-touch.
+- **Frame generation now starts off** in-game on every launch; re-enable it any time from the in-game Graphics drawer.
+  - **⚠️ Updating from an older version?** If a game fails to start after updating, **reinstall imageFS** — open the app's **Settings**, scroll to the **bottom**, and tap **Reinstall imageFS**.
 
 ---
 
@@ -104,7 +107,7 @@ Everything Bannerlator offers, at a glance. No PC and no root required — it ru
 - Create and manage **multiple isolated Wine containers**.
 - **Import / export** containers to move or back up setups.
 - Per-container control of Wine version, graphics driver, DXVK / VKD3D version, Box64 preset, drive mappings, Z-drive selector, and environment variables.
-- **One-tap component downloads** (Wine, DXVK, VKD3D, Box64, VEGAS) with on-card download & install progress.
+- **Compatibility Layers download menu** — a cloud button on each component (Wine/Proton, DXVK, VKD3D, Box64/WOWBox64, FEXCore) opens a downloader to browse, install or remove versions, with **Wine/Proton tabs**, an **"in use"** marker, **install-from-file**, and **byte-accurate download + install progress bars**.
 
 ### 🕹️ Games, shortcuts & input
 - **Game library** with grid or list layout, sorting, and installed/updated filters.
