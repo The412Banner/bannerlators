@@ -210,6 +210,76 @@ public abstract class FileUtils {
         }
     }
 
+    // Byte-accurate copy progress (copied/total bytes), reported as the copy proceeds.
+    public interface ProgressCallback { void onProgress(long copiedBytes, long totalBytes); }
+
+    // Recursive total size in bytes of files under [f] (skips symlinks). Used to size a progress bar.
+    public static long totalSize(File f) {
+        if (f == null || !f.exists() || isSymlink(f)) return 0;
+        if (f.isDirectory()) {
+            long sum = 0;
+            File[] kids = f.listFiles();
+            if (kids != null) for (File k : kids) sum += totalSize(k);
+            return sum;
+        }
+        return f.length();
+    }
+
+    // Like copy(), but reports byte progress (smooth even within one large file). Honors the same
+    // self/descendant guards and partial-failure semantics.
+    public static boolean copyWithProgress(File srcFile, File dstFile, ProgressCallback progress) {
+        long total = Math.max(totalSize(srcFile), 1);
+        return copyWithProgress(srcFile, dstFile, new long[]{0}, total, progress);
+    }
+
+    private static boolean copyWithProgress(File srcFile, File dstFile, long[] done, long total, ProgressCallback progress) {
+        if (isSymlink(srcFile)) return true;
+        if (sameFile(srcFile, dstFile)) return true;
+        if (srcFile.isDirectory() && isWithin(dstFile, srcFile)) {
+            Log.e(TAG, "Refusing to copy directory into itself: " + srcFile.getAbsolutePath() + " -> " + dstFile.getAbsolutePath());
+            return false;
+        }
+        if (srcFile.isDirectory()) {
+            if (!dstFile.exists() && !dstFile.mkdirs()) return false;
+            boolean allOk = true;
+            String[] filenames = srcFile.list();
+            if (filenames != null) {
+                for (String filename : filenames) {
+                    if (!copyWithProgress(new File(srcFile, filename), new File(dstFile, filename), done, total, progress)) {
+                        Log.e(TAG, "Failed to copy: " + new File(srcFile, filename).getAbsolutePath());
+                        allOk = false;
+                    }
+                }
+            }
+            return allOk;
+        } else {
+            File parent = dstFile.getParentFile();
+            if (!srcFile.exists() || (parent != null && !parent.exists() && !parent.mkdirs())) return false;
+
+            final long CHUNK = 4L * 1024 * 1024;   // report progress every 4 MiB
+            try (FileChannel inChannel = (new FileInputStream(srcFile)).getChannel();
+                 FileChannel outChannel = (new FileOutputStream(dstFile)).getChannel()) {
+                long size = inChannel.size();
+                long position = 0;
+                while (position < size) {
+                    long transferred = inChannel.transferTo(position, Math.min(CHUNK, size - position), outChannel);
+                    if (transferred <= 0) break;
+                    position += transferred;
+                    done[0] += transferred;
+                    if (progress != null) progress.onProgress(done[0], total);
+                }
+                if (position < size)
+                    throw new IOException("Incomplete copy: " + position + "/" + size + " bytes");
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                Log.e(TAG, "Failed to copy file: " + srcFile.getAbsolutePath() + " to " + dstFile.getAbsolutePath(), e);
+                dstFile.delete();
+                return false;
+            }
+        }
+    }
+
     // True when both paths resolve to the same file on disk.
     private static boolean sameFile(File a, File b) {
         if (a == null || b == null) return false;

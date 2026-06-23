@@ -52,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -123,6 +124,8 @@ fun FileManagerScreen() {
     var pendingRun by remember { mutableStateOf<File?>(null) }
     var isOperationRunning by remember { mutableStateOf(false) }
     var operationLabel by remember { mutableStateOf("") }
+    var operationDeterminate by remember { mutableStateOf(false) }
+    var operationProgress by remember { mutableFloatStateOf(0f) }
 
     fun loadDirectory(dir: File) {
         currentDir = dir
@@ -226,14 +229,26 @@ fun FileManagerScreen() {
         // Don't overwrite an existing entry (or self when copying in-place) — pick a free name.
         val dst = uniqueDestination(dstDir, src.name)
         scope.launch {
-            isOperationRunning = true
+            operationProgress = 0f
+            operationDeterminate = true
             operationLabel = if (cut) "Moving..." else "Copying..."
+            isOperationRunning = true
+            // Throttle UI updates to whole-percent changes to avoid flooding recomposition.
+            var lastPct = -1
+            val onProgress = FileUtils.ProgressCallback { copied, total ->
+                val pct = if (total > 0) ((copied * 100) / total).toInt() else 100
+                if (pct != lastPct) {
+                    lastPct = pct
+                    operationProgress = pct / 100f
+                }
+            }
             val ok = withContext(Dispatchers.IO) {
-                val copied = FileUtils.copy(src, dst)
+                val copied = FileUtils.copyWithProgress(src, dst, onProgress)
                 if (copied && cut) FileUtils.delete(src)
                 copied
             }
             isOperationRunning = false
+            operationDeterminate = false
             clipboardFile = null
             isCutOperation = false
             loadDirectory(currentDir)
@@ -515,7 +530,7 @@ fun FileManagerScreen() {
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "Paste ${clipboardFile?.name}${if (isCutOperation) " (move)" else ""} here",
-                    color = CardStroke, fontSize = 13.sp, modifier = Modifier.weight(1f),
+                    color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { clipboardFile = null; isCutOperation = false }) {
                     Text("Cancel", color = OnSurfaceVariant, fontSize = 12.sp)
@@ -531,13 +546,23 @@ fun FileManagerScreen() {
                     .background(Color(0xFF0A0A0A))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(operationLabel, color = OnSurfaceVariant, fontSize = 12.sp)
+                val pctText = if (operationDeterminate) "  ${(operationProgress * 100).toInt()}%" else ""
+                Text("$operationLabel$pctText", color = OnSurfaceVariant, fontSize = 12.sp)
                 Spacer(Modifier.height(4.dp))
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(3.dp),
-                    color = CardStroke,
-                    trackColor = DividerColor,
-                )
+                if (operationDeterminate) {
+                    LinearProgressIndicator(
+                        progress = { operationProgress },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = IconBlue,
+                        trackColor = DividerColor,
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = IconBlue,
+                        trackColor = DividerColor,
+                    )
+                }
             }
         }
 
