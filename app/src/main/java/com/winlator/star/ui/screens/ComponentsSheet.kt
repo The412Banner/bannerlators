@@ -144,19 +144,24 @@ fun ComponentsSheet(container: Container, onDismiss: () -> Unit) {
                                     progress = if (installing == c.name) progress else null,
                                     enabled = installing == null,
                                     onInstall = {
-                                        if (ComponentExecInstaller.isExecComponent(c)) {
-                                            confirmExec = c
-                                        } else {
-                                            installing = c.name; progress = 0f
-                                            scope.launch {
-                                                val err = withContext(Dispatchers.IO) {
-                                                    ComponentInstaller.install(context, container, c) { f ->
-                                                        activity?.runOnUiThread { progress = f }
+                                        when {
+                                            // Has an installer step → confirm, then run a container session.
+                                            ComponentExecInstaller.isExecComponent(c) -> confirmExec = c
+                                            // Local-only but not pure file-drop (set_windows/uninstall) → run
+                                            // inline via the exec driver; no session, no confirm needed.
+                                            ComponentExecInstaller.handlesComponent(c) -> runExecInstall(c)
+                                            else -> {
+                                                installing = c.name; progress = 0f
+                                                scope.launch {
+                                                    val err = withContext(Dispatchers.IO) {
+                                                        ComponentInstaller.install(context, container, c) { f ->
+                                                            activity?.runOnUiThread { progress = f }
+                                                        }
                                                     }
+                                                    installing = null
+                                                    if (err == null) installed = installed + c.name
+                                                    else message = "Couldn't install ${c.name}: $err"
                                                 }
-                                                installing = null
-                                                if (err == null) installed = installed + c.name
-                                                else message = "Couldn't install ${c.name}: $err"
                                             }
                                         }
                                     },
@@ -185,8 +190,9 @@ private fun ComponentRow(
 ) {
     val cs = MaterialTheme.colorScheme
     val installedBlue = Color(0xFF4FC3F7)
-    // Installer-based components are gated by the exec engine; the rest by the file-drop installer.
-    val reason = if (ComponentExecInstaller.isExecComponent(c)) ComponentExecInstaller.execBlockedReason(c)
+    // Components needing the exec engine (installer steps, or set_windows/uninstall) are gated by it;
+    // the rest by the file-drop installer.
+    val reason = if (ComponentExecInstaller.handlesComponent(c)) ComponentExecInstaller.execBlockedReason(c)
                  else ComponentInstaller.blockedReason(c)
     val installable = reason == null
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {

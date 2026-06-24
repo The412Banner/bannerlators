@@ -64,17 +64,24 @@ object ComponentExecInstaller {
     /** True when the component has any installer (`install_exe`/`install_msi`) step. */
     fun isExecComponent(c: Component): Boolean = c.steps.any { it.action in EXEC_ACTIONS }
 
-    /** True when this is an installer-based component we can drive (has an exec step, all actions supported). */
+    /**
+     * True when this component must go through this installer rather than the pure file-drop path —
+     * i.e. it has an installer step (`install_exe`/`install_msi`) OR a local action the file-drop
+     * installer doesn't handle (`set_windows`/`uninstall`). Pure-`set_windows` comps (win7/winXP)
+     * run fully inline here with no Wine session.
+     */
+    fun handlesComponent(c: Component): Boolean =
+        c.steps.any { it.action in EXEC_ACTIONS || it.action == "set_windows" || it.action == "uninstall" }
+
+    /** True when this is a component we can drive — mirrored and every step supported. */
     fun isExecInstallable(c: Component): Boolean =
         c.ready && c.steps.isNotEmpty() &&
-            c.steps.any { it.action in EXEC_ACTIONS } &&
             c.steps.all { it.action in SUPPORTED_ACTIONS }
 
-    /** Reason an installer-based component can't be driven yet, or null if it can. */
+    /** Reason a component routed here can't be driven yet, or null if it can. */
     fun execBlockedReason(c: Component): String? = when {
         c.status == "needs-upstream" -> "Needs a large package that isn't mirrored yet"
         c.status == "pending-manual" -> "Source unavailable — awaiting a re-hosted file"
-        c.steps.none { it.action in EXEC_ACTIONS } -> null // not an exec component
         !isExecInstallable(c) -> "Uses an installer step not yet supported"
         else -> null
     }
