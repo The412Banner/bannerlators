@@ -15,6 +15,48 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
+## 2026-06-24 — Components: backfilled 15 "N/A" components + device-tested registration
+
+**Backfill (winlator-contents `1f6eb72`).** The catalog had **17 components stuck at N/A**
+(`needs-upstream`/`pending-manual`) because their source files were never mirrored. User supplied
+the missing Microsoft files (`windows6.1-kb976932` Win7-SP1 x64+x86, ~1.5 GB; `powershell-wrapper.zip`),
+covering **15 of 17**.
+
+- The app has **no runtime cab engine** (verified: `ComponentInstaller`/`ComponentExecInstaller`
+  handle neither `cab_extract`/`get_from_cab` nor `register_dll`; Phase 3b = installer-exec, not cab).
+  The 12 already-working cab components were **pre-baked build-side** — so I followed the same method.
+- **Pre-baked** the DLLs with `cabextract` straight out of the SP1 packages (all validated PE/`MZ`),
+  packaged each as `<name>__libs.tar.xz` (`win32/`+`win64/` layout, gdiplus = 1.1.7601.17514),
+  uploaded all **15** to release `system-libraries-v1` (~10 MB total — not the 1.5 GB raw `.exe`s,
+  which would never install).
+- **Rewrote** each component in `components.json` to the proven file-drop pattern
+  (`archive_extract` + `copy_dll`(+`override_dll`)) — exactly like `devenum`/`riched20`; dropped the
+  unsupported `register_dll` (native override inherits Wine's builtin COM registration). PowerShell
+  repackaged into the same convention (its `powershell_core` dep was already `ready`).
+- Catalog tally now **ready 112 / N/A 2**. Still N/A: `art2k7min` (needs AccessRuntime2007.exe),
+  `vbrun6` (needs VB6 SP6 runtime).
+- **No app rebuild needed:** `ComponentCatalog` fetches the catalog live (no cache) from
+  `raw.githubusercontent.com/.../main/components.json`; installed builds see the 15 within minutes.
+
+**Device test — quartz registration CONFIRMED (root bridge, `com.winlator.banner`).** Premise held:
+every container prefix already has builtin Wine quartz fully COM-registered (**48** `quartz.dll`
+InprocServer32 refs, FilterGraph CLSID `{e436ebb3-…}` + DirectShow Filters category present). Did a
+reversible end-to-end install on `xuser-2` "P11 ARM" (backups `*.bak-comp`): native MS `quartz.dll`
+→ system32 (1,572,352 B) + syswow64 (1,328,128 B), both `MZ`; inserted `"quartz"="native,builtin"`;
+**48 CLSIDs still resolve to quartz.dll (now the native DLL), FilterGraph CLSID intact**. Only the
+runtime-load under Wine/arm64ec (launch a DirectShow/FMV title) is left for a user-side check.
+
+## 2026-06-24 — In-game overlay-opacity (controls) reworked + moved to side menu
+
+On-screen controls "overlay opacity not working" → fixed + relocated. Was: draw curve
+`0.5+0.7*opacity` (dead top ~29 %, never faint), `setOverlayOpacity()` never `invalidate()`d, editor
+hardcoded 0.6. Now **linear 0–100 %** (0 % = fully invisible; accent-stroke alpha floors scaled with
+opacity), live `invalidate()`, and the slider **moved from the Input-Controls profile screen into the
+in-game side menu (Controls tab)** so it tunes the visible overlay live (`XServerDrawerState`
+`overlayOpacity` + `onOverlayOpacityChange`; activity applies + persists). DEFAULT 0.4→0.75 (matches
+old look under the new mapping). Branch `feat/ingame-overlay-opacity` `d3f2a8b`, compile CI
+`28135045851` ✅ green. Next: device-test → merge for the next release.
+
 ## 2026-06-23 — Components installer: catalog + mirror DONE (app side next)
 
 Building a **Components installer** for container settings — browse + install Wine dependencies
