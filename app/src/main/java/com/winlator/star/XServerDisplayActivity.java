@@ -161,6 +161,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private ImageFs imageFs;
     private FrameRating frameRating = null;
     private FrameRatingHorizontal frameRatingHorizontal = null;
+    private boolean fpsHudHorizontal = false;   // active FPS-overlay orientation (tap to toggle in-game)
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -254,6 +255,59 @@ public class XServerDisplayActivity extends AppCompatActivity {
             installerWatchHandler.postDelayed(this, 2000);
         }
     };
+
+    // Live detection of which Direct3D API the running game actually uses, so the FPS-counter
+    // overlay can show VKD3D for D3D12 titles instead of always printing the D3D9/10/11 wrapper
+    // name (DXVK/VEGAS). Both wrappers are always present in the prefix, so the only reliable tell
+    // is which d3d module the game has mapped in — we scan /proc/<pid>/maps (the app's own wine
+    // processes are the only ones visible under our uid).
+    private Thread dxApiThread;
+
+    /** "VKD3D" if a D3D12 game module is loaded, [fallback] if a D3D9/10/11 one is, else null. */
+    private String detectActiveDxApi(String fallback) {
+        java.io.File[] pids = new java.io.File("/proc").listFiles();
+        if (pids == null) return null;
+        boolean d3d11 = false;
+        for (java.io.File p : pids) {
+            if (!p.isDirectory() || !android.text.TextUtils.isDigitsOnly(p.getName())) continue;
+            try (java.io.BufferedReader r = new java.io.BufferedReader(
+                    new java.io.FileReader(new java.io.File(p, "maps")))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    if (line.indexOf(".dll") < 0) continue;
+                    if (line.indexOf("d3d12core.dll") >= 0 || line.indexOf("d3d12.dll") >= 0)
+                        return "VKD3D";   // D3D12 wins if both are present
+                    if (line.indexOf("d3d11.dll") >= 0 || line.indexOf("d3d10.dll") >= 0
+                            || line.indexOf("d3d9.dll") >= 0) d3d11 = true;
+                }
+            } catch (Exception ignore) {}
+        }
+        return d3d11 ? fallback : null;
+    }
+
+    /** Poll for the active D3D API just after launch and update the overlay label once detected. */
+    private void startDxApiDetection(final String prefix, final String fallback) {
+        stopDxApiDetection();
+        dxApiThread = new Thread(() -> {
+            for (int i = 0; i < 40 && !Thread.currentThread().isInterrupted(); i++) {
+                String api = detectActiveDxApi(fallback);
+                if (api != null) {
+                    final String label = prefix + api;
+                    runOnUiThread(() -> {
+                        if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(label);
+                        if (frameRating != null) frameRating.setRenderer(label);
+                    });
+                    return;
+                }
+                try { Thread.sleep(3000); } catch (InterruptedException e) { return; }
+            }
+        }, "dx-api-detect");
+        dxApiThread.start();
+    }
+
+    private void stopDxApiDetection() {
+        if (dxApiThread != null) { dxApiThread.interrupt(); dxApiThread = null; }
+    }
 
     private boolean isDarkMode;
 
@@ -1076,6 +1130,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void exit() {
         installerWatchHandler.removeCallbacks(installerWatchRunnable);
+        stopDxApiDetection();
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
         preloaderDialog.showOnUiThread(R.string.shutdown);
         handler.postDelayed(new Runnable() {
@@ -1108,6 +1163,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopDxApiDetection();
         if (wineDebugLogCallback != null) {
             ProcessHelper.removeDebugCallback(wineDebugLogCallback);
             wineDebugLogCallback = null;
@@ -1605,32 +1661,37 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (container != null && container.isShowFPS()) {
             String fpsConfigString = container.getFPSCounterConfig();
             com.winlator.star.core.KeyValueSet fpsConfig = new com.winlator.star.core.KeyValueSet(fpsConfigString);
-            boolean isHorizontal = fpsConfig.get("hudMode", "vertical").equals("horizontal");
+            fpsHudHorizontal = fpsConfig.get("hudMode", "vertical").equals("horizontal");
 
-            if (isHorizontal) {
-                frameRatingHorizontal = new FrameRatingHorizontal(this);
-                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
-                );
-                lp.topMargin = 10;
-                frameRatingHorizontal.setLayoutParams(lp);
-                frameRatingHorizontal.applyConfig(fpsConfigString);
-                frameRatingHorizontal.setVisibility(View.GONE);
-                rootView.addView(frameRatingHorizontal);
-            } else {
-                frameRating = new FrameRating(this, graphicsDriverConfig);
-                frameRating.applyConfig(fpsConfigString);
-                frameRating.setVisibility(View.GONE);
-                rootView.addView(frameRating);
-            }
+            // Create BOTH orientations up front so the user can flip between them in-game with a
+            // tap on the overlay; only the active one is ever made visible.
+            frameRatingHorizontal = new FrameRatingHorizontal(this);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
+            );
+            lp.topMargin = 10;
+            frameRatingHorizontal.setLayoutParams(lp);
+            frameRatingHorizontal.applyConfig(fpsConfigString);
+            frameRatingHorizontal.setVisibility(View.GONE);
+            frameRatingHorizontal.setOnClickListener(v -> toggleFpsHudOrientation());
+            rootView.addView(frameRatingHorizontal);
+
+            frameRating = new FrameRating(this, graphicsDriverConfig);
+            frameRating.applyConfig(fpsConfigString);
+            frameRating.setVisibility(View.GONE);
+            frameRating.setOnClickListener(v -> toggleFpsHudOrientation());
+            rootView.addView(frameRating);
 
             String rendererMode = container != null && "vulkan".equals(resolvedRenderer()) ? "Vulkan" : "OpenGL";
             String dxName = dxwrapper.contains("dxvk") ? "DXVK" : dxwrapper.contains("vegas") ? "VEGAS" : "WineD3D";
             String hudRenderer = rendererMode + " | " + dxName;
             if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(hudRenderer);
             if (frameRating != null) frameRating.setRenderer(hudRenderer);
+            // The label above is the configured D3D9/10/11 wrapper; probe what the game actually
+            // loads and upgrade it to VKD3D for D3D12 titles (or confirm the wrapper for D3D11).
+            startDxApiDetection(rendererMode + " | ", dxName);
         }
 
         // Get the fullscreen stretched extra from the shortcut if available
@@ -2639,6 +2700,31 @@ return true;
         }
     }
 
+    /** Flip the in-game FPS overlay between horizontal and vertical layouts (tap on the overlay). */
+    private void toggleFpsHudOrientation() {
+        if (frameRating == null && frameRatingHorizontal == null) return;
+        boolean wasShown =
+            (frameRatingHorizontal != null && frameRatingHorizontal.getVisibility() == View.VISIBLE)
+            || (frameRating != null && frameRating.getVisibility() == View.VISIBLE);
+        fpsHudHorizontal = !fpsHudHorizontal;
+        if (frameRating != null) frameRating.setVisibility(View.GONE);
+        if (frameRatingHorizontal != null) frameRatingHorizontal.setVisibility(View.GONE);
+        if (wasShown) {
+            if (fpsHudHorizontal) {
+                if (frameRatingHorizontal != null) { frameRatingHorizontal.setVisibility(View.VISIBLE); frameRatingHorizontal.update(); }
+            } else {
+                if (frameRating != null) { frameRating.setVisibility(View.VISIBLE); frameRating.update(); }
+            }
+        }
+        // Persist the chosen orientation to the container's FPS config.
+        if (container != null) {
+            com.winlator.star.core.KeyValueSet cfg = new com.winlator.star.core.KeyValueSet(container.getFPSCounterConfig());
+            cfg.put("hudMode", fpsHudHorizontal ? "horizontal" : "vertical");
+            container.setFPSCounterConfig(cfg.toString());
+            container.saveData();
+        }
+    }
+
     private void changeFrameRatingVisibility(Window window, Property property) {
         if (frameRating == null && frameRatingHorizontal == null) return;
 
@@ -2648,8 +2734,12 @@ return true;
                 Log.d("XServerDisplayActivity", "Showing hud for Window " + window.getName());
 
                 runOnUiThread(() -> {
-                    if (frameRating != null) frameRating.setVisibility(View.VISIBLE);
-                    if (frameRatingHorizontal != null) frameRatingHorizontal.setVisibility(View.VISIBLE);
+                    // Show only the active orientation (both widgets exist for tap-toggle).
+                    if (fpsHudHorizontal) {
+                        if (frameRatingHorizontal != null) frameRatingHorizontal.setVisibility(View.VISIBLE);
+                    } else {
+                        if (frameRating != null) frameRating.setVisibility(View.VISIBLE);
+                    }
                 });
 
                 if (frameRating != null) frameRating.update();

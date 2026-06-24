@@ -76,12 +76,16 @@ object ComponentInstaller {
             }
             "copy_dll", "copy_file" -> {
                 // win64 DLLs -> system32, win32 DLLs -> syswow64. Constrain the SOURCE to the matching
-                // arch sub-tree so a 64-bit DLL never lands in syswow64 (and vice versa).
-                val (arch, target) = when (step.str("dest")) {
+                // arch sub-tree so a 64-bit DLL never lands in syswow64 (and vice versa). A dest may
+                // carry a sub-path (e.g. "win64/drivers" for gmdls' gm.dls) -> append it to the target.
+                val dest = step.str("dest")
+                val (arch, base) = when (dest.substringBefore('/')) {
                     "win64", "system32" -> "win64" to system32
                     "win32", "syswow64" -> "win32" to syswow64
                     else -> null to system32   // unspecified: 64-bit prefix default
                 }
+                val sub = dest.substringAfter('/', "")
+                val target = if (sub.isEmpty()) base else File(base, sub)
                 copyMatching(tmp, step.str("file_name"), target, arch)
             }
             "override_dll" -> WineRegistryEditor(userReg).use { reg ->
