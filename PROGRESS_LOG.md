@@ -15,6 +15,30 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
+## 2026-06-23 — Components installer: catalog + mirror DONE (app side next)
+
+Building a **Components installer** for container settings — browse + install Wine dependencies
+(mono, gecko, dotnet, vcredist, d3dx, …) into a container's prefix, the same set BannerHub/GameHub
+offer (Bottles "Type 6 — System Libraries", 114 components).
+
+- **Mirrored** all components' binaries to a new release **`system-libraries-v1`** on
+  `The412Banner/winlator-contents` — **92 assets**, deduped by URL (shared payloads like the Win7-SP1
+  packages referenced once, not per-component). Each asset named after its component.
+- **6 not mirrored** (manual re-source list at `/sdcard/Download/winlator-components-needed.txt`):
+  the 3 huge **Win7-SP1 platform-update** packages (shared by 14 components → referenced upstream) and
+  3 dead/timed-out sources (`art2k7min`, `powershell`, `vbrun6`).
+- **`components.json` committed + live** on winlator-contents
+  (`raw.githubusercontent.com/The412Banner/winlator-contents/main/components.json`) — 114 components
+  with full **Bottles-format install steps**, URLs rewritten to the mirror; `status` per component:
+  **ready 97 / needs-upstream 14 / pending-manual 3**.
+- **App side NOT started.** Plan: a "Components" browser in container settings (reusing the 1.6
+  `ContentDownloadSheet` UI) + an in-app **Bottles step interpreter** installing into the container
+  prefix (`system32`/`syswow64` + registry overrides via `WineRegistryEditor`). Phase 2 = the ~97
+  file-drop components (no Wine execution); Phase 3 = `install_exe`/`install_msi` runtimes (.NET/vcredist).
+  Full plan in memory `project_bannerlator_components_installer`.
+
+---
+
 ## 1.6 RELEASE MANIFEST (in progress, since tag `1.5` / `dc74f67`) — NOT yet released
 
 Everything queued for the next release:
