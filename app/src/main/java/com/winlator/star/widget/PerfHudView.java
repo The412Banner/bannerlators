@@ -347,10 +347,14 @@ public class PerfHudView extends View {
             while (fpsHistory.size() > GRAPH_SAMPLES) fpsHistory.removeFirst();
             lastTime = time;
             frameCount = 0;
-            requestLayout();
-            invalidate();
+            // update() runs on the X-server epoll thread; requestLayout()/invalidate()
+            // must touch the view on the UI thread (FrameRating does the same via post()).
+            post(refreshOnUi);
         }
     }
+
+    // Reused each refresh (~2×/sec) to relayout+redraw on the UI thread.
+    private final Runnable refreshOnUi = () -> { requestLayout(); invalidate(); };
     public void setEngineLabel(String s) { this.engineLabel = s == null ? "" : s; }
     public void setGpuModel(String s) { this.gpuModel = s == null ? "" : s; }
 
