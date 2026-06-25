@@ -70,6 +70,22 @@ public final class SteamRepository {
     public static SteamRepository getInstance() { return INSTANCE; }
     private SteamRepository() {}
 
+    static {
+        // JavaSteam's DepotManifest.serialize() does MessageDigest.getInstance("SHA-1", "BC"),
+        // requesting the BouncyCastle provider by name. Android's built-in "BC" provider has had
+        // SHA-1 (and most algorithms) stripped, so that call throws NoSuchAlgorithmException and
+        // every depot download dies while saving the manifest. Replace the stock BC with the full
+        // bundled BouncyCastle (bcprov-jdk15on) so "BC" SHA-1 resolves. AndroidOpenSSL (Conscrypt)
+        // stays the default provider for TLS, so this only affects explicit "BC" lookups.
+        try {
+            java.security.Security.removeProvider("BC");
+            java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+            Log.i(TAG, "Registered full BouncyCastle provider (JavaSteam manifest SHA-1)");
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to register BouncyCastle provider", t);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Event listener
     // -------------------------------------------------------------------------
