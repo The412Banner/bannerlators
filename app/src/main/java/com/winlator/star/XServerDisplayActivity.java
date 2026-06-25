@@ -164,6 +164,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private FrameRatingHorizontal frameRatingHorizontal = null;
     private PerfHudView perfHud = null;          // GameHub-style HUD (used when hudStyle=gamehub instead of the two above)
     private boolean fpsHudHorizontal = false;   // active FPS-overlay orientation (tap to toggle in-game)
+    // Async-arriving HUD labels are cached so a HUD built live (style swapped mid-game) is populated too.
+    private String hudRendererLabel = null;     // full "Vulkan | DXVK" label for classic FrameRating.setRenderer
+    private String hudEngineShort = null;       // short API/dx name for PerfHudView.setEngineLabel
+    private String hudGpuName = null;           // GPU model string from _MESA_DRV_GPU_NAME
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -296,6 +300,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (api != null) {
                     final String label = prefix + api;
                     runOnUiThread(() -> {
+                        hudRendererLabel = label;
+                        hudEngineShort = api;
                         if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(label);
                         if (frameRating != null) frameRating.setRenderer(label);
                         if (perfHud != null) perfHud.setEngineLabel(api);
@@ -559,9 +565,22 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (newConfig == null) return;
             state.setFpsConfig(newConfig);
             runOnUiThread(() -> {
-                if (frameRating != null) frameRating.applyConfig(newConfig);
-                if (frameRatingHorizontal != null) frameRatingHorizontal.applyConfig(newConfig);
-                if (perfHud != null) perfHud.applyConfig(newConfig);
+                boolean wantGameHub = new com.winlator.star.core.KeyValueSet(newConfig)
+                    .get("hudStyle", "classic").equals("gamehub");
+                boolean haveGameHub = perfHud != null;
+                boolean haveAnyHud = perfHud != null || frameRating != null || frameRatingHorizontal != null;
+                // Live style swap: build the requested HUD and tear down the other, but only if a HUD
+                // is already on screen (FPS was enabled for this launch). View mutation is safe here —
+                // this callback runs on the UI thread.
+                if (haveAnyHud && wantGameHub != haveGameHub) {
+                    if (wantGameHub) { removeClassicHud(); buildPerfHud(newConfig); }
+                    else { removePerfHud(); buildClassicHud(newConfig); }
+                } else {
+                    // Same style (or no HUD built): just push the new config to whatever exists.
+                    if (frameRating != null) frameRating.applyConfig(newConfig);
+                    if (frameRatingHorizontal != null) frameRatingHorizontal.applyConfig(newConfig);
+                    if (perfHud != null) perfHud.applyConfig(newConfig);
+                }
             });
             if (container != null) {
                 container.setFPSCounterConfig(newConfig);
@@ -1684,61 +1703,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             String rendererMode = container != null && "vulkan".equals(resolvedRenderer()) ? "Vulkan" : "OpenGL";
             String dxName = dxwrapper.contains("dxvk") ? "DXVK" : dxwrapper.contains("vegas") ? "VEGAS" : "WineD3D";
-            String hudRenderer = rendererMode + " | " + dxName;
+            hudRendererLabel = rendererMode + " | " + dxName;
+            hudEngineShort = dxName;
 
-            if (gameHubHud) {
-                // GameHub-style HUD: a single view that draws both orientations and flips on tap.
-                perfHud = new PerfHudView(this);
-                FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.Gravity.TOP | android.view.Gravity.START
-                );
-                plp.topMargin = 10;
-                plp.leftMargin = 10;
-                perfHud.setLayoutParams(plp);
-                perfHud.applyConfig(fpsConfigString);
-                perfHud.setVisibility(View.GONE);
-                perfHud.setOnTapListener(this::toggleFpsHudOrientation);
-                perfHud.setEngineLabel(dxName);
-                rootView.addView(perfHud);
-            } else {
-                // Classic HUD: create BOTH orientations up front so the user can flip between them
-                // in-game with a tap; only the active one is ever made visible.
-                frameRatingHorizontal = new FrameRatingHorizontal(this);
-                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
-                );
-                lp.topMargin = 10;
-                frameRatingHorizontal.setLayoutParams(lp);
-                frameRatingHorizontal.applyConfig(fpsConfigString);
-                frameRatingHorizontal.setVisibility(View.GONE);
-                // setOnClickListener never fires: the widget overrides onTouchEvent and consumes the
-                // event without performClick(). Use the widget's own tap callback instead.
-                frameRatingHorizontal.setOnTapListener(this::toggleFpsHudOrientation);
-                rootView.addView(frameRatingHorizontal);
+            // Build whichever HUD the container selected. The other style is created on demand
+            // if the user swaps hudStyle in the in-game drawer (see buildPerfHud/buildClassicHud).
+            if (gameHubHud) buildPerfHud(fpsConfigString);
+            else buildClassicHud(fpsConfigString);
 
-                frameRating = new FrameRating(this, graphicsDriverConfig);
-                // Explicit WRAP_CONTENT params: without them, FrameLayout's default params are
-                // MATCH_PARENT x MATCH_PARENT, so the vertical HUD's view (and thus its tap-to-toggle
-                // hit area) covered the WHOLE screen — a tap far from the overlay flipped orientation.
-                // Mirror the horizontal HUD; top-left gravity keeps its existing default position.
-                FrameLayout.LayoutParams vlp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.Gravity.TOP | android.view.Gravity.START
-                );
-                frameRating.setLayoutParams(vlp);
-                frameRating.applyConfig(fpsConfigString);
-                frameRating.setVisibility(View.GONE);
-                frameRating.setOnTapListener(this::toggleFpsHudOrientation);
-                rootView.addView(frameRating);
-
-                if (frameRatingHorizontal != null) frameRatingHorizontal.setRenderer(hudRenderer);
-                if (frameRating != null) frameRating.setRenderer(hudRenderer);
-            }
             // The label above is the configured D3D9/10/11 wrapper; probe what the game actually
             // loads and upgrade it to VKD3D for D3D12 titles (or confirm the wrapper for D3D11).
             startDxApiDetection(rendererMode + " | ", dxName);
@@ -2751,6 +2723,87 @@ return true;
     }
 
     /** Flip the in-game FPS overlay between horizontal and vertical layouts (tap on the overlay). */
+    /** Build the GameHub-style HUD and add it to the overlay. Safe to call live (UI thread). */
+    private void buildPerfHud(String fpsConfigString) {
+        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        perfHud = new PerfHudView(this);
+        FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.TOP | android.view.Gravity.START
+        );
+        plp.topMargin = 10;
+        plp.leftMargin = 10;
+        perfHud.setLayoutParams(plp);
+        perfHud.applyConfig(fpsConfigString);
+        perfHud.setOnTapListener(this::toggleFpsHudOrientation);
+        if (hudEngineShort != null) perfHud.setEngineLabel(hudEngineShort);
+        if (hudGpuName != null) perfHud.setGpuModel(hudGpuName);
+        perfHud.setVertical(!fpsHudHorizontal);
+        // Visible immediately if the game window is already mapped (live swap); otherwise it is
+        // revealed by changeFrameRatingVisibility once the window appears (launch path).
+        perfHud.setVisibility(frameRatingWindowId != -1 ? View.VISIBLE : View.GONE);
+        rootView.addView(perfHud);
+    }
+
+    /** Build the classic FrameRating HUD (both orientations) and add it. Safe to call live (UI thread). */
+    private void buildClassicHud(String fpsConfigString) {
+        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        boolean shown = frameRatingWindowId != -1;
+
+        // Create BOTH orientations up front so the user can flip between them in-game with a tap;
+        // only the active one is ever made visible.
+        frameRatingHorizontal = new FrameRatingHorizontal(this);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
+        );
+        lp.topMargin = 10;
+        frameRatingHorizontal.setLayoutParams(lp);
+        frameRatingHorizontal.applyConfig(fpsConfigString);
+        // setOnClickListener never fires: the widget overrides onTouchEvent and consumes the
+        // event without performClick(). Use the widget's own tap callback instead.
+        frameRatingHorizontal.setOnTapListener(this::toggleFpsHudOrientation);
+        frameRatingHorizontal.setVisibility(shown && fpsHudHorizontal ? View.VISIBLE : View.GONE);
+        rootView.addView(frameRatingHorizontal);
+
+        frameRating = new FrameRating(this, graphicsDriverConfig);
+        // Explicit WRAP_CONTENT params: without them, FrameLayout's default params are
+        // MATCH_PARENT x MATCH_PARENT, so the vertical HUD's view (and thus its tap-to-toggle
+        // hit area) covered the WHOLE screen — a tap far from the overlay flipped orientation.
+        FrameLayout.LayoutParams vlp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.TOP | android.view.Gravity.START
+        );
+        frameRating.setLayoutParams(vlp);
+        frameRating.applyConfig(fpsConfigString);
+        frameRating.setOnTapListener(this::toggleFpsHudOrientation);
+        frameRating.setVisibility(shown && !fpsHudHorizontal ? View.VISIBLE : View.GONE);
+        rootView.addView(frameRating);
+
+        if (hudRendererLabel != null) {
+            frameRatingHorizontal.setRenderer(hudRendererLabel);
+            frameRating.setRenderer(hudRendererLabel);
+        }
+        if (hudGpuName != null) frameRating.setGpuName(hudGpuName);
+    }
+
+    private void removePerfHud() {
+        if (perfHud != null) {
+            FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+            rootView.removeView(perfHud);
+            perfHud = null;
+        }
+    }
+
+    private void removeClassicHud() {
+        FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
+        if (frameRating != null) { rootView.removeView(frameRating); frameRating = null; }
+        if (frameRatingHorizontal != null) { rootView.removeView(frameRatingHorizontal); frameRatingHorizontal = null; }
+    }
+
     private void toggleFpsHudOrientation() {
         if (perfHud == null && frameRating == null && frameRatingHorizontal == null) return;
         fpsHudHorizontal = !fpsHudHorizontal;
@@ -2803,9 +2856,10 @@ return true;
                 if (perfHud != null) perfHud.update();
             }
             if (property.nameAsString().contains("_MESA_DRV_GPU_NAME")) {
+                hudGpuName = property.toString();
                 runOnUiThread(() -> {
-                    if (frameRating != null) frameRating.setGpuName(property.toString());
-                    if (perfHud != null) perfHud.setGpuModel(property.toString());
+                    if (frameRating != null) frameRating.setGpuName(hudGpuName);
+                    if (perfHud != null) perfHud.setGpuModel(hudGpuName);
                 });
             }
         }
