@@ -21,8 +21,10 @@ Cut **Bannerlator 1.7** (`versionName 1.7`, `versionCode 25`, commit `30c869c`).
 `app/build.gradle`; splash screen reads `BuildConfig.VERSION_NAME` so it shows "V 1.7" automatically
 (no hardcoded version strings anywhere). README version line + "What's New in 1.7" updated (1.6 notes
 demoted to "Previously in 1.6"). Release build = workflow "Nightly Manual Release Build" run
-`28140854161` (tag `1.7`, builds standard/ludashi/pubg release APKs). Everything merged to main since
-the 1.6 tag is in this release:
+`28140854161` (tag `1.7`, builds standard/ludashi/pubg release APKs) — ✅ GREEN. **PUBLISHED**
+https://github.com/The412Banner/Bannerlator/releases/tag/1.7 with full notes; 3 assets each ~588.7 MB
+(`Bannerlator-1.7-standard.apk` 588704729 B / `-ludashi.apk` 588704765 B / `-pubg.apk` 588704647 B).
+Everything merged to main since the 1.6 tag is in this release:
 
 - **Steam store — downloads fixed**: login-race guard (`9f6197e`) + BouncyCastle SHA-1 provider
   registration (`63e4366`). ⚠️ download-only; raw `wine exe` launch still has no steam-emu (DRM games
