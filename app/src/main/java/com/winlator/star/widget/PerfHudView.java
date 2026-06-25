@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -72,6 +73,7 @@ public class PerfHudView extends View {
     private Outline outline = Outline.SOFT;
     private float scale = 0.92f;      // [0.6, 1.4]
     private float bgOpacity = 0.8f;   // [0, 1]
+    private boolean dualBattery = false;
 
     // ---- Live metric values ------------------------------------------------
     private float fps = 0f, frameTimeMs = 0f, cpuUsage = 0f, gpuUsage = 0f;
@@ -81,6 +83,11 @@ public class PerfHudView extends View {
 
     private final ArrayDeque<Float> fpsHistory = new ArrayDeque<>();
     private static final int GRAPH_SAMPLES = 50;
+
+    // ---- Metric collection (frame-tick, mirrors FrameRating.update()) -----
+    private final HudMetrics metrics;
+    private long lastTime = 0;
+    private int frameCount = 0;
 
     // ---- Paints (rebuilt when scale/skin/outline change) ------------------
     private final float density;
@@ -100,6 +107,7 @@ public class PerfHudView extends View {
         super(context, attrs);
         this.ctx = context;
         this.density = context.getResources().getDisplayMetrics().density;
+        this.metrics = new HudMetrics(context);
         buildPaints();
     }
 
@@ -319,16 +327,29 @@ public class PerfHudView extends View {
 
     private static float clamp01(float v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
-    // ---- Metric setters (called from the host each frame) -----------------
-    public void setMetrics(float fps, float frameTimeMs, float cpuUsage, float gpuUsage,
-                           float ramPercent, float powerW, float tempC, boolean charging) {
-        this.fps = fps; this.frameTimeMs = frameTimeMs; this.cpuUsage = cpuUsage;
-        this.gpuUsage = gpuUsage; this.ramPercent = ramPercent; this.powerW = powerW;
-        this.tempC = tempC; this.charging = charging;
-        fpsHistory.addLast(fps);
-        while (fpsHistory.size() > GRAPH_SAMPLES) fpsHistory.removeFirst();
-        requestLayout();
-        invalidate();
+    // ---- Frame tick: count frames, refresh metrics every 500ms ------------
+    /** Called by the host on each presented frame (same cadence as FrameRating.update()). */
+    public void update() {
+        if (lastTime == 0) lastTime = SystemClock.elapsedRealtime();
+        long time = SystemClock.elapsedRealtime();
+        frameCount++;
+        if (time >= lastTime + 500) {
+            fps = (float) (frameCount * 1000) / (time - lastTime);
+            frameTimeMs = 1000f / Math.max(fps, 1f);
+            cpuUsage = metrics.getCPUUsage();
+            gpuUsage = metrics.getGPULoad();
+            ramPercent = metrics.getRAMPercent();
+            tempC = metrics.getTemperature();
+            HudMetrics.Battery b = metrics.getBattery(dualBattery);
+            powerW = b.watts;
+            charging = b.charging;
+            fpsHistory.addLast(fps);
+            while (fpsHistory.size() > GRAPH_SAMPLES) fpsHistory.removeFirst();
+            lastTime = time;
+            frameCount = 0;
+            requestLayout();
+            invalidate();
+        }
     }
     public void setEngineLabel(String s) { this.engineLabel = s == null ? "" : s; }
     public void setGpuModel(String s) { this.gpuModel = s == null ? "" : s; }
@@ -346,6 +367,7 @@ public class PerfHudView extends View {
         showTemp     = cfg.get("showTemp", "1").equals("1");
         showEngine   = cfg.get("showEngine", "1").equals("1");
         showGpuModel = cfg.get("showGpuModel", "0").equals("1");
+        dualBattery  = cfg.get("hudDualBattery", "0").equals("1");
         vertical     = cfg.get("hudMode", "horizontal").equals("vertical");
 
         switch (cfg.get("hudSkin", "classic")) {
