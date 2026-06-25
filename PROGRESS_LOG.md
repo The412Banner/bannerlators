@@ -15,6 +15,34 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
+## 2026-06-24 (late 2) — Steam download fixes + Pluvia/GameNative Steam-store recon & plan
+
+**Steam download bug (branch `fix/steam-download-login-guard`, NOT yet merged; compile CI
+`28139917719` ✅ green).** User's Steam game downloads failed "Download failed: Unknown error".
+Two distinct bugs found from the on-device `steam_debug.txt`:
+1. *Login race* — `runInstall` started while `connected=true` but `loggedIn=false` (Steam CM
+   connections cycle; re-logon after reconnect is async, license cache masked it). Manifest job
+   timed out → `CancellationException`. Fix = new `SteamRepository.ensureLoggedIn(timeoutMs)` guard
+   in `runInstall` (re-logon from saved token, wait up to 15s).
+2. *SHA-1/BC* (the real download-killer, seen after re-login) — JavaSteam `DepotManifest.serialize`
+   calls `MessageDigest.getInstance("SHA-1","BC")`; Android's built-in "BC" provider has SHA-1
+   stripped → `NoSuchAlgorithmException`. App bundled `bcprov-jdk15on` but never registered it.
+   Fix = static initializer in `SteamRepository` that removes stock BC + installs the full
+   `BouncyCastleProvider`. Device-test of FlatOut 2 pending; then merge to main.
+
+**Recon + plan: "Pluvia Steam" to replace the current Steam store.** Researched GameNative
+(utkarshdalal/GameNative, GPL-3.0; local at `/home/claude-user/GameNative/`) and Pluvia
+(oxters168/Pluvia, original, stalled). Key finding: **REF4IK/winlator-ref4ik-** (`com.winlator.cmod`)
+already ported the GameNative/Pluvia Steam module into a Winlator **Cmod** fork — same lineage as
+us — on the **same `in.dragonbra:javasteam:1.8.0`** we ship. It's an *upgrade*, not greenfield:
+our download already works (post-fix); the real prize is the **Goldberg/coldclient launch model**
+(ref4ik `SteamGameLauncher.kt`) — our store launches raw `wine exe`, so DRM/steam_api titles fail.
+Recommendation = **Option A incremental** (Phase 1: Goldberg launch + loader assets +
+`game_source`/`app_id` shortcut extras; then preferred-container, PICS LaunchInfo exe detection,
+optional cloud-saves/updates). Full file-level seam map + risks (GPL-3.0, Goldberg asset arch,
+bionic = coldclient only, A:↔Z: drive, Room↔SQLite) → **`docs/STEAM_PLUVIA_PORT_PLAN.md`** (this
+commit). NOT STARTED — for down the road.
+
 ## 2026-06-24 (late) — Merged the day's branches to main + new Components installer fix
 
 Rolled the day's feature branches onto `main` (linear rebase/ff, branches deleted). `main` tip now
