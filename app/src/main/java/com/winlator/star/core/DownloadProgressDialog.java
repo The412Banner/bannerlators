@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.winlator.star.BuildConfig;
 import com.winlator.star.MainActivity;
 import com.winlator.star.R;
 import com.winlator.star.math.Mathf;
@@ -35,6 +36,10 @@ public class DownloadProgressDialog {
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
         dialog.setContentView(R.layout.download_progress_dialog);
+
+        // Version label is dynamic so it never drifts from the real app version.
+        TextView versionView = dialog.findViewById(R.id.TVVersion);
+        if (versionView != null) versionView.setText("V " + BuildConfig.VERSION_NAME);
 
         Window window = dialog.getWindow();
         if (window != null) {
