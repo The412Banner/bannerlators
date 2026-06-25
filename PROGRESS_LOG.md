@@ -15,6 +15,37 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
+## 2026-06-24 (late) — Merged the day's branches to main + new Components installer fix
+
+Rolled the day's feature branches onto `main` (linear rebase/ff, branches deleted). `main` tip now
+`0ea1a84`. The 10 commits that make up today (oldest→newest):
+
+1. `445f963` Components Phase 3b — execute engine for installer-based components (.NET/vcredist)
+2. `1955f43` Components Phase 3b — auto-close installer sessions + cleanup
+3. `c4399ce` Components — install win7/winXP via pure `set_windows` instead of N/A
+4. `ce6561d` imagefs — bundle full ffmpeg-8 libs for winedmo video decode *(was the leftover "PENDING #2")*
+5. `fe8e74d` HUD — live D3D API label (VKD3D vs DXVK) + tap overlay to toggle FPS orientation
+6. `19ec967` HUD — tap overlay to toggle orientation live; dropped the settings dropdown
+7. `de71493` Vulkan — make Advanced Vulkan / Graphics Driver dialogs scrollable
+8. `16dc463` docs — components N/A backfill + quartz device-test (this log)
+9. `4b9b0ad` Controls — overlay-opacity slider moved into in-game side menu (live, true 0–100 %)
+10. `0ea1a84` **Components fix (new today)** — see below
+
+**`0ea1a84` Components installer — two bugs fixed** (branch `fix/components-copy-and-installed-persist`,
+rebased+ff to main, deleted; CI `28137352729` ✅ green; **device-untested**):
+- **`copy_dll` glob was broken.** `copyMatching` built its regex as
+  `Regex.escape(pattern).replace("\\*",".*")`, but Kotlin's `Regex.escape` uses `Pattern.quote`
+  (`\Q…\E`), so a literal `"*"` file_name pattern compiled to `^\Q*\E$` — matching a file *named* `*`
+  (nothing). The `*` components (`atmlib`/`devenum` + the pre-baked win7-SP1 set) set their DLL
+  override but **never copied the DLL**. Fix: `pattern.split("*").joinToString(".*"){Regex.escape(it)}`
+  → proper glob semantics. (`ComponentInstaller.kt`)
+- **"Installed" status didn't persist.** It lived in an in-memory `remember{}` set, so it reset on
+  every sheet close/reopen. Now persisted per container in SharedPreferences `component_installs`
+  (key `c<id>`): loaded on open, written on each successful install. (`ComponentsSheet.kt`)
+
+**Main artifact build:** triggered run **`28138274652`** (CI Build, artifacts only, `main`).
+**Next:** device-test the glob fix + persisted-installed status (root bridge) → then cut 1.6.
+
 ## 2026-06-24 — Components: backfilled 15 "N/A" components + device-tested registration
 
 **Backfill (winlator-contents `1f6eb72`).** The catalog had **17 components stuck at N/A**
