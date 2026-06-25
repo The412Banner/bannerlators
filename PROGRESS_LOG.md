@@ -21,15 +21,31 @@ User asked to modernize the Steam game detail page. Picked all of: stored-info r
 real playtime hours, bigger sheets (DLC/branch/cloud/add-home), and more robust/fluid download buttons +
 accurate progress bars.
 
-- **Chunk 1 DONE** (`SteamGameDetailActivity.kt`, CI `28142516155`): renders **developer / genres /
+- **Chunk 1 DONE** (`SteamGameDetailActivity.kt` `ca90b96`): renders **developer / genres /
   metacritic** (already stored in our GameRow but previously hidden) + a **"Last played"** row from the
   install-dir timestamp (`relativeTime()`); reworked the downloads UI — **animated rounded progress bar**
   in a card with an **indeterminate "Preparing…" phase** and a separate %/bytes line; new
   `DetailActionButton` (48dp, rounded, disabled dimming) + `DetailInfoRow`. Pure UI/Compose.
-- **TODO (follow-ups):** real **playtime hours** (fetch owned-games via JavaSteam
-  `IPlayerService.GetOwnedGames` → playtime_forever/rtime_last_played + new SteamDatabase columns);
-  **bigger sheets** — DLC/depot manager, beta branch picker, cloud-save export/import/sync,
-  add-to-home-screen (port from ref4ik `SteamLibrarySheets.kt` / `SteamGameActions.kt`).
+- **Chunk 2 DONE — real playtime hours** (`SteamOwnedGames.kt` + detail wiring, `ee8f725`): fetches
+  owned-games via JavaSteam unified messages (`SteamUnifiedMessages` → `Player` rpc → `GetOwnedGames`,
+  blocking `.get()`), in-process cache; detail page shows a **"Playtime"** row + overrides "Last played"
+  with the real `rtime_last_played` when logged in (install-mtime fallback otherwise). No DB columns
+  (in-memory). Relies on `-Xskip-metadata-version-check`. Combined CI `28142766784`.
+- **TODO (remaining follow-up):** **bigger sheets** — DLC/depot manager, beta branch picker,
+  cloud-save export/import/sync, add-to-home-screen (port from ref4ik `SteamLibrarySheets.kt` /
+  `SteamGameActions.kt`).
+
+**RESUME SNAPSHOT (2026-06-24, for crash recovery):** main tip `626c51b`-area (+ progress-log commits).
+Two stacked feature branches, NONE merged, all device-test-pending:
+  • `feat/steam-pluvia-launch` (off main) — Pluvia Phase 1 coldclient launch, steps 1-4, commits
+    `ff13265`/`1c6839d`/`f0b6106`/`73834d6`, all compile-green. Drawer "Steam" = unchanged store; adds
+    emulation launch.
+  • `feat/steam-detail-revamp` (stacked on the launch branch) — tip `ee8f725` — detail revamp chunks 1-2.
+NEXT WHEN RESUMING: (1) confirm CI `28142766784` green; (2) device-test on the test device — Steam
+download → add a steam_api game with "Steam emulation" → confirm Goldberg launch; detail page shows
+dev/genres/metacritic/playtime/last-played + fluid progress; (3) optionally build the bigger sheets;
+(4) then decide merge order (launch branch → main first, then rebase revamp → main). ref4ik clone at
+`/home/claude-user/scratchpad/ref4ik`. Full design = `docs/STEAM_PLUVIA_PORT_PLAN.md`.
 
 **imageFS reinstall?** No — for the Steam coldclient + detail revamp, updating 1.7 → next release needs
 NO imageFS reinstall. The coldclient loader is a separate bundled APK asset extracted at runtime into the
