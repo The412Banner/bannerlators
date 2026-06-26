@@ -49,13 +49,38 @@
 |---|---|
 | **App label** | `Bannerlator Bionic` (standard) · `Bannerlator Bionic PuBG` (pubg) · `Bannerlator Bionic Ludashi` (ludashi) |
 | **Packages** | `com.winlator.banner` (standard) · `com.tencent.ig` (pubg) · `com.ludashi.benchmark` (ludashi) |
-| **Version** | Bannerlator **V 1.7** — built from Star **marcescence** (`versionName 1.7`, `versionCode 25`) |
+| **Version** | Bannerlator **V 1.9.1** — built from Star **marcescence** (`versionName 1.9.1`, `versionCode 30`) |
 | **Android SDK** | `compileSdk 34` · `targetSdk 28` · `minSdk 26` (Android 8.0+) |
 | **Lineage** | Winlator → cmod → Bionic Nightly → Star Bionic → **marcescence** → **Bannerlator** |
 
 ---
 
-## 🆕 What's New in 1.7
+## 🆕 What's New in 1.9.1
+
+> 🩹 **Hotfix release** — a small patch on top of 1.9. No new features; everything in 1.9 still applies.
+
+- **Multi-flavor install conflict fixed.** The **PUBG** and **Ludashi** builds could fail to install alongside the **Standard** build with a *package conflict* (`INSTALL_FAILED_CONFLICTING_PROVIDER`). The content-provider (FileProvider / shared-storage) authorities were hardcoded to one shared name across all three flavors; they are now keyed per-flavor, so each variant installs side-by-side.
+- **Save sharing fixed.** Sharing an exported save archive used a stale provider authority that didn't exist and would throw — it now resolves correctly on every flavor.
+- **Perf HUD** now renders correctly under the **SurfaceFlinger** and **Vulkan** host renderers.
+
+---
+
+## Previously in 1.9
+
+- **SurfaceFlinger renderer (experimental).** A **third host renderer** joins OpenGL and Vulkan, handing game frames straight to Android's display hardware (one SurfaceControl layer per window) for lower latency and overhead. Selectable **per-container** and **per-game**, behind an opt-in warning. ⚠️ Experimental — validated mainly on recent **Adreno** GPUs.
+- **DXVK 3.0 support (Vulkan 1.4).** A **Vulkan 1.4** option in the Turnip / Wrapper Driver Configuration lets you run [DXVK 3.0](https://github.com/doitsujin/dxvk/releases/tag/v3.0). Needs a VK 1.4-capable driver (recent Mesa Turnip on Adreno 7xx/8xx); on Adreno 6xx, stay on DXVK 2.7.1.
+- **Per-game download menu fix** — the DXVK/VKD3D download sheet no longer opens behind the shortcut settings screen.
+
+---
+
+## Previously in 1.8
+
+- **In-app updater.** Bannerlator can now **update itself** — a new **Updates** section in Settings (plus an About-dialog action and an app-wide banner) checks for releases, picks the correct flavor APK (Standard / PUBG / Ludashi), downloads and installs it. Includes an optional **"Include pre-releases"** beta channel and skip/notify controls.
+- **GameHub-style performance HUD.** A second selectable overlay alongside the classic FPS overlay — **Classic / Neon / Mono** skins, an FPS graph, and detailed metrics (FPS, CPU/GPU usage, RAM, temperature, power, engine & GPU model). Per-container config, **live-swap** mid-game, and every toggle mirrored in the in-game side drawer.
+
+---
+
+## Previously in 1.7
 
 - **Steam store — downloads fixed.** Steam game downloads that failed with "Download failed: Unknown error" now work. Two bugs fixed: a **login race** during Steam connection cycling (downloads started before the session re-logged-on), and the full **BouncyCastle** provider not being registered, which crashed depot-manifest saving with a `SHA-1 for provider BC` error.
 - **Components installer (new).** A new in-container **Components** menu installs Wine dependencies — mono, gecko, .NET, vcredist, d3dx, and more — into a container's prefix from a browsable catalog. File-drop installs plus an execute engine for .NET/vcredist-style installers; includes a Win7/WinXP mode and a persisted **"Installed"** status per container.
