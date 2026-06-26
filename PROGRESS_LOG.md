@@ -15,7 +15,27 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
-## 2026-06-25 (latest) — SurfaceFlinger (ASR) renderer Phase 1 ✅ WORKING + device-proven (branch `feat/surfaceflinger-renderer`)
+## 2026-06-25 (latest) — 1.9 STABLE cut ✅ (SurfaceFlinger renderer + DXVK 3.0 / Vulkan 1.4)
+
+Merged `feat/surfaceflinger-renderer` to main (ff `d915798`), bumped to **1.9 / versionCode 29** (`eb39c2b`),
+and cut **1.9 stable** (release run `28215839109`, `make_latest`, `update.json` attached → in-app updater
+offers it on the stable channel). User explicitly authorized promoting to stable ("release 1.9").
+
+**Shipped in 1.9:**
+- **SurfaceFlinger (ASR) renderer** — experimental third host renderer, opt-in behind a reboot-risk warning
+  dialog, default off. Ported from GameNative PR #1582 (André Vito) on StevenMXZ's scanout work.
+- **DXVK 3.0 / Vulkan 1.4** option in the Turnip/Wrapper Driver Configuration.
+- **Fixes:** per-game DXVK/VKD3D download sheet no longer hides behind the settings dialog; perf HUD labels
+  SurfaceFlinger correctly.
+
+**No imagefs reinstall required** — the 1.9 diff is purely app-side (renderer engine, a bundled native lib,
+an env-var option, UI). No `imagefs/`, `assets/`, or `imgVersion` change; existing containers are untouched.
+
+Release description was rewritten to the 1.8 layout with credits to GameNative (André Vito) + StevenMXZ for ASR.
+
+---
+
+## 2026-06-25 — SurfaceFlinger (ASR) renderer Phase 1 ✅ WORKING + device-proven (branch `feat/surfaceflinger-renderer`)
 
 Took the SurfaceFlinger renderer from "selectable skeleton" (Phase 0) to a working scene compositor
 that renders real D3D games fullscreen via Android SurfaceFlinger — no GL/Vulkan compositor. Ported
