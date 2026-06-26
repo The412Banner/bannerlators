@@ -1447,8 +1447,10 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
                 }
             }
         }
-    }
 
+    // Config dialogs + download sheets are composed INSIDE the settings Dialog's window so the
+    // ModalBottomSheet (ContentDownloadSheet) renders on top of it. When they were outside the
+    // Dialog, the bottom sheet's window appeared BEHIND the settings dialog (couldn't be used).
     if (showGfxConfig) {
         GraphicsDriverConfigDialog(
             graphicsDriver = StringUtils.parseIdentifier(selectedGfxDriver),
@@ -1465,8 +1467,8 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
             initialConfig = dxWrapperConfig,
             onConfirm = { dxWrapperConfig = it; showDxvkConfig = false },
             onDismiss = { showDxvkConfig = false },
-            onDownloadDxvk = { if (isVegasCfg) showVegasDownloadSheet = true else showDxvkDownloadSheet = true },
-            onDownloadVkd3d = { showVkd3dDownloadSheet = true }
+            onDownloadDxvk = { showDxvkConfig = false; if (isVegasCfg) showVegasDownloadSheet = true else showDxvkDownloadSheet = true },
+            onDownloadVkd3d = { showDxvkConfig = false; showVkd3dDownloadSheet = true }
         )
     }
     if (showWineD3DConfig) {
@@ -1511,6 +1513,7 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
             onContentChanged = {}
         )
     }
+    } // settings Dialog
 }
 
 @Composable
