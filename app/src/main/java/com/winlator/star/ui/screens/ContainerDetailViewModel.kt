@@ -81,6 +81,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
     var rendererSwapRB      by mutableStateOf(false)
     // Render scale (supersampling) — stored via the "renderScale" extra (no DB field). "1.0" = Off.
     var renderScale         by mutableStateOf("1.0")
+    var autoCloseOnExit     by mutableStateOf(true)
 
     var dxWrapperEntries by mutableStateOf(emptyList<String>()); private set
     var selectedDXWrapper by mutableStateOf(Container.DEFAULT_DXWRAPPER)
@@ -292,6 +293,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
         rendererFilterMode       = c?.getRendererFilterMode() ?: 0
         rendererSwapRB           = c?.getRendererSwapRB() ?: false
         renderScale              = c?.getExtra("renderScale", "1.0") ?: "1.0"
+        autoCloseOnExit          = (c?.getExtra("autoCloseOnExit", "1") ?: "1") == "1"
         selectedDXWrapper        = identifierToDisplay(c?.getDXWrapper() ?: Container.DEFAULT_DXWRAPPER, dxWrapperEntries)
         dxWrapperConfig          = c?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
 
@@ -583,6 +585,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
             c.setRendererFilterMode(rendererFilterMode)
             c.setRendererSwapRB(rendererSwapRB)
             c.putExtra("renderScale", if (renderScale == "1.0") null else renderScale)
+            c.putExtra("autoCloseOnExit", if (autoCloseOnExit) null else "0")  // default ON
             c.setInputType(inputType)
             c.setStartupSelection(selectedStartupSelection.toByte())
             c.setBox64Version(selectedBox64Version)
@@ -643,6 +646,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
                     created.setFrameGenEngine(frameGenEngine)
                     created.setFpsLimiterEnabled(fpsLimiterEnabled)
                     if (renderScale != "1.0") created.putExtra("renderScale", renderScale)
+                    if (!autoCloseOnExit) created.putExtra("autoCloseOnExit", "0")  // default ON
                     created.saveData()
                     saveMouseWarp(created)
                 }

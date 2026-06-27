@@ -266,6 +266,37 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     };
 
+    // ---- Auto-close session on game exit (per-container / per-shortcut) ----
+    // For launches from a game shortcut, watch the guest process list and close the session once the
+    // game's own executable has been seen and then disappears — so the user isn't left sitting on the
+    // empty Wine desktop (black screen) after quitting the game. Mirrors the installer auto-exit above.
+    // Gated to shortcut launches only and to the per-game/-container "autoCloseOnExit" setting.
+    private boolean autoCloseOnExitEnabled = false;
+    private String autoCloseExeName;          // lowercased basename of the launched game exe
+    private boolean gameProcSeen = false;
+    private int gameGoneTicks = 0;
+    private final java.util.ArrayList<String> gameTickNames = new java.util.ArrayList<>();
+    private final Handler gameExitWatchHandler = new Handler(Looper.getMainLooper());
+    private final OnGetProcessInfoListener gameExitProcListener = new OnGetProcessInfoListener() {
+        @Override
+        public void onGetProcessInfo(int index, int count, ProcessInfo info) {
+            if (index == 0) gameTickNames.clear();
+            if (info != null && info.name != null) gameTickNames.add(info.name.toLowerCase());
+            if (count == 0 || index == count - 1) evaluateGameExitTick();
+        }
+    };
+    private final Runnable gameExitWatchRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (winHandler != null) {
+                // Re-assert our listener (Task Manager polling may have taken it) then request the list.
+                winHandler.setOnGetProcessInfoListener(gameExitProcListener);
+                winHandler.listProcesses();
+            }
+            gameExitWatchHandler.postDelayed(this, 2000);
+        }
+    };
+
     // Live detection of which Direct3D API the running game actually uses, so the FPS-counter
     // overlay can show VKD3D for D3D12 titles instead of always printing the D3D9/10/11 wrapper
     // name (DXVK/VEGAS). Both wrappers are always present in the prefix, so the only reliable tell
@@ -1205,6 +1236,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void exit() {
         installerWatchHandler.removeCallbacks(installerWatchRunnable);
+        gameExitWatchHandler.removeCallbacks(gameExitWatchRunnable);
         stopDxApiDetection();
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
         preloaderDialog.showOnUiThread(R.string.shutdown);
@@ -1645,6 +1677,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // If this session was launched to run a component installer, watch for it to finish and
         // auto-close the container (see componentInstallerExe / installerWatchRunnable).
         if (componentInstallerExe != null && !componentInstallerExe.isEmpty()) startInstallerWatch();
+        // Otherwise, for a game-shortcut launch, optionally auto-close the session when the game exits
+        // so the user isn't left on the empty Wine desktop. Skipped for plain container/file-manager
+        // launches (shortcut == null) and during installer runs.
+        else if (shortcut != null && resolvedAutoCloseOnExit()) {
+            autoCloseOnExitEnabled = true;
+            startGameExitWatch();
+        }
 
         if (wineRequestHandler != null) wineRequestHandler.start();
 
@@ -3338,6 +3377,46 @@ return true;
         tmPollHandler.removeCallbacks(tmPollRunnable);
         if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
         XServerDialogState.INSTANCE.setTmProcesses(new ArrayList<>());
+    }
+
+    /** Per-game/-container "close session when the game exits", defaulting to ON. */
+    private boolean resolvedAutoCloseOnExit() {
+        if (container == null) return false;
+        String def = container.getExtra("autoCloseOnExit", "1");
+        String v = shortcut != null ? shortcut.getExtra("autoCloseOnExit", def) : def;
+        return v.equals("1");
+    }
+
+    private void startGameExitWatch() {
+        autoCloseExeName = getExecutable().toLowerCase();
+        gameProcSeen = false;
+        gameGoneTicks = 0;
+        gameExitWatchHandler.removeCallbacks(gameExitWatchRunnable);
+        // Give Wine time to boot and the game to actually appear before we start watching, so a slow
+        // first launch isn't mistaken for "already exited".
+        gameExitWatchHandler.postDelayed(gameExitWatchRunnable, 12000);
+    }
+
+    private void evaluateGameExitTick() {
+        if (!autoCloseOnExitEnabled || autoCloseExeName == null) return;
+        boolean present = false;
+        for (String n : gameTickNames) {
+            if (n.equals(autoCloseExeName)) { present = true; break; }
+        }
+        if (present) {
+            gameProcSeen = true;
+            gameGoneTicks = 0;
+        } else if (gameProcSeen) {
+            gameGoneTicks++;
+            // Require a few consecutive empty ticks so a brief gap (e.g. a loader that relaunches the
+            // same exe) doesn't trigger an early close.
+            if (gameGoneTicks >= 3) {
+                gameExitWatchHandler.removeCallbacks(gameExitWatchRunnable);
+                autoCloseOnExitEnabled = false;
+                if (winHandler != null) winHandler.setOnGetProcessInfoListener(null);
+                runOnUiThread(XServerDisplayActivity.this::exit);
+            }
+        }
     }
 
     private void setupTmCallbacks() {

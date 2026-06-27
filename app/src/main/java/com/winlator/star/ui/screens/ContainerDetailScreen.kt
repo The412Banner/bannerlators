@@ -541,6 +541,18 @@ private fun TopLevelFields(
         }
         Spacer(Modifier.height(8.dp))
 
+        // Auto-close the session when the launched game exits (default ON). Avoids being left on the
+        // empty Wine desktop (black screen) after quitting. Applies to game-shortcut launches.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(
+                checked = viewModel.autoCloseOnExit,
+                onCheckedChange = { viewModel.autoCloseOnExit = it }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Close when game exits")
+        }
+        Spacer(Modifier.height(8.dp))
+
         // Audio Driver
         LabeledDropdown(
             label = stringResource(R.string.audio_driver),

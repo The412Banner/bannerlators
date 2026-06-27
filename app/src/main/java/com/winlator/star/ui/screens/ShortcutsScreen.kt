@@ -907,6 +907,10 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
 
     // Checkboxes / switches
     var fullscreenStretched by remember { mutableStateOf(shortcut.getExtra("fullscreenStretched", "0") == "1") }
+    // Close the session when this game exits — per-game override, defaults to the container's setting (ON).
+    var autoCloseOnExit by remember {
+        mutableStateOf(shortcut.getExtra("autoCloseOnExit", shortcut.container.getExtra("autoCloseOnExit", "1")) == "1")
+    }
     var exclusiveXInput by remember {
         val v = shortcut.getExtra("exclusiveXInput")
         mutableStateOf(if (v.isEmpty()) shortcut.container.isExclusiveXInput else v == "1")
@@ -1117,6 +1121,7 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
             putExtra("midiSoundFont", midiVal.ifEmpty { null })
             putExtra("lc_all", lcAll)
             putExtra("fullscreenStretched", if (fullscreenStretched) "1" else null)
+            putExtra("autoCloseOnExit", if (autoCloseOnExit) "1" else "0")
             putExtra("inputType", finalInputType.toString())
             putExtra("exclusiveXInput", if (exclusiveXInput) "1" else "0")
             putExtra("disableXinput", if (disabledXInput) "1" else null)
@@ -1354,6 +1359,12 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = fullscreenStretched, onCheckedChange = { fullscreenStretched = it })
                         Text(stringResource(R.string.fullscreen_stretched))
+                    }
+
+                    // Close the session when this game exits (per-game override; container default is ON)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = autoCloseOnExit, onCheckedChange = { autoCloseOnExit = it })
+                        Text("Close when game exits")
                     }
 
                     // Input section
