@@ -35,7 +35,11 @@ now-merged P1/P1c Vulkan post-process framework. NOT merged.
 2-effect combo renders clean. **Bug found + fixed (`77c6b76`):** with a *scaling* mode (SGSR/FSR/Sharpen/downscale)
 active, the screen effects were silently dropped (toggles on, image clean) — `recordUpscalePasses`' local `fxOn`
 only checked `cas||hdr`, so the scale pass treated itself as final and skipped the chain. Now includes all 7 effects.
-(This also fixes P1c CAS/HDR, which had the same gap on the scaling path.) **Fix rebuilt: branch tip `aed6cde`, CI build `28290066760` ✅ green (all 3 flavors).** Re-verify of the SGSR+effects combo on the fixed build pending (user reinstalling + setting up the space scene).
+(This also fixes P1c CAS/HDR, which had the same gap on the scaling path.) **Fix rebuilt: branch tip `aed6cde`, CI build `28290066760` ✅ green (all 3 flavors).** **Fix device-verified on the
+space scene:** SGSR + CRT now shows the CRT fringing/scanlines on the upscaled image (was dropped pre-fix), and
+SGSR + NTSC + CRT (3-deep chain) renders both effects cleanly — no black screen/corruption. **Phase 2 is
+device-proven** (Color/Toon/CRT/NTSC visually confirmed + the scaling-chain fix; FXAA wired, subtle by nature).
+Branch tip `0593385`. Ready to merge to main + artifacts build.
 
 Ported the 5 remaining GL-only screen effects onto the **same** Vulkan post chain as composable controls,
 at full GL parity:
