@@ -71,12 +71,15 @@ import com.winlator.star.R
 import com.winlator.star.XServerDisplayActivity
 import com.winlator.star.XrActivity
 import com.winlator.star.container.Container
+import com.winlator.star.contentdialog.GraphicsDriverConfigDialog
 import com.winlator.star.core.FileUtils
 import com.winlator.star.core.StringUtils
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.winlator.star.ui.theme.OnSurface
 import com.winlator.star.ui.theme.OnSurfaceVariant
+import com.winlator.star.ui.theme.SurfaceVariant as SurfaceVariantColor
 import com.winlator.star.xenvironment.ImageFs
 
 @Composable
@@ -276,6 +279,20 @@ private fun ContainerItem(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
+    // Resolved component metadata (same theme as the Shortcuts game cards).
+    val (dxvkVersion, vkd3dVersion) = parseDxwrapperConfig(container.getDXWrapperConfig())
+    val driverCfg = container.getGraphicsDriverConfig()
+    val driverLabel = if (driverCfg.isNotEmpty()) GraphicsDriverConfigDialog.getVersion(driverCfg) else ""
+    val rendererLabel = rendererLabelOf(container.renderer)
+    val frameGenLabel = frameGenLabelOf(container.frameGenEngine)
+    val backendLabel = run {
+        val id = container.emulator
+        LocalContext.current.resources.getStringArray(R.array.emulator_entries)
+            .firstOrNull { StringUtils.parseIdentifier(it) == id } ?: ""
+    }
+    val subtitle = listOf(container.wineVersion, container.screenSize)
+        .filter { it.isNotEmpty() }.joinToString(" · ")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -292,34 +309,53 @@ private fun ContainerItem(
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         ) {
-            // Container logo
-            Icon(
-                painter = painterResource(R.drawable.icon_menu_container),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(44.dp),
-            )
+            // Poster tile (matches the Shortcuts cards); containers have no art, so the
+            // container glyph is centered in the framed tile.
+            Box(
+                modifier = Modifier
+                    .size(width = 48.dp, height = 64.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(SurfaceVariantColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_menu_container),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Info column: Name, Wine version, Resolution
+            // Info column: name, wineVersion · resolution subtitle, then the shared spec rows.
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = container.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
                     color = OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = container.wineVersion,
-                    fontSize = 12.sp,
-                    color = OnSurfaceVariant,
-                )
-                Text(
-                    text = container.screenSize,
-                    fontSize = 12.sp,
-                    color = OnSurfaceVariant,
+                if (subtitle.isNotEmpty()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                SpecChipRows(
+                    rendererLabel = rendererLabel,
+                    dxvkVersion = dxvkVersion,
+                    frameGenLabel = frameGenLabel,
+                    driverLabel = driverLabel,
+                    vkd3dVersion = vkd3dVersion,
+                    backendLabel = backendLabel,
                 )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             // Play button (moved before settings)
             Box(

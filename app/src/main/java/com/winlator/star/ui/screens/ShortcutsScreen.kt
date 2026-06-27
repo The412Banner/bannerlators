@@ -36,8 +36,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.lazy.LazyColumn
@@ -596,7 +594,6 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
 // 3:4 cover on the left, name + container · resolution subtitle in the middle. Components are
 // split by how often you check them: renderer, DXVK and frame-gen are bright chips; driver,
 // VKD3D and x86 backend sit on a calm muted line with a colour dot each. "Calm but complete."
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ShortcutItemLayoutL(
     shortcut: Shortcut,
@@ -616,24 +613,10 @@ private fun ShortcutItemLayoutL(
     val driverCfg = shortcut.getExtra("graphicsDriverConfig", container?.getGraphicsDriverConfig() ?: "")
     val driverLabel = if (driverCfg.isNotEmpty()) GraphicsDriverConfigDialog.getVersion(driverCfg) else ""
     val dxwrapperCfg = shortcut.getExtra("dxwrapperConfig", container?.getDXWrapperConfig() ?: "")
-    val cfgMap = dxwrapperCfg.split(",").mapNotNull {
-        val parts = it.split("=", limit = 2)
-        if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
-    }.toMap()
-    val dxvkVersion = cfgMap["version"] ?: ""
-    val vkd3dVersion = cfgMap["vkd3dVersion"] ?: ""
+    val (dxvkVersion, vkd3dVersion) = parseDxwrapperConfig(dxwrapperCfg)
 
-    val rendererLabel = when (shortcut.getExtra("renderer", container?.renderer ?: "").lowercase()) {
-        "vulkan" -> "Vulkan"
-        "surfaceflinger" -> "SurfaceFlinger"
-        "opengl" -> "OpenGL"
-        else -> ""
-    }
-    val frameGenLabel = when (shortcut.getExtra("frameGenEngine", container?.frameGenEngine ?: "off")) {
-        "bionic" -> "Bionic-FG"
-        "lsfg" -> "LSFG-VK"
-        else -> ""
-    }
+    val rendererLabel = rendererLabelOf(shortcut.getExtra("renderer", container?.renderer ?: ""))
+    val frameGenLabel = frameGenLabelOf(shortcut.getExtra("frameGenEngine", container?.frameGenEngine ?: "off"))
     // x86 backend (FEXCore / Box64). Preset suffix (e.g. "· TSO") deferred — it needs
     // the async Box64/FEXCore preset managers, too heavy to resolve per list-card.
     val backendLabel = run {
@@ -694,35 +677,16 @@ private fun ShortcutItemLayoutL(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            // Primary: the things you most often check — bright chips.
-            val hasPrimary = rendererLabel.isNotEmpty() || dxvkVersion.isNotEmpty() || frameGenLabel.isNotEmpty()
-            if (hasPrimary) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                    modifier = Modifier.padding(top = 8.dp),
-                ) {
-                    if (rendererLabel.isNotEmpty()) CompChip(rendererLabel, ChipRendColor)
-                    if (dxvkVersion.isNotEmpty()) CompChip("DXVK $dxvkVersion", ChipDxvkColor)
-                    if (frameGenLabel.isNotEmpty()) CompChip(frameGenLabel, ChipFgColor)
-                }
-            }
-            // Secondary: the rest — muted line with a colour dot each. Audio is dropped
-            // (user's final L) so driver · VKD3D · backend fit one row.
-            val secondary = buildList {
-                if (driverLabel.isNotEmpty()) add(driverLabel to ChipDriverColor)
-                if (vkd3dVersion.isNotEmpty()) add("VKD3D $vkd3dVersion" to ChipVkd3dColor)
-                if (backendLabel.isNotEmpty()) add(backendLabel to ChipCpuColor)
-            }
-            if (secondary.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 7.dp),
-                ) {
-                    secondary.forEach { (text, color) -> SecondarySpec(text, color) }
-                }
-            }
+            // Component specs: bright primary chips (renderer · DXVK · frame-gen) then a
+            // muted secondary dot-line (driver · VKD3D · backend). Shared with Containers.
+            SpecChipRows(
+                rendererLabel = rendererLabel,
+                dxvkVersion = dxvkVersion,
+                frameGenLabel = frameGenLabel,
+                driverLabel = driverLabel,
+                vkd3dVersion = vkd3dVersion,
+                backendLabel = backendLabel,
+            )
         }
         ShortcutOverflowButton(
             onSettings = onSettings,
@@ -731,35 +695,6 @@ private fun ShortcutItemLayoutL(
             onAddToHome = onAddToHome,
             onExport = onExport,
             onProperties = onProperties,
-        )
-    }
-}
-
-// Colour-coded component chips for the list-view game cards.
-private val ChipRendColor = Color(0xFF36D1DC)
-private val ChipDriverColor = Color(0xFFFFB02E)
-private val ChipDxvkColor = Color(0xFF5BD6A6)
-private val ChipVkd3dColor = Color(0xFFC08CFF)
-private val ChipFgColor = Color(0xFFFF6FAE)
-private val ChipCpuColor = Color(0xFFFF8A5C)
-
-// A muted secondary spec (layout L): small colour dot + dimmed label.
-@Composable
-private fun SecondarySpec(text: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.85f)),
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            color = OnSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -812,22 +747,6 @@ private fun ShortcutOverflowButton(
             )
         }
     }
-}
-
-@Composable
-private fun CompChip(text: String, color: Color) {
-    Text(
-        text = text,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = color,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(color.copy(alpha = 0.14f))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
