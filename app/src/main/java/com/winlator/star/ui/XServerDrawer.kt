@@ -657,17 +657,17 @@ private fun pushSgsrUpdate(enabled: Boolean, sharpness: Int, hdr: Boolean) {
     XServerDialogState.onSgsrUpdate?.invoke(enabled, sharpness, hdr)
 }
 
-// Scaling-mode picker: 6 options (0=None 1=Linear 2=Nearest 3=SGSR 4=FSR 5=FSR Fit) laid
-// out as two rows of segmented chips (same box-chip idiom as FgMultiplierButtons). Grayed
-// out when the active host renderer is not Vulkan.
+// Scaling-mode picker: 7 options (0=None 1=Linear 2=Nearest 3=SGSR 4=FSR 5=FSR Fit
+// 6=Sharpen) laid out as rows of four segmented chips (same box-chip idiom as
+// FgMultiplierButtons). Grayed out when the active host renderer is not Vulkan.
 @Composable
 private fun UpscalerModeButtons(selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
     val options = listOf(
         0 to "None", 1 to "Linear", 2 to "Nearest",
-        3 to "SGSR", 4 to "FSR", 5 to "FSR (Fit)"
+        3 to "SGSR", 4 to "FSR", 5 to "FSR (Fit)", 6 to "Sharpen"
     )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        options.chunked(3).forEach { row ->
+        options.chunked(4).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)

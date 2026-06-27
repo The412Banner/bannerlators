@@ -106,6 +106,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private native void nativeDumpRendererInfo(long handle);
     private native void nativeSetFilterMode(long handle, int mode);
     private native void nativeSetUpscaler(long handle, int mode);
+    private native void nativeSetHqDownscale(long handle, boolean enabled);
     private native void nativeSetSwapRB(long handle, boolean enabled);
     private native void nativeSetPresentMode(long handle, int mode);
     private native int[] nativeGetSupportedPresentModes(long handle);
@@ -142,6 +143,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     nativeSetPresentMode(nativeHandle, pendingPresentMode);
                     nativeSetFilterMode(nativeHandle, pendingFilterMode);
                     nativeSetUpscaler(nativeHandle, pendingUpscaler);
+                    nativeSetHqDownscale(nativeHandle, pendingHqDownscale);
                     nativeSetSwapRB(nativeHandle, pendingSwapRB);
                     updateTransform();
                     nativeSetCursorVisible(nativeHandle, cursorVisible);
@@ -694,6 +696,15 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
         synchronized (lock) { if (nativeHandle != 0) nativeSetUpscaler(nativeHandle, mode); }
     }
 
+    // High-quality Lanczos downscale for supersampling (game render res above the
+    // display). Independent of the scaling mode; engages only when render>display.
+    // The app multiplies the X11 screen resolution by the SS factor at launch, so
+    // this is effectively a pre-launch (container/shortcut) setting.
+    public void setHqDownscale(boolean enabled) {
+        pendingHqDownscale = enabled;
+        synchronized (lock) { if (nativeHandle != 0) nativeSetHqDownscale(nativeHandle, enabled); }
+    }
+
     public void setSwapRB(boolean enabled) {
         pendingSwapRB = enabled;
         synchronized (lock) { if (nativeHandle != 0) nativeSetSwapRB(nativeHandle, enabled); }
@@ -746,6 +757,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private int     pendingPresentMode    = 2;
     private int     pendingFilterMode     = 0;
     private int     pendingUpscaler       = 0;
+    private boolean pendingHqDownscale    = false;
     private boolean pendingSwapRB         = false;
     public int getFpsLimit() { return fpsLimit; }
     public void setFpsLimit(int limit) {

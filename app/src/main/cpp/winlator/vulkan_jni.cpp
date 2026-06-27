@@ -251,6 +251,14 @@ Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeSetSwapRB(JNIEnv*, j
     if (r) r->setSwapRB(enabled == JNI_TRUE);
 }
 
+// High-quality supersampling downscale toggle (render res > display res).
+// Independent of the scaling-mode enum.
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeSetHqDownscale(JNIEnv*, jobject, jlong handle, jboolean enabled) {
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setHqDownscale(enabled == JNI_TRUE);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeSetPresentMode(JNIEnv*, jobject, jlong handle, jint mode) {
     auto* r = reinterpret_cast<VulkanRendererContext*>(handle);

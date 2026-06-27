@@ -859,6 +859,12 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
         )
     }
 
+    // Render scale (supersampling) — per-game override, defaults to the container's "renderScale"
+    // extra. Stored via the shortcut "renderScale" extra. "1.0" = Off.
+    var renderScale by remember {
+        mutableStateOf(shortcut.getExtra("renderScale", shortcut.container.getExtra("renderScale", "1.0")))
+    }
+
     // Frame Generation engine (off / bionic / lsfg) — per-game override.
     val fgEngines = remember { listOf("off", "bionic", "lsfg") }
     var frameGenEngine by remember {
@@ -1101,6 +1107,7 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
             putExtra("graphicsDriver", StringUtils.parseIdentifier(selectedGfxDriver))
             putExtra("graphicsDriverConfig", graphicsDriverConfig)
             putExtra("renderer", StringUtils.parseIdentifier(selectedRenderer))
+            putExtra("renderScale", if (renderScale == "1.0") null else renderScale)
             putExtra("frameGenEngine", frameGenEngine)
             putExtra("fpsLimiterEnabled", if (fpsLimiterEnabled) "1" else "0")
             putExtra("dxwrapper", StringUtils.parseIdentifier(selectedDxWrapper))
@@ -1259,6 +1266,19 @@ private fun ShortcutSettingsDialogScreen(shortcut: Shortcut, onDismiss: () -> Un
                         SurfaceFlingerWarningDialog(
                             onConfirm = { selectedRenderer = "SurfaceFlinger"; showSfWarning = false },
                             onDismiss = { showSfWarning = false }
+                        )
+                    }
+
+                    // Render scale (supersampling) — per-game override of the container default.
+                    run {
+                        val renderScaleValues = listOf("1.0", "1.25", "1.5", "2.0")
+                        val renderScaleLabels = listOf("Off", "1.25x", "1.5x", "2x")
+                        val rsIdx = renderScaleValues.indexOf(renderScale).coerceAtLeast(0)
+                        LabeledDropdown(
+                            label = "Render scale (supersampling)",
+                            options = renderScaleLabels,
+                            selectedOption = renderScaleLabels[rsIdx],
+                            onSelect = { renderScale = renderScaleValues[renderScaleLabels.indexOf(it)] }
                         )
                     }
 

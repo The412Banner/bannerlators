@@ -14,6 +14,11 @@
 #include "sgsr_frag.h"
 #include "fsr_easu_frag.h"
 #include "fsr_rcas_frag.h"
+#include "downscale_frag.h"
+
+// Internal sentinel for upFrame.mode: high-quality supersampling downscale.
+// (Not a user-selectable upscalerMode; gated by the hqDownscale flag.)
+static constexpr int UPMODE_DOWNSCALE = 10;
 
 // ---- CPU-side FSR1 constant setup (mirrors ffx_fsr1.h FsrEasuCon/FsrRcasCon) ----
 static inline uint32_t fsrPackF(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
@@ -86,6 +91,7 @@ VulkanRendererContext::~VulkanRendererContext() {
     if (sgsrPipeline      != VK_NULL_HANDLE) vk_.DestroyPipeline(device, sgsrPipeline, nullptr);
     if (easuPipeline      != VK_NULL_HANDLE) vk_.DestroyPipeline(device, easuPipeline, nullptr);
     if (rcasPipeline      != VK_NULL_HANDLE) vk_.DestroyPipeline(device, rcasPipeline, nullptr);
+    if (downscalePipeline != VK_NULL_HANDLE) vk_.DestroyPipeline(device, downscalePipeline, nullptr);
     if (postPipeLayout    != VK_NULL_HANDLE) vk_.DestroyPipelineLayout(device, postPipeLayout, nullptr);
     if (offscreenRenderPass != VK_NULL_HANDLE) vk_.DestroyRenderPass(device, offscreenRenderPass, nullptr);
     if (upscaleSampler    != VK_NULL_HANDLE) vk_.DestroySampler(device, upscaleSampler, nullptr);
@@ -530,6 +536,8 @@ void VulkanRendererContext::createPostPipelines() {
     easuPipeline = createPostPipeline(fsr_easu_code, sizeof(fsr_easu_code), offscreenRenderPass);
     sgsrPipeline = createPostPipeline(sgsr_code,     sizeof(sgsr_code),     renderPass);
     rcasPipeline = createPostPipeline(fsr_rcas_code, sizeof(fsr_rcas_code), renderPass);
+    // Supersampling downscale writes the swapchain too.
+    downscalePipeline = createPostPipeline(downscale_code, sizeof(downscale_code), renderPass);
 }
 
 bool VulkanRendererContext::createColorTarget(int w, int h, VkImage& img, VkDeviceMemory& mem,
@@ -1041,17 +1049,25 @@ void VulkanRendererContext::recordUpscalePasses(VkCommandBuffer cb, uint32_t img
     VkViewport fullVp{0,0,(float)swapchainExt.width,(float)swapchainExt.height,0,1};
     VkRect2D   fullSc{{0,0},swapchainExt};
 
-    if (upFrame.mode==3) {
-        // ---- SGSR: single pass, offscreen -> swapchain (letterbox via NDC rect,
-        //            black bars from the swapchain pass's CLEAR).
+    // Single-pass post passes (SGSR / sharpen-only RCAS / supersampling downscale)
+    // all sample the offscreen target and write the swapchain with a CLEAR (black
+    // letterbox bars). They differ only in pipeline + push constants.
+    if (upFrame.mode==3 || upFrame.mode==6 || upFrame.mode==UPMODE_DOWNSCALE) {
+        VkPipeline   pl   = (upFrame.mode==3) ? sgsrPipeline
+                          : (upFrame.mode==6) ? rcasPipeline
+                          :                     downscalePipeline;
+        const void*  pcd; uint32_t pcsz;
+        if (upFrame.mode==3)                { pcd=&upFrame.sgsrPC; pcsz=sizeof(upFrame.sgsrPC); }
+        else if (upFrame.mode==6)           { pcd=&upFrame.rcasPC; pcsz=sizeof(upFrame.rcasPC); }
+        else                                { pcd=&upFrame.dsPC;   pcsz=sizeof(upFrame.dsPC);   }
         VkRenderPassBeginInfo rpi{}; rpi.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rpi.renderPass=renderPass; rpi.framebuffer=swapchainFBs[imgIdx]; rpi.renderArea={{0,0},swapchainExt};
         rpi.clearValueCount=1; rpi.pClearValues=&blk;
         vk_.CmdBeginRenderPass(cb,&rpi,VK_SUBPASS_CONTENTS_INLINE);
         vk_.CmdSetViewport(cb,0,1,&fullVp); vk_.CmdSetScissor(cb,0,1,&fullSc);
-        vk_.CmdBindPipeline(cb,VK_PIPELINE_BIND_POINT_GRAPHICS,sgsrPipeline);
+        vk_.CmdBindPipeline(cb,VK_PIPELINE_BIND_POINT_GRAPHICS,pl);
         vk_.CmdBindDescriptorSets(cb,VK_PIPELINE_BIND_POINT_GRAPHICS,postPipeLayout,0,1,&offscreenDS,0,nullptr);
-        vk_.CmdPushConstants(cb,postPipeLayout,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(upFrame.sgsrPC),&upFrame.sgsrPC);
+        vk_.CmdPushConstants(cb,postPipeLayout,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,0,pcsz,pcd);
         vk_.CmdDraw(cb,4,1,0,0);
         vk_.CmdEndRenderPass(cb);
     } else {
@@ -1090,29 +1106,56 @@ void VulkanRendererContext::recordUpscalePasses(VkCommandBuffer cb, uint32_t img
 // before recordCmdBuf. Resources are (re)created here as needed.
 void VulkanRendererContext::planUpscaleFrame() {
     upFrame.active=false;
-    int mode=upscalerMode;
-    if (mode<3) return;
     if (containerWidth<=0 || containerHeight<=0) return;
     if (swapchain==VK_NULL_HANDLE) return;
-    // Only upscale when the game renders below the display resolution.
-    if ((int)swapchainExt.width<=containerWidth && (int)swapchainExt.height<=containerHeight) return;
 
-    int outX,outY,outW,outH;
-    if (mode==4) {                       // fsr (fill / stretch)
-        outX=0; outY=0; outW=(int)swapchainExt.width; outH=(int)swapchainExt.height;
-    } else {                             // sgsr (3) / fsr_fit (5): aspect-fit letterbox
-        float a=std::min((float)swapchainExt.width/(float)containerWidth,
-                         (float)swapchainExt.height/(float)containerHeight);
+    const float scW=(float)swapchainExt.width, scH=(float)swapchainExt.height;
+    const bool renderAboveDisplay =
+        ((int)swapchainExt.width<containerWidth || (int)swapchainExt.height<containerHeight);
+    const bool renderBelowDisplay =
+        ((int)swapchainExt.width>containerWidth || (int)swapchainExt.height>containerHeight);
+
+    // Aspect-fit letterbox rect for the swapchain (used by all fit paths).
+    auto fitRect=[&](int& outX,int& outY,int& outW,int& outH){
+        float a=std::min(scW/(float)containerWidth, scH/(float)containerHeight);
         outW=(int)((float)containerWidth*a+0.5f);
         outH=(int)((float)containerHeight*a+0.5f);
         outX=((int)swapchainExt.width-outW)/2;
         outY=((int)swapchainExt.height-outH)/2;
+    };
+
+    // ---- Supersampling: high-quality downscale (render res > display res) ----
+    // Independent of upscalerMode; takes priority when its precondition holds.
+    if (hqDownscale && renderAboveDisplay) {
+        int outX,outY,outW,outH; fitRect(outX,outY,outW,outH);
+        if (outW<=0||outH<=0) return;
+        if (!ensureOffscreen(containerWidth,containerHeight)) return; // render res (large)
+        upFrame.active=true; upFrame.mode=UPMODE_DOWNSCALE;
+        upFrame.outX=outX; upFrame.outY=outY; upFrame.outW=outW; upFrame.outH=outH;
+        DownscalePushConstants& d=upFrame.dsPC;
+        d.ndc[0]=(float)outX/scW*2.f-1.f;          d.ndc[1]=(float)outY/scH*2.f-1.f;
+        d.ndc[2]=(float)(outX+outW)/scW*2.f-1.f;   d.ndc[3]=(float)(outY+outH)/scH*2.f-1.f;
+        d.srcW=(float)containerWidth; d.srcH=(float)containerHeight;
+        d.dstW=(float)outW;           d.dstH=(float)outH;
+        return;
+    }
+
+    int mode=upscalerMode;
+    if (mode<3) return;                          // 0/1/2 use the direct path
+    // Upscale modes 3-5 need the game to render below display; mode 6 (sharpen)
+    // runs at any resolution (it is a pure sharpen / cheap scale+sharpen).
+    if (mode!=6 && !renderBelowDisplay) return;
+
+    int outX,outY,outW,outH;
+    if (mode==4) {                               // fsr (fill / stretch)
+        outX=0; outY=0; outW=(int)swapchainExt.width; outH=(int)swapchainExt.height;
+    } else {                                     // sgsr(3) / fsr_fit(5) / sharpen(6)
+        fitRect(outX,outY,outW,outH);
     }
     if (outW<=0||outH<=0) return;
     if (!ensureOffscreen(containerWidth,containerHeight)) return;
     if ((mode==4||mode==5) && !ensureMid(outW,outH)) return;
 
-    float scW=(float)swapchainExt.width, scH=(float)swapchainExt.height;
     float nx0=(float)outX/scW*2.f-1.f, ny0=(float)outY/scH*2.f-1.f;
     float nx1=(float)(outX+outW)/scW*2.f-1.f, ny1=(float)(outY+outH)/scH*2.f-1.f;
 
@@ -1126,7 +1169,15 @@ void VulkanRendererContext::planUpscaleFrame() {
         p.viewportInfo[1]=1.f/(float)containerHeight;
         p.viewportInfo[2]=(float)containerWidth;
         p.viewportInfo[3]=(float)containerHeight;
-    } else {
+    } else if (mode==6) {
+        // Sharpen-only: RCAS samples the offscreen (game res) 1:1; the quad maps
+        // [0,1] across the fit rect, so outputSize = game res keeps texelFetch in
+        // bounds (1:1 at native, nearest scale+sharpen below native).
+        RcasPushConstants& r=upFrame.rcasPC;
+        r.ndc[0]=nx0; r.ndc[1]=ny0; r.ndc[2]=nx1; r.ndc[3]=ny1;
+        fsrRcasCon(r.con, 0.25f);
+        r.outW=(float)containerWidth; r.outH=(float)containerHeight;
+    } else {                                     // fsr (4) / fsr_fit (5)
         EasuPushConstants& e=upFrame.easuPC;
         e.ndc[0]=-1.f; e.ndc[1]=-1.f; e.ndc[2]=1.f; e.ndc[3]=1.f; // full mid target
         fsrEasuCon(e.con0,e.con1,e.con2,e.con3,
@@ -1579,6 +1630,13 @@ void VulkanRendererContext::setUpscaler(int mode) {
     // post-passes and sample the offscreen target through upscaleSampler instead.
     if      (mode==1) setFilterMode(0);   // linear
     else if (mode==2) setFilterMode(1);   // nearest
+    needsRender.store(true); dirtyCV.notify_one();
+}
+
+void VulkanRendererContext::setHqDownscale(bool enabled) {
+    if (hqDownscale==enabled) { RLOG("setHqDownscale: already %d, skipping", (int)enabled); return; }
+    RLOG("setHqDownscale: %d -> %d", (int)hqDownscale, (int)enabled);
+    hqDownscale=enabled;
     needsRender.store(true); dirtyCV.notify_one();
 }
 

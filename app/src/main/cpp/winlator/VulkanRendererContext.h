@@ -130,6 +130,11 @@ struct RcasPushConstants {                 // 40 bytes
     uint32_t con[4];                       // con.x = bit-packed sharpness
     float    outW, outH;
 };
+struct DownscalePushConstants {            // 32 bytes
+    float ndc[4];
+    float srcW, srcH;                      // render (source) resolution
+    float dstW, dstH;                      // display (output) resolution
+};
 
 class VulkanRendererContext {
 public:
@@ -180,6 +185,7 @@ public:
 
     void setFilterMode(int mode);
     void setUpscaler(int mode);
+    void setHqDownscale(bool enabled);
     void setSwapRB(bool enabled);
     void setPresentMode(VkPresentModeKHR mode);
     std::vector<int> getSupportedPresentModes() const;
@@ -326,6 +332,12 @@ private:
     // resolution (container) is smaller than the swapchain. Otherwise the
     // existing direct-to-swapchain path is used unchanged.
     int               upscalerMode      = 0;
+    // Independent of upscalerMode: high-quality Lanczos downscale for the
+    // supersampling case (game render res > display res). When enabled and the
+    // render res exceeds the swapchain, replaces the bilinear minify with a
+    // proper downscale pass. Supersampling and the upscale modes are mutually
+    // exclusive in practice (one is render>display, the other render<display).
+    bool              hqDownscale       = false;
 
     VkSampler         upscaleSampler    = VK_NULL_HANDLE; // linear clamp; offscreen/mid input
     VkFormat          offscreenFmt      = VK_FORMAT_R8G8B8A8_UNORM;
@@ -334,6 +346,7 @@ private:
     VkPipeline        sgsrPipeline      = VK_NULL_HANDLE;
     VkPipeline        easuPipeline      = VK_NULL_HANDLE;
     VkPipeline        rcasPipeline      = VK_NULL_HANDLE;
+    VkPipeline        downscalePipeline = VK_NULL_HANDLE;
 
     // offscreen composite target @ game/container resolution
     VkImage           offscreenImg  = VK_NULL_HANDLE;
@@ -352,13 +365,16 @@ private:
     int               midW = 0, midH = 0;
 
     // Per-frame upscale plan, computed in renderFrame, consumed by recordCmdBuf.
+    // upFrame.mode reuses the upscalerMode enum (3=sgsr,4=fsr,5=fsr_fit,6=sharpen)
+    // plus an internal sentinel (UPMODE_DOWNSCALE) for the supersampling path.
     struct UpscaleFrame {
         bool active = false;
         int  mode = 0;
         int  outX = 0, outY = 0, outW = 0, outH = 0;
-        SgsrPushConstants sgsrPC{};
-        EasuPushConstants easuPC{};
-        RcasPushConstants rcasPC{};
+        SgsrPushConstants      sgsrPC{};
+        EasuPushConstants      easuPC{};
+        RcasPushConstants      rcasPC{};
+        DownscalePushConstants dsPC{};
     } upFrame;
 
     VkCommandPool                cmdPool = VK_NULL_HANDLE;

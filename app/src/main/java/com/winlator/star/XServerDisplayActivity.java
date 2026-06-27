@@ -197,6 +197,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private String midiSoundFont = "";
     private String lc_all = "";
     private String vkbasaltConfig = "";
+    // Supersampling ("Render scale"): true when the launch resolution was multiplied above the
+    // display res, so the Vulkan compositor should run a quality Lanczos downscale. Resolved in
+    // onCreate (from the container/shortcut "renderScale" extra) and consumed in setupUI.
+    private boolean hqDownscale = false;
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
@@ -793,6 +797,41 @@ public class XServerDisplayActivity extends AppCompatActivity {
             preloaderDialog.show(container.getName(), null);
         else {
             preloaderDialog.show(shortcut.name, shortcut.icon);
+        }
+
+        // Supersampling ("Render scale"): multiply the game's render resolution so it renders above
+        // display res, then let the Vulkan compositor Lanczos-downscale it (see setHqDownscale below).
+        // Stored via the "renderScale" extra; the per-game shortcut overrides the container default.
+        // Off / 1.0 = no change. This must run before ScreenInfo is built so Wine/the X server use it.
+        float renderScale;
+        try {
+            String rsStr = (shortcut != null)
+                ? shortcut.getExtra("renderScale", container.getExtra("renderScale", "1.0"))
+                : container.getExtra("renderScale", "1.0");
+            renderScale = Float.parseFloat(rsStr);
+        } catch (NumberFormatException e) {
+            renderScale = 1.0f;
+        }
+        if (renderScale > 1.0f) {
+            String[] wh = screenSize.split("x");
+            if (wh.length == 2) {
+                try {
+                    final int MAX_W = 7680, MAX_H = 4320; // same upper bound as the resolution picker
+                    int baseW = Integer.parseInt(wh[0].trim());
+                    int baseH = Integer.parseInt(wh[1].trim());
+                    // Clamp the factor so neither dimension exceeds the max, preserving aspect ratio.
+                    float factor = Math.min(renderScale, Math.min((float) MAX_W / baseW, (float) MAX_H / baseH));
+                    int scaledW = Math.min(Math.round(baseW * factor), MAX_W);
+                    int scaledH = Math.min(Math.round(baseH * factor), MAX_H);
+                    // X servers / Wine desktops want even dimensions.
+                    if ((scaledW & 1) == 1) scaledW--;
+                    if ((scaledH & 1) == 1) scaledH--;
+                    if (scaledW > baseW || scaledH > baseH) {
+                        screenSize = scaledW + "x" + scaledH;
+                        hqDownscale = true;
+                    }
+                } catch (NumberFormatException e) { /* keep the base screenSize */ }
+            }
         }
 
         inputControlsManager = new InputControlsManager(this);
@@ -1651,6 +1690,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             int initialUpscaler = container.getRendererFilterMode() == 1 ? 1 : 2;
             vkRenderer.setUpscaler(initialUpscaler);
             XServerDialogState.INSTANCE.setUpscalerMode(initialUpscaler);
+            // Supersampling: when the launch resolution was scaled above display res (see onCreate),
+            // run the compositor's quality Lanczos downscale. No-op when render scale is Off.
+            vkRenderer.setHqDownscale(hqDownscale);
             vkRenderer.setSwapRB(container.getRendererSwapRB());
             // Must run before the surface is created so onSurfaceCreated sets up the scanout path.
             boolean nativeOn = container.isRendererNative();

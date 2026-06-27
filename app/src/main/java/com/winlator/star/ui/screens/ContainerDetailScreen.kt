@@ -529,6 +529,22 @@ private fun TopLevelFields(
         }
         Spacer(Modifier.height(8.dp))
 
+        // Render scale (supersampling) — pre-launch override stored via the "renderScale" extra.
+        // The game renders at this multiple of the display res; the Vulkan compositor then does a
+        // quality downscale. "1.0" = Off.
+        run {
+            val renderScaleValues = listOf("1.0", "1.25", "1.5", "2.0")
+            val renderScaleLabels = listOf("Off", "1.25x", "1.5x", "2x")
+            val rsIdx = renderScaleValues.indexOf(viewModel.renderScale).coerceAtLeast(0)
+            LabeledDropdown(
+                label = "Render scale (supersampling)",
+                options = renderScaleLabels,
+                selectedOption = renderScaleLabels[rsIdx],
+                onSelect = { viewModel.renderScale = renderScaleValues[renderScaleLabels.indexOf(it)] }
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+
         // Audio Driver
         LabeledDropdown(
             label = stringResource(R.string.audio_driver),

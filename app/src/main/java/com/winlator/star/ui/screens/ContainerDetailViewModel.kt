@@ -79,6 +79,8 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
     var rendererDriverId    by mutableStateOf("system")
     var rendererFilterMode  by mutableStateOf(0)
     var rendererSwapRB      by mutableStateOf(false)
+    // Render scale (supersampling) — stored via the "renderScale" extra (no DB field). "1.0" = Off.
+    var renderScale         by mutableStateOf("1.0")
 
     var dxWrapperEntries by mutableStateOf(emptyList<String>()); private set
     var selectedDXWrapper by mutableStateOf(Container.DEFAULT_DXWRAPPER)
@@ -289,6 +291,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
         rendererDriverId         = c?.getRendererDriverId() ?: "system"
         rendererFilterMode       = c?.getRendererFilterMode() ?: 0
         rendererSwapRB           = c?.getRendererSwapRB() ?: false
+        renderScale              = c?.getExtra("renderScale", "1.0") ?: "1.0"
         selectedDXWrapper        = identifierToDisplay(c?.getDXWrapper() ?: Container.DEFAULT_DXWRAPPER, dxWrapperEntries)
         dxWrapperConfig          = c?.getDXWrapperConfig() ?: Container.DEFAULT_DXWRAPPERCONFIG
 
@@ -579,6 +582,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
             c.setRendererDriverId(rendererDriverId)
             c.setRendererFilterMode(rendererFilterMode)
             c.setRendererSwapRB(rendererSwapRB)
+            c.putExtra("renderScale", if (renderScale == "1.0") null else renderScale)
             c.setInputType(inputType)
             c.setStartupSelection(selectedStartupSelection.toByte())
             c.setBox64Version(selectedBox64Version)
@@ -638,6 +642,7 @@ class ContainerDetailViewModel(app: Application) : AndroidViewModel(app) {
                 if (created != null) {
                     created.setFrameGenEngine(frameGenEngine)
                     created.setFpsLimiterEnabled(fpsLimiterEnabled)
+                    if (renderScale != "1.0") created.putExtra("renderScale", renderScale)
                     created.saveData()
                     saveMouseWarp(created)
                 }
