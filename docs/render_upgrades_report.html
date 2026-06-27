@@ -53,7 +53,7 @@
 
   <h1>Bannerlator — Renderer Upgrades</h1>
   <p class="sub">What each host renderer gains when the graphics program lands, and where every piece comes from.</p>
-  <p class="meta">Generated 2026-06-27 · Phase 1 (Vulkan upscalers) + Phase 1c (Vulkan CAS + fake-HDR + sharpness sliders) <b style="color:#3fb950">✅ done, device-proven &amp; merged to main</b> · Phase 2 (remaining GL effects → Vulkan) <b style="color:#2d9bff">in progress</b> · Phases 3–4 planned · true-HDR deferred · branch <code>main</code> (P2 on <code>feat/vulkan-effects-p2</code>)</p>
+  <p class="meta">Generated 2026-06-27 · Phases 1 + 1c (Vulkan upscalers, CAS, fake-HDR, sharpness sliders) <b style="color:#3fb950">✅ done, device-proven &amp; merged</b> · Phase 2 (all GL screen effects → Vulkan) <b style="color:#3fb950">✅ done, device-proven &amp; merged to main</b> · Phases 3–4 planned · true-HDR deferred · branch <code>main</code></p>
 
   <p class="note" style="border-left-color:#2d9bff"><b>Vulkan post-process chain (locked order, best results):</b> <code>composite → scale (SGSR/FSR) → FXAA → Toon → Color → CAS → HDR → NTSC → CRT → screen</code>. Anti-alias first, stylize, colour-grade, sharpen, bloom — then the output-medium emulation (NTSC signal, then CRT tube) runs <i>last</i>. Effects are independent composable toggles; each is optional and the chain skips what's off.</p>
 
@@ -82,9 +82,9 @@
       <li><span class="tag new">NEW · P1c</span><div class="body">
         <span class="what">Sharpness sliders — real upscaler tuning unlocked</span>
         <div class="src">SGSR / FSR / Sharpen sharpness was hard-coded at 0.25; now a live slider (default keeps 0.25) · plus a dedicated CAS-sharpness slider · GameHub-style adjustability</div></div></li>
-      <li><span class="tag upd">🚧 P2</span><div class="body">
-        <span class="what">Remaining post-process effects → Vulkan <span class="pill upd" style="font-size:10px">IN PROGRESS</span></span>
-        <div class="src">Color (brightness/contrast/gamma) · FXAA · Toon · CRT · NTSC — porting our own GL effects (were GL-only / grayed-out) into the chain above. CAS &amp; fake-HDR were the first two, already shipped in P1c.</div></div></li>
+      <li><span class="tag new">✅ P2</span><div class="body">
+        <span class="what">All GL screen effects now on Vulkan <span class="pill new" style="font-size:10px">DEVICE-PROVEN</span></span>
+        <div class="src">Color (brightness/contrast/gamma) · FXAA · Toon · CRT · NTSC — ported from our own GL effects (were GL-only / grayed-out), composable in the chain above. CAS &amp; fake-HDR shipped earlier in P1c. The Vulkan renderer now has the full effect suite + both upscalers.</div></div></li>
       <li><span class="tag upd">UPD · P3</span><div class="body">
         <span class="what">Data-driven effect engine</span>
         <div class="src">load arbitrary <code>.fx</code> presets instead of hardcoded effects · approach from <b>ReShade / GameHub</b></div></div></li>
@@ -170,7 +170,7 @@
     Our project is <b>GPL-3.0</b>; every bundled source above (BSD-3, MIT) is GPL-3.0-compatible and attribution-only.
     Upstream license headers are kept inside each shader; a README credits line is added per source when code lands.
     Full detail &amp; integration map: <code>docs/SGSR_HDR_VULKAN_PLAN.md</code>.
-    P1=Phase 1 (upscalers) + P1c (CAS + fake-HDR + sharpness sliders) — ✅ done, device-proven &amp; merged to main · P2=remaining effects→Vulkan (🚧 in progress) · P3=effect engine · P4=lean GL.
+    P1=Phase 1 (upscalers) + P1c (CAS + fake-HDR + sharpness sliders) + P2 (all GL effects → Vulkan) — ✅ done, device-proven &amp; merged to main · P3=effect engine · P4=lean GL.
   </p>
 
 </div>
