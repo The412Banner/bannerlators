@@ -246,3 +246,13 @@ source comments without copying their code.
 - 2026-06-26 — Research complete (upscaler survey, HDR survey, native compositor recon). Plan drafted. No code.
 - 2026-06-26 — Cross-fork comparison added (GH 6.0.9, GH 5.3.5 GLES2, GameNative, Ludashi). Decisions locked (§4): SGSR+FSR1+FSR-Fit,
   HDR deferred, offline `.spv`, in-game drawer, invest in GL path too, port GL effects to Vulkan + generic effect engine. 4-phase roadmap (§6).
+- 2026-06-26 — Provenance/credits table added (§7); render_upgrades_report.html generated (also saved to /sdcard/Download).
+- 2026-06-27 — **Phase 1 IMPLEMENTED + committed `5f5a4a0`** on branch `feat/vulkan-upscaler-sgsr-fsr` (pushed). Native upscaler
+  framework (offscreen target + post pipelines + SGSR/EASU/RCAS .spv headers) + JNI `nativeSetUpscaler` + in-game-drawer "Scaling mode"
+  picker (None/Linear/Nearest/SGSR/FSR/FSR-Fit, Vulkan-gated). Self-reviewed correct (subpass deps, init order, lifecycle, gating).
+  Status: **compile-reviewed + shaders compile-verified; NDK build = CI run `28276691564` ✅ GREEN (all 3 flavors); device-UNTESTED.**
+  NEXT after green: device-test with a container `screenSize` below panel res so the upscaler engages. Then Phase 2 (GL effects→Vulkan).
+- 2026-06-27 — ✅ **CI `28276691564` GREEN** (commit `5f5a4a0`) — native upscaler + drawer compiles across all 3 flavors. THEN
+  UX follow-up `28ab22d`: Graphics tab now shows ONLY the active renderer's controls (OpenGL→SGSR/HDR+ScreenEffects;
+  Vulkan→Scaling mode; SurfaceFlinger→"no enhancements" note) instead of greying out the rest. Rebuild CI `28277238762` running.
+  Device-test still pending.
