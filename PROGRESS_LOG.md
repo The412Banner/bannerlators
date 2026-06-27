@@ -35,7 +35,7 @@ now-merged P1/P1c Vulkan post-process framework. NOT merged.
 2-effect combo renders clean. **Bug found + fixed (`77c6b76`):** with a *scaling* mode (SGSR/FSR/Sharpen/downscale)
 active, the screen effects were silently dropped (toggles on, image clean) — `recordUpscalePasses`' local `fxOn`
 only checked `cas||hdr`, so the scale pass treated itself as final and skipped the chain. Now includes all 7 effects.
-(This also fixes P1c CAS/HDR, which had the same gap on the scaling path.) Rebuild + re-verify SGSR+effects pending.
+(This also fixes P1c CAS/HDR, which had the same gap on the scaling path.) **Fix rebuilt: branch tip `aed6cde`, CI build `28290066760` ✅ green (all 3 flavors).** Re-verify of the SGSR+effects combo on the fixed build pending (user reinstalling + setting up the space scene).
 
 Ported the 5 remaining GL-only screen effects onto the **same** Vulkan post chain as composable controls,
 at full GL parity:
