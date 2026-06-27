@@ -1621,7 +1621,7 @@ void VulkanRendererContext::setFilterMode(int mode) {
 }
 
 void VulkanRendererContext::setUpscaler(int mode) {
-    if (mode<0||mode>5) mode=0;
+    if (mode<0||mode>6) mode=0;   // 0=none 1=linear 2=nearest 3=sgsr 4=fsr 5=fsr_fit 6=sharpen
     if (upscalerMode==mode) { RLOG("setUpscaler: already %d, skipping", mode); return; }
     RLOG("setUpscaler: %d -> %d", upscalerMode, mode);
     upscalerMode=mode;

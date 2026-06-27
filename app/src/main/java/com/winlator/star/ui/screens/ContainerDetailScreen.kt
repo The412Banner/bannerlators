@@ -313,7 +313,9 @@ internal fun VulkanSettingsDialog(
     var nativeRender by remember { mutableStateOf(cfg["native"] == "true") }
     var presentMode by remember { mutableStateOf(cfg["presentMode"] ?: "fifo") }
     var driverId by remember { mutableStateOf(cfg["driverId"] ?: "system") }
-    var filterMode by remember { mutableStateOf(cfg["filterMode"]?.toIntOrNull() ?: 0) }
+    // Read-only now: editing moved to the in-game drawer "Scaling mode". Kept so the
+    // persisted value round-trips through this dialog and still seeds the launch default.
+    val filterMode = remember { cfg["filterMode"]?.toIntOrNull() ?: 0 }
     var swapRB by remember { mutableStateOf(cfg["swapRB"] == "true") }
 
     AlertDialog(
@@ -363,18 +365,12 @@ internal fun VulkanSettingsDialog(
                     onSelect = { driverId = drivers[driverLabels.indexOf(it)] }
                 )
 
-                val filterModes = listOf(0, 1)
-                val filterModeLabels = listOf(
-                    stringResource(R.string.renderer_filter_mode_nearest),
-                    stringResource(R.string.renderer_filter_mode_linear)
-                )
-                val selectedFilterIdx = filterModes.indexOf(filterMode).coerceAtLeast(0)
-                LabeledDropdown(
-                    label = stringResource(R.string.renderer_filter_mode),
-                    options = filterModeLabels,
-                    selectedOption = filterModeLabels[selectedFilterIdx],
-                    onSelect = { filterMode = filterModes[filterModeLabels.indexOf(it)] }
-                )
+                // Filter mode (Nearest/Linear) is no longer edited here: the in-game
+                // drawer's "Scaling mode" picker is the single source of truth for
+                // Vulkan scaling/filtering (modes 1/2 drive the base sampler natively).
+                // The persisted `filterMode` value is preserved untouched below and
+                // still seeds the drawer's initial scaling mode at launch
+                // (XServerDisplayActivity: getRendererFilterMode -> initialUpscaler).
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.renderer_swap_rb), Modifier.weight(1f))
