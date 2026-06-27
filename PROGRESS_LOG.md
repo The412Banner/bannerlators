@@ -15,7 +15,57 @@ gh workflow run "Any branch compilation." --repo The412Banner/star-compose --ref
 
 ---
 
-## 2026-06-27 (latest) — Vulkan spatial upscalers + sharpen + supersampling (Phase 1/1b)
+## ⚠️ WORKFLOW RULE — save before device tests / heavy jobs
+
+We **device-test on the same physical device that hosts the working session** (PRoot/Termux + the app under
+test are on one device). A device test, app install, screenshot/diff batch, or large agent/workflow can OOM and
+crash the session, losing any un-saved context. **Always flush memory + this progress log + commit BEFORE running
+a device test or heavy/memory-load job, and update continuously — not just at the end.** Memory + this log are the
+durable checkpoint; the live session is volatile.
+
+---
+
+## 2026-06-27 (latest) — Vulkan CAS + fake-HDR + sharpness sliders (Phase 1c) + on-device upscaler proof
+
+**Branch `feat/vulkan-cas-hdr`** (off `feat/vulkan-upscaler-sgsr-fsr` tip `80c6d56`), commit `4fecbc6` +
+docs `181500c`. **CI build `28287630767` ✅ GREEN** (standard/ludashi/pubg). NOT merged. Device-test pending.
+
+**On-device upscaler verification (the resume from the smooth-blob test).** Re-ran the frozen-frame A/B on the
+**DX11 "space" scene** (textured planet + coastlines + dense starfield), 720p container → 1080p panel, build 1.9.1:
+the scaling modes are now clearly and usefully distinct (RMSE vs None ≈ 6× the smooth blob's <0.4%):
+
+| Mode | RMSE vs None | On screen |
+|---|---|---|
+| Nearest | 0% (≡ None) | hard stair-step jaggies on the planet limb (point) |
+| Linear | 1.79% | jaggies smoothed but whole frame softened |
+| **SGSR** | 1.75% | edges cleaned, stars/detail stay crisp — sweet spot |
+| **FSR / FSR-Fit** | 1.82% | same family as SGSR |
+| **Sharpen** | 2.46% | brighter/punchier (RCAS), keeps base jaggies |
+
+The earlier "no visible difference" was **bad test content** (smooth SDF blob, no high-freq edges), not a bug —
+spatial upscalers are an edge-cleanup whose effect grows with the upscale ratio. "More RMSE" ≠ "better"; fidelity to
+a native render is the goal. This test motivated the P1c sharpness sliders (strength was locked at 0.25).
+
+**Phase 1c — three new composable Vulkan post controls + one rename:**
+- **CAS toggle + "CAS Sharpness" slider (0–100, default 60)** — the same AMD CAS the GL path uses (`cas.frag`
+  ported from `FSREffect.java`), layered on top of any scaling mode, runs even at native res.
+- **HDR toggle** — the same fake-HDR (`hdr.frag` ported from `HDREffect.java`, HDRPower 1.30, binary).
+- **"Sharpness" slider** for scaling modes SGSR/FSR/FSR-Fit/Sharpen — unlocks the real upscaler sharpness
+  (was hard-coded 0.25 RCAS stops; default slider 75 keeps 0.25). SGSR `EdgeSharpness` moved const→push-constant.
+- **GL "SGSR" → "Sharpen (CAS)"** — the GL toggle was never SGSR; it's AMD CAS sharpening at native res. Label-only.
+
+Pipeline: `recordUpscalePasses` rewritten to chain `composite → scale → CAS → HDR → swapchain`, with optional
+`fx1`/`fx2` intermediates ping-ponged through `offscreenRenderPass` (auto-barriers via its baked subpass deps; no
+hand-rolled `vkCmdPipelineBarrier`). Cross-binding the swapchain-render-pass scale pipelines into an
+`offscreenRenderPass` fx target is legal — both passes use `VK_FORMAT_R8G8B8A8_UNORM` (format-compatible). All PC
+structs ≤ 88-byte range. Touched: `cas/hdr/sgsr.frag` (+ compiled `*_frag.h`), `VulkanRendererContext.cpp/.h`,
+`vulkan_jni.cpp`, `VulkanRenderer.java`, `XServerDialogState.kt`, `XServerDrawer.kt`, `XServerDisplayActivity.java`.
+Drawer-only / session-live (no DB persist), like the scaling mode. `docs/render_upgrades_report.html` updated with
+the device-test results + P1c.
+
+---
+
+## 2026-06-27 — Vulkan spatial upscalers + sharpen + supersampling (Phase 1/1b)
 
 Branch `feat/vulkan-upscaler-sgsr-fsr` (NOT merged). First fork with real SGSR **and** FSR1 upscaling on the
 default Vulkan renderer, plus native-res sharpen and supersampling — in one app. Full design/provenance log:
