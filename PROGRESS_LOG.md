@@ -51,6 +51,20 @@ sourced from the bundled shader headers at `app/src/main/cpp/winlator/*.frag`, w
 license text. ⚠️First run `28295471682` FAILED at the update.json step — `release_notes` had literal
 double-quotes that broke the bash `NOTES="..."` assignment (exit 127); re-ran with shell-safe plain notes.
 
+**📝 Release-copy accuracy pass (post-publish body edits, no rebuild).** User flagged the marketing line
+("only Winlator fork with both real spatial upscalers and a complete post-processing chain on Vulkan —
+previously all OpenGL-only"). Verified in source against the other forks and corrected it:
+- **GameNative** = FSR1-only on the Vulkan compositor (the blueprint we built on).
+- **WinNative** (`/home/claude-user/winnative`) = **SGSR-only** on its Vulkan compositor (`cpp/winlator/vk/shaders/sgsr1.frag`
+  + `SGSRUpscaler.java`) **plus an effect chain broader than ours** (sharpen/CRT/HDR/NTSC+NTSC2/Toon/ColorAdjust/
+  ColorGrade/ColorBlind/Vivid/Scanlines/Pixelate/Natural); its `fsr.glsl` is only in the cnc-ddraw wrapper, not the compositor.
+- So "real upscaler on Vulkan" and "full effect chain on Vulkan" are **NOT** unique to us; only **both SGSR *and* FSR1
+  together** on the default path is. Also the upscalers were brand-new, not "previously OpenGL-only" (only the effects were).
+- Rewrote the 1.9.2 intro: dropped the superlative, credited GameNative as FSR-on-Vulkan pioneer, noted SGSR exists in
+  other Pluvia forks, claimed only the verified differentiator (both upscalers together). Also split What's New so
+  **Render scale (supersampling)** is labeled *set before launch* (container/shortcut) vs the drawer-live upscalers/effects.
+  Applied via `gh release edit 1.9.2 --notes-file` (APKs/update.json/Latest unchanged).
+
 ---
 
 ## 2026-06-27 — Native-mutex merge + on-screen controls opacity shadow fix
