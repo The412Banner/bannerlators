@@ -25,7 +25,30 @@ durable checkpoint; the live session is volatile.
 
 ---
 
-## 2026-06-27 (latest) — Phase 2: remaining GL screen effects → Vulkan post chain
+## 2026-06-27 (latest) — Native-mutex merge + on-screen controls opacity shadow fix
+
+**1. Native-Rendering ↔ presets mutex MERGED to main.** User device-tested the latest `feat/vulkan-native-mutex`
+build and confirmed it good. Fast-forwarded `main` `506ac6a`→`1c9c576` (`3ed78bb` mutex + `1c9c576` toast
+black-box fix + Linear default scaling mode), pushed `origin/main`, deleted the feature branch local + remote.
+The full Vulkan graphics program (P1 / P1b / P1c CAS+HDR / P2 effects / native-mutex) is now all on main.
+
+**2. On-screen controls opacity bug FIXED** — `app/.../inputcontrols/ControlElement.java`, commit `1d9439e` on
+main, CI run `28294667670`. **Device-test PENDING.**
+- *Symptom (user, device screenshots 100% vs 6%):* at low Overlay Opacity the A–F keyboard strip fades fully, but
+  the 4 compact keys MRB/BKSP/SPACE/ENTER keep a solid blue filled square while only their label text fades.
+- *Root cause (pulled both screenshots to confirm):* NOT the fill paint — the GameHub `fillColor` already tracks
+  `gameHubDim`. It was the **drop shadow**: the BUTTON draw path calls `paint.setShadowLayer(..., 0x401C85FE)`
+  (hardcoded blue, alpha `0x40`) before the fill, and that shadow alpha never scaled with opacity. At low opacity
+  the fill/stroke/text vanish but the blue glow persists — on the compact `SQUARE` keys it reads as a solid blue
+  background; on the wide `ROUND_RECT` pills (A–F) it smears out and looks invisible. That asymmetry = the bug.
+- *Fix:* added `int shadowColor = Color.argb((int)(0x40*gameHubDim*effectiveOpacity),0x1C,0x85,0xFE)` and used it
+  in both `setShadowLayer` calls (trigger + non-trigger BUTTON paths). 0% opacity now truly vanishes. Only the
+  BUTTON case has a shadow; STICK/D_PAD/TRACKPAD/RANGE_BUTTON unaffected.
+- *Next:* CI green → install → device-test opacity at low values across both key shapes.
+
+---
+
+## 2026-06-27 — Phase 2: remaining GL screen effects → Vulkan post chain
 
 **Branch `feat/vulkan-effects-p2`** (off `main` `71dceca`), commit `5dfcdbf` + fix `77c6b76`. Builds on the
 now-merged P1/P1c Vulkan post-process framework. NOT merged.
