@@ -53,7 +53,7 @@
 
   <h1>Bannerlator — Renderer Upgrades</h1>
   <p class="sub">What each host renderer gains when the graphics program lands, and where every piece comes from.</p>
-  <p class="meta">Generated 2026-06-26 · Phase 1 (Vulkan upscalers) in progress · Phases 2–4 planned · HDR deferred · branch <code>feat/vulkan-upscaler-sgsr-fsr</code></p>
+  <p class="meta">Generated 2026-06-27 · Phase 1 (Vulkan upscalers) <b style="color:#3fb950">✅ done &amp; device-proven</b> · Phase 1c (Vulkan CAS + fake-HDR + sharpness sliders) <b style="color:#2d9bff">building</b> · Phases 2–4 planned · true-HDR deferred · branches <code>feat/vulkan-upscaler-sgsr-fsr</code> + <code>feat/vulkan-cas-hdr</code></p>
 
   <h2>The three host renderers</h2>
 
@@ -62,23 +62,32 @@
     <h3>Vulkan compositor <span class="pill new">MOST CHANGED</span></h3>
     <p class="role">Our default renderer · native <code>libwinlator</code> / <code>VulkanRendererContext.cpp</code></p>
     <ul>
-      <li><span class="tag new">NEW · P1</span><div class="body">
-        <span class="what">Real spatial upscaling — SGSR 1.0</span>
+      <li><span class="tag new">✅ P1</span><div class="body">
+        <span class="what">Real spatial upscaling — SGSR 1.0 <span class="pill new" style="font-size:10px">DEVICE-PROVEN</span></span>
         <div class="src">single-pass upscaler · from <b>Qualcomm / Snapdragon Game Studios</b> — <a href="https://github.com/SnapdragonGameStudios/snapdragon-gsr">snapdragon-gsr</a> (<span class="lic bsd">BSD-3</span>)</div></div></li>
-      <li><span class="tag new">NEW · P1</span><div class="body">
-        <span class="what">Real spatial upscaling — FSR 1.0 (EASU + RCAS)</span>
+      <li><span class="tag new">✅ P1</span><div class="body">
+        <span class="what">Real spatial upscaling — FSR 1.0 (EASU + RCAS) <span class="pill new" style="font-size:10px">DEVICE-PROVEN</span></span>
         <div class="src">two-pass upscale + sharpen · from <b>AMD GPUOpen / FidelityFX</b> — <a href="https://github.com/GPUOpen-Effects/FidelityFX-FSR">FidelityFX-FSR</a> (<span class="lic mit">MIT</span>)</div></div></li>
-      <li><span class="tag new">NEW · P1</span><div class="body">
-        <span class="what">FSR-Fit (aspect-preserving) + None / Linear / Nearest</span>
-        <div class="src">live "Scaling mode" picker in the in-game drawer · aspect mode reimplemented from <b>GameNative</b> approach</div></div></li>
+      <li><span class="tag new">✅ P1</span><div class="body">
+        <span class="what">7-mode "Scaling mode" picker — None / Linear / Nearest / SGSR / FSR / FSR-Fit / Sharpen</span>
+        <div class="src">live in the in-game drawer · FSR-Fit aspect mode + Sharpen (RCAS-only) · aspect/blueprint reimplemented from <b>GameNative</b> approach</div></div></li>
+      <li><span class="tag new">NEW · P1c</span><div class="body">
+        <span class="what">CAS — Contrast-Adaptive Sharpening (composable toggle + sharpness slider)</span>
+        <div class="src">the SAME AMD CAS the GL path uses, now on Vulkan · layers on top of any scaling mode &amp; runs at native res · ported from our own <code>FSREffect</code> (<span class="lic mit">MIT</span> ffx)</div></div></li>
+      <li><span class="tag new">NEW · P1c</span><div class="body">
+        <span class="what">fake-HDR look (composable toggle)</span>
+        <div class="src">the SAME bloom/contrast-lift "HDR" the GL path uses, now on Vulkan · ported from our own <code>HDREffect</code> · <i>not</i> true HDR10 output (that stays deferred)</div></div></li>
+      <li><span class="tag new">NEW · P1c</span><div class="body">
+        <span class="what">Sharpness sliders — real upscaler tuning unlocked</span>
+        <div class="src">SGSR / FSR / Sharpen sharpness was hard-coded at 0.25; now a live slider (default keeps 0.25) · plus a dedicated CAS-sharpness slider · GameHub-style adjustability</div></div></li>
       <li><span class="tag upd">UPD · P2</span><div class="body">
-        <span class="what">Post-process effects now work on Vulkan</span>
-        <div class="src">FXAA · CRT · Toon · NTSC · Color (brightness/contrast/gamma) · fake-HDR look — ported from our own GL effects (were GL-only / grayed-out)</div></div></li>
+        <span class="what">Remaining post-process effects → Vulkan</span>
+        <div class="src">FXAA · CRT · Toon · NTSC · Color (brightness/contrast/gamma) — ported from our own GL effects (were GL-only / grayed-out). CAS &amp; fake-HDR already done in P1c.</div></div></li>
       <li><span class="tag upd">UPD · P3</span><div class="body">
         <span class="what">Data-driven effect engine</span>
         <div class="src">load arbitrary <code>.fx</code> presets instead of hardcoded effects · approach from <b>ReShade / GameHub</b></div></div></li>
     </ul>
-    <div class="note"><b>Why this matters:</b> today the Vulkan renderer offers <i>no</i> post-process and only sampler-based scaling. After this it becomes the only renderer in any fork with both <b>SGSR and FSR1</b> upscaling plus the full effect suite — on the default, fastest path.</div>
+    <div class="note"><b>Why this matters:</b> the Vulkan renderer used to offer <i>no</i> post-process and only sampler-based scaling. It is now the only renderer in any fork with both <b>SGSR and FSR1</b> upscaling — and as of P1c, composable <b>CAS sharpen + fake-HDR with live sharpness sliders</b> on top — all on the default, fastest path. The effect passes chain after the upscaler (composite → scale → CAS → HDR → screen) with no extra GPU barriers.</div>
   </div>
 
   <!-- OPENGL -->
@@ -88,12 +97,15 @@
     <ul>
       <li><span class="tag same">KEEP</span><div class="body">
         <span class="what">Existing full effect suite stays</span>
-        <div class="src">SGSR(=CAS sharpen) · fake-HDR · FXAA · CRT · Toon · NTSC · Color — already in our tree (Winlator / Star-Bionic lineage)</div></div></li>
+        <div class="src">Sharpen (CAS) · fake-HDR · FXAA · CRT · Toon · NTSC · Color — already in our tree (Winlator / Star-Bionic lineage)</div></div></li>
+      <li><span class="tag new">✅ FIX</span><div class="body">
+        <span class="what">Mislabel fixed — "SGSR" toggle renamed to "Sharpen (CAS)"</span>
+        <div class="src">the GL toggle labeled "SGSR" was never SGSR — it's AMD <b>CAS</b> sharpening at native res (no upscaling). Verified in <code>FSREffect.java</code> and renamed to be accurate. Real SGSR lives only on the Vulkan path.</div></div></li>
       <li><span class="tag upd">UPD · P4</span><div class="body">
         <span class="what">Lean native-GLES2 rework</span>
         <div class="src">reduce Java <code>GLSurfaceView</code> overhead, cheaper blit/upscale — philosophy from <b>GameHub 5.3.5</b>'s native GLES2 X-server (clean-room, no code taken)</div></div></li>
     </ul>
-    <div class="note"><b>Note:</b> upscaling (SGSR/FSR) is being added to the Vulkan path first. The GL path keeps its existing CAS "SGSR"; real FSR/SGSR on GL is possible later but is not in current scope.</div>
+    <div class="note"><b>Note:</b> real spatial upscaling (SGSR/FSR) lives on the Vulkan path. The GL path's "SGSR" was a misnomer (it's CAS sharpening) and is now correctly labeled <b>"Sharpen (CAS)"</b>; that same CAS is now also available on Vulkan (P1c). Real FSR/SGSR on GL is possible later but is not in current scope.</div>
   </div>
 
   <!-- SURFACEFLINGER -->
@@ -106,6 +118,28 @@
         <div class="src">this <i>is</i> our port of <b>GameHub 5.3.5 "Native Rendering+"</b> — already the lean low-latency win others lack</div></div></li>
     </ul>
     <div class="note"><b>Limitation (by design):</b> ASR bypasses the Vulkan compositor draw pass, so the new upscalers and ported effects <b>do not apply</b> in this mode. It stays a pure low-latency passthrough.</div>
+  </div>
+
+  <h2>Device test — do the upscalers actually do anything?</h2>
+  <div class="card">
+    <h3>On-device A/B <span class="pill new">VERIFIED 2026-06-27</span></h3>
+    <p class="role">Real hardware (root bridge) · build 1.9.1 · 720p container → 1080p panel · frozen-frame comparison (game paused, compositor keeps re-upscaling)</p>
+    <p style="margin:0 0 12px;color:var(--dim);font-size:14px">
+      A first test on a <b>smooth raymarched SDF blob</b> showed almost no difference between modes (&lt;0.4% RMSE, black diff-maps).
+      That was <b>bad test content</b>, not a bug — a smooth gradient has no high-frequency edges for an edge-reconstruction upscaler to work on.
+      Re-tested on the <b>DX11 "space" scene</b> (textured planet + coastlines + dense starfield) the modes become clearly &amp; usefully distinct:
+    </p>
+    <table>
+      <thead><tr><th>Scaling mode</th><th>RMSE vs None</th><th>What you see on screen</th></tr></thead>
+      <tbody>
+        <tr><td>Nearest</td><td>0% (≡ None)</td><td>hard stair-step jaggies on the planet's curved edge (point sampling)</td></tr>
+        <tr><td>Linear</td><td>1.79%</td><td>jaggies smoothed, but the whole frame softened / blurred (stars dimmer)</td></tr>
+        <tr><td><b>SGSR</b></td><td>1.75%</td><td><b>edges cleaned up while stars &amp; detail stay crisp — the sweet spot</b></td></tr>
+        <tr><td><b>FSR / FSR-Fit</b></td><td>1.82%</td><td>same family as SGSR — reconstructed edges, retained detail</td></tr>
+        <tr><td><b>Sharpen</b></td><td>2.46%</td><td>noticeably brighter / punchier, more contrast (RCAS); keeps the base jaggies</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Takeaways:</b> (1) the upscalers work exactly as designed — these are <i>spatial</i> upscalers (not AI/temporal), so the benefit is an edge-cleanup that grows with the upscale ratio, ~6× stronger here than on the smooth scene. (2) "More RMSE" is <i>not</i> "better" — fidelity to a native render is the goal, and SGSR/FSR landing close to bilinear while keeping detail is the <b>correct</b> result. (3) For a more dramatic win, render at a lower internal res (e.g. 540p→1080p). (4) The on-device run also confirmed the <b>Sharpen</b> fix and is the reason the P1c <b>sharpness sliders</b> were added — the strength was previously locked at 0.25.</div>
   </div>
 
   <h2>Where everything comes from — at a glance</h2>
@@ -134,7 +168,7 @@
     Our project is <b>GPL-3.0</b>; every bundled source above (BSD-3, MIT) is GPL-3.0-compatible and attribution-only.
     Upstream license headers are kept inside each shader; a README credits line is added per source when code lands.
     Full detail &amp; integration map: <code>docs/SGSR_HDR_VULKAN_PLAN.md</code>.
-    P1=Phase 1 (upscalers, in progress) · P2=effects→Vulkan · P3=effect engine · P4=lean GL.
+    P1=Phase 1 (upscalers, ✅ done &amp; device-proven) · P1c=Vulkan CAS + fake-HDR + sharpness sliders (building) · P2=remaining effects→Vulkan · P3=effect engine · P4=lean GL.
   </p>
 
 </div>
