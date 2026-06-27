@@ -25,7 +25,36 @@ durable checkpoint; the live session is volatile.
 
 ---
 
-## 2026-06-27 (latest) — Vulkan CAS + fake-HDR + sharpness sliders (Phase 1c) + on-device upscaler proof
+## 2026-06-27 (latest) — Phase 2: remaining GL screen effects → Vulkan post chain
+
+**Branch `feat/vulkan-effects-p2`** (off `main` `71dceca`), commit `5dfcdbf`. Artifacts build `28289166484`.
+NOT merged; device-test pending (frozen-frame A/B on the AIO space scene). Builds on the now-merged P1/P1c
+Vulkan post-process framework.
+
+Ported the 5 remaining GL-only screen effects onto the **same** Vulkan post chain as composable controls,
+at full GL parity:
+- **Color** — Brightness / Contrast / Gamma sliders (replicates `ColorEffect.java`: brightness `clamp(s/100,-1,1)`,
+  contrast `clamp(s/100,0,2)` so negative contrast is a no-op like GL, gamma `clamp(0.1,5)`; neutral 0/0/1 ⇒ pass skipped).
+- **FXAA · Toon · CRT · NTSC** — toggles (GL shader math ported verbatim).
+
+**Locked canonical chain order** (best results): `composite → scale (SGSR/FSR) → FXAA → Toon → Color → CAS → HDR
+→ NTSC → CRT → swapchain` — AA first, stylize/grade the clean image, sharpen, bloom, then the output-medium
+emulation last (NTSC analog signal, then the CRT tube). The fixed 2-effect chain from P1c was generalized to an
+ordered 7-effect list, ping-ponging `fx1`/`fx2` (2 buffers suffice); the last active effect writes the swapchain,
+earlier ones write `offscreenRenderPass` fx targets (auto-barriers). Engages even at scaling mode 0/1/2.
+
+5 new shaders (`fxaa/toon/color/ntsc/crt.frag` + compiled `*_frag.h`), 10 new pipelines (Off/Swap per effect),
+all PC structs ≤ 28 B (≤ the 88 B shared range, unchanged). Plumbing mirrors P1c: 5 JNI entry points,
+`VulkanRenderer.setScreenEffects(b,c,g,fxaa,toon,crt,ntsc)`, `XServerDialogState.onVulkanScreenEffectsApply`,
+a "Screen Effects" subsection in the Vulkan drawer block, and launch-seed + callback wiring in
+`XServerDisplayActivity`. **No-op safety:** with zero new effects enabled, control flow is identical to current main
+(no regression to shipped P1/P1c behavior). Touched: `{fxaa,toon,color,ntsc,crt}.frag`(+`.h`),
+`VulkanRendererContext.cpp/.h`, `vulkan_jni.cpp`, `VulkanRenderer.java`, `XServerDialogState.kt`, `XServerDrawer.kt`,
+`XServerDisplayActivity.java`. `docs/render_upgrades_report.html` already shows P2 in-progress + the locked chain order.
+
+---
+
+## 2026-06-27 — Vulkan CAS + fake-HDR + sharpness sliders (Phase 1c) + on-device upscaler proof
 
 **Branch `feat/vulkan-cas-hdr`** (off `feat/vulkan-upscaler-sgsr-fsr` tip `80c6d56`), commit `4fecbc6` +
 docs `181500c`. **CI build `28287630767` ✅ GREEN** (standard/ludashi/pubg). NOT merged. Device-test pending.
