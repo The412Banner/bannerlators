@@ -842,48 +842,38 @@ private fun UpscalerModeButtons(selected: Int, enabled: Boolean, onSelect: (Int)
     }
 }
 
-// Manual refresh-rate chips (mirrors UpscalerModeButtons' visual style). Greyed when disabled
-// (Auto on or display not VRR-capable). Highlights the chip whose rate == selected.
+// Manual refresh-rate slider — snaps to [Off] + each supported panel rate (which may be unevenly
+// spaced, e.g. 60/90/120/144). Off (0) = no manual lock. The label tracks the snapped value live
+// while dragging; the actual panel rate is applied on release so we don't flash through modes mid-drag.
+// Greyed when disabled (Auto on or display not VRR-capable).
 @Composable
-private fun RefreshRateChips(rates: List<Int>, selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        rates.chunked(4).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                row.forEach { rate ->
-                    val isSel = selected == rate
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSel && enabled) Primary else Color.Black)
-                            .border(
-                                width = 1.dp,
-                                color = if (isSel && enabled) Primary else PrimaryDim,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clickable(enabled = enabled) { onSelect(rate) }
-                            .padding(vertical = 9.dp)
-                    ) {
-                        Text(
-                            "$rate",
-                            color = when {
-                                !enabled -> DimWhite.copy(alpha = 0.4f)
-                                isSel    -> Color.Black
-                                else     -> Primary
-                            },
-                            fontSize = 12.sp,
-                            fontWeight = if (isSel && enabled) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                }
-                // Keep chip width consistent when the final row has < 4 rates.
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
+private fun RefreshRateSlider(rates: List<Int>, selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
+    val stops = remember(rates) { listOf(0) + rates }
+    var idx by remember(selected, stops) { mutableStateOf(stops.indexOf(selected).coerceAtLeast(0)) }
+    val dim = DimWhite.copy(alpha = 0.4f)
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Rate", style = MaterialTheme.typography.bodySmall, color = if (enabled) DimWhite else dim)
+            Text(
+                if (stops[idx] == 0) "Off" else "${stops[idx]} Hz",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) Primary else dim,
+                fontWeight = FontWeight.Medium
+            )
         }
+        Slider(
+            value = idx.toFloat(),
+            onValueChange = { idx = it.roundToInt().coerceIn(stops.indices) },
+            onValueChangeFinished = { onSelect(stops[idx]) },
+            valueRange = 0f..(stops.size - 1).toFloat(),
+            steps = (stops.size - 2).coerceAtLeast(0),
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -994,10 +984,10 @@ private fun HudContent(state: XServerDrawerState) {
         state.setMatchRefreshRate(it)
         state.onMatchRefreshChange?.run()
     }
-    // Manual rate chips: selectable only when Auto is OFF and the panel can switch rates.
+    // Manual rate slider: selectable only when Auto is OFF and the panel can switch rates.
     if (supportedRefreshRates.isNotEmpty()) {
         Spacer(Modifier.height(6.dp))
-        RefreshRateChips(supportedRefreshRates, manualRefreshRate, vrrSupported && !matchRefreshOn) { rate ->
+        RefreshRateSlider(supportedRefreshRates, manualRefreshRate, vrrSupported && !matchRefreshOn) { rate ->
             state.setManualRefreshRate(rate)
             state.onManualRefreshChange?.run()
         }
