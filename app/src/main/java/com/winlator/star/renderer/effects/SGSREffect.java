@@ -91,8 +91,11 @@ public class SGSREffect extends Effect {
                 "}",
 
                 "void main() {",
-                // Map the slider (0..1) to EdgeSharpness; 0.75 -> 2.0 matches the Vulkan default.
-                "    float EdgeSharpness = 1.0 + sharpness * 1.333;",
+                // Map the slider (0..1) to EdgeSharpness. 1.0 is the neutral floor (the natural
+                // reconstruction with no extra edge boost; the spatial upscale still runs), so
+                // slider 0 -> 1.0 = no visible extra sharpening. The slider-driven span is DOUBLED
+                // (was *1.333): slider 100 -> 3.666, twice the previous applied amount.
+                "    float EdgeSharpness = 1.0 + sharpness * 2.666;",
                 "    vec4 ViewportInfo = vec4(1.0 / srcResolution, srcResolution);",
                 "    vec2 uv = gl_FragCoord.xy / resolution;",
 

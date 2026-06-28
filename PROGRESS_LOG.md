@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-06-27 — GL upscaler parity: device-test, inverted-slider fix, sharpness-range tuning
+
+**Branch:** `feat/gl-upscaler-parity` (off main `ec3bcb0`). Phase 1 (SGSR/FSR/Sharpen on the
+OpenGL EffectComposer + drawer Scaling-mode picker, commits `efd5f4f`→`327ab9d`) was already
+CI-green (`28306036455`). This session = device-test + fixes. NOT merged.
+
+**Device test (build 1.9.2 vc31, AIO-Graphics-Test-32bit = OpenGL + 1280x720 on 1080p panel,
+DX11 SPACE scene, frozen-frame A/B via drawer Pause):** GL parity LIVE — all 6 scaling chips
+produce DISTINCT output on the GL renderer (frozen-frame re-upscale works). RMSE vs None:
+Linear 0% (≡None ⇒ default sampling IS bilinear) · Nearest 1.51% (blocky) · Sharpen 0.36% ·
+SGSR 0.68% · FSR 0.79% (crispest). Cursor stays crisp under Nearest = PASS (host cursor
+exempt from point-scale). Zoomed montages confirm visual distinctness.
+
+**🐛 Bug found + fixed (`52c7092`):** the upscale "Sharpness" slider was INVERTED for the
+Sharpen mode (AMD CAS) — raising it SOFTENED. Root cause = `FSREffect`'s level scale is
+inverted (level 1 = CAS sharpness 0.90 = sharpest, level 5 = 0.12 = softest) but both CAS
+call sites mapped slider straight onto level. Fix: `EffectComposer.buildPickerCas():339`
+`level=(1-upscaleSharpness)*4+1` + `XServerDisplayActivity.onSgsrUpdate:2088`
+`level=(100-sharpness)/25+1`. SGSR (EdgeSharpness=1+s*1.333) and FSR RCAS (stops=1-s) were
+already correct → untouched. CI `28307366153` triggered then cancelled (superseded below).
+
+**🚧 In progress (graphics-vulkan-engineer agent, GL + Vulkan):** per user — make every
+sharpness slider span **0 = nothing (neutral, no sharpening; upscale still runs) → 100 = max**.
+(A) GL SGSR range DOUBLED `1.0+s*2.666` (0→1.0, 100→3.67). (B) GL FSR RCAS remap so 0=identity
+(today 0→scale 0.5 still sharpens). (C) GL Sharpen mode = SNAP slider to 5 stops {0,25,50,75,
+100}, 0=CAS off (only in Sharpen mode; SGSR/FSR stay continuous) + same on standalone
+Sharpen(CAS) toggle. (D) Vulkan mirror — SGSR edge `0.5+(1-stops)*4.0` (doubled), FSR/CAS
+0=off→100=max, Vulkan Sharpen stays continuous (no snap; it's RCAS not 5-level CAS). SGSR
+doubled (clean headroom); FSR/CAS = full 0→ceiling, no over-drive past spec. Agent to commit +
+trigger CI; then device-test (drawer-open + crop-right method to dodge BACK-key drawer drift) →
+merge.
+
+**❌ Dropped per user:** a persisted per-shortcut "upscaling on/off" toggle. Clarified that
+720p→1080p plain stretch is ~free (final-blit sampler); only opt-in SGSR/FSR cost GPU and are
+already default-None + session-live. User said "leave the upscaling alone."
+
+---
+
 ## 2026-06-27 — P4 "Lean GL path" (render-upgrades roadmap, final phase) — steps 1+3
 
 **Status:** branch `feat/p4-lean-gl-1-3` off main `35fd80d` (pushed). 2 commits. CI

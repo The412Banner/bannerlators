@@ -22,7 +22,7 @@ import com.winlator.star.renderer.material.ShaderMaterial;
 //   - GLSL ES 3.00; input = the EASU output (already at output resolution), read 1:1
 //     via texelFetch with edge clamping (no textureGather, so ES-3.0 safe as written).
 //   - the bit-packed sharpness push-constant is replaced by a plain `sharpness` uniform
-//     (0..1): RCAS stops = (1 - sharpness), so 0.75 -> 0.25 stops == the Vulkan default.
+//     (0..1) used directly as the RCAS lobe scale: 0 = neutral (passthrough), 1 = full RCAS.
 // =============================================================================
 
 public class FSRRcasEffect extends Effect {
@@ -122,9 +122,11 @@ public class FSRRcasEffect extends Effect {
                 "}",
 
                 "void main() {",
-                // Slider 0..1 -> RCAS stops (1 - sharpness); con.x == exp2(-stops).
-                "    float stops = clamp(1.0 - sharpness, 0.0, 2.0);",
-                "    float rcasScale = exp2(-stops);",
+                // Slider drives the RCAS lobe scale linearly: 0 = no sharpening (true
+                // passthrough; with rcasScale 0 the lobe is 0 so the output == the EASU-upscaled
+                // center pixel), 1 = full RCAS (== 0 stops, the algorithmic ceiling). No over-drive
+                // past spec, so no ringing.
+                "    float rcasScale = clamp(sharpness, 0.0, 1.0);",
                 "    vec2 ip = floor(gl_FragCoord.xy);",
                 "    vec3 c;",
                 "    FsrRcasF(c.r, c.g, c.b, ip, rcasScale);",
