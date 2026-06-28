@@ -21,9 +21,16 @@ votes left intact.
 5. `5ff90db` ContainerDetail editor switch + strings.
 
 Reviewed rate logic + cross-layer contract names (sound; `getFrameGenMultiplier()` confirmed to exist).
-CI dispatched run `28330068467`. **Device-test owed:** `dumpsys SurfaceFlinger | grep -i frameRate` per renderer,
-verify vote=cap when capped, cap×mult under lsfg, clears (0) when toggle-off/uncapped, re-asserts bg→fg, watch
-power/heat. Risk: setFrameRate is a HINT (battery-saver may ignore). No release/tag cut.
+CI run `28330068467` ✅GREEN (all flavors compile). No release/tag cut.
+
+**▶️ DEVICE-TEST (user starting now):** `dumpsys SurfaceFlinger | grep -i frameRate` to confirm the panel takes
+the vote. Verify: vote = cap when capped, cap×mult under lsfg, clears (0) when toggle-off/uncapped, re-asserts
+bg→fg. **PREREQ: turn the FPS limiter ON + set a cap** (VRR only votes when capped; limiter is the existing
+pre-feature, VRR just matches the panel to it). Needs a high-refresh panel (dumpsys shows the modes).
+**Renderer priority:** Vulkan first (full stack, most likely to land) → OpenGL → SurfaceFlinger/ASR last + most
+scrutiny (relies on SF aggregating the parent-Surface vote to the native child SC; if it doesn't land there →
+do optional commit 6 = native ASurfaceTransaction_setFrameRate on the game child SC). Everyday use: Vulkan.
+Risk: setFrameRate is a HINT (battery-saver may ignore).
 
 ---
 
