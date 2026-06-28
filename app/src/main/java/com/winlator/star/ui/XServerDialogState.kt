@@ -365,7 +365,9 @@ object XServerDialogState {
     @JvmField var onTmNewTask: Runnable? = null
 
     fun interface TmStringCallback { fun invoke(name: String) }
-    @JvmField var onTmBringToFront: TmStringCallback? = null
+    fun interface TmFrontCallback { fun invoke(name: String, pid: Int) }
+    // Bring to Front needs the pid so the host can resolve the real X window + handle.
+    @JvmField var onTmBringToFront: TmFrontCallback? = null
     @JvmField var onTmKillProcess: TmStringCallback? = null
 
     fun interface TmAffinityCallback { fun invoke(pid: Int, mask: Int) }

@@ -1509,11 +1509,19 @@ private fun TmProcessRow(proc: XServerDialogState.TmProcess) {
             ) {
                 DropdownMenuItem(
                     text = { Text("Bring to Front") },
-                    onClick = { menuExpanded = false; XServerDialogState.onTmBringToFront?.invoke(proc.name) },
+                    onClick = {
+                        menuExpanded = false
+                        android.util.Log.d("TMDBG", "drawer Bring to Front click: name=${proc.name} pid=${proc.pid} cb=${XServerDialogState.onTmBringToFront != null}")
+                        XServerDialogState.onTmBringToFront?.invoke(proc.name, proc.pid)
+                    },
                 )
                 DropdownMenuItem(
                     text = { Text("End Process") },
-                    onClick = { menuExpanded = false; XServerDialogState.onTmKillProcess?.invoke(proc.name) },
+                    onClick = {
+                        menuExpanded = false
+                        android.util.Log.d("TMDBG", "drawer End Process click: name=${proc.name} pid=${proc.pid} cb=${XServerDialogState.onTmKillProcess != null}")
+                        XServerDialogState.onTmKillProcess?.invoke(proc.name)
+                    },
                 )
             }
         }

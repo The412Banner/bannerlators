@@ -2072,6 +2072,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
             ds.onVibrationSlotChanged = (slot, enabled) -> winHandler.setVibrationEnabledForSlot(slot, enabled);
         }
 
+        // Task Manager actions (End Process / Bring to Front / New Task / Set Affinity) are
+        // renderer-independent (UDP to winhandler.exe + host X-server focus). They MUST be wired
+        // before the GL-only early return below — otherwise on the Vulkan/ASR renderers the
+        // ds.onTm* callbacks stay null and the drawer's `onTm...?.invoke()` is a silent no-op,
+        // so End Process / Bring to Front "do nothing" (the process list still populates because
+        // startTmPolling() registers its own listener). This was the root cause of the Vulkan/ASR
+        // Task Manager bug.
+        Log.d("TMDBG", "initInlineTabStates: wiring TM callbacks (renderer=" +
+            (renderer != null ? renderer.getClass().getSimpleName() : "null") + ")");
+        setupTmCallbacks();
+
         // Screen Effects / SGSR / HDR are GL EffectComposer features; the Vulkan renderer has no
         // post-process pipeline, so bail out here — AFTER the renderer-independent setup above.
         if (!(renderer instanceof GLRenderer)) return;
@@ -2174,7 +2185,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             glRenderer.getEffectComposer().setDeband(enabled, strength);
         };
 
-        setupTmCallbacks();
+        // NOTE: setupTmCallbacks() is intentionally called earlier (before the GL-only early
+        // return) so the Task Manager actions work on every renderer. Do not move it back here.
     }
 
 
@@ -3705,15 +3717,51 @@ return true;
         ds.onTmNewTask = () -> ContentDialog.prompt(this, R.string.new_task, "taskmgr.exe",
             command -> { if (winHandler != null) winHandler.exec(command); });
 
-        ds.onTmBringToFront = name -> {
-            if (winHandler != null) winHandler.bringToFront(name);
+        // Bring to Front: drive it host-side (renderer-agnostic). Look up the real X window for the
+        // target Windows pid, set X-server input focus on it, and send bringToFront with the REAL
+        // window handle (not 0). On native-rendering Vulkan/ASR a UDP-only restack may have no
+        // visible effect, so we also raise + redraw via the host window manager (mirrors
+        // DesktopHelper.setFocusedWindow / GameNative). Falls back to a plain by-name UDP send if
+        // we can't resolve the window.
+        ds.onTmBringToFront = (name, pid) -> {
+            Log.d("TMDBG", "onTmBringToFront cb: name=" + name + " pid=" + pid + " winHandler=" + (winHandler != null));
+            if (winHandler == null) return;
+            Window target = null;
+            try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+                target = xServer.windowManager.findWindowWithProcessId(pid);
+            } catch (Exception e) {
+                Log.d("TMDBG", "onTmBringToFront window lookup failed: " + e);
+            }
+            if (target != null) {
+                final Window window = target;
+                Log.d("TMDBG", "onTmBringToFront found window handle=" + window.getHandle() + " class=" + window.getClassName());
+                try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+                    Window parent = window.getParent();
+                    boolean parentIsRoot = parent != null && parent == xServer.windowManager.rootWindow;
+                    xServer.windowManager.setFocus(window,
+                        parentIsRoot ? WindowManager.FocusRevertTo.POINTER_ROOT : WindowManager.FocusRevertTo.PARENT);
+                } catch (Exception e) {
+                    Log.d("TMDBG", "onTmBringToFront setFocus failed: " + e);
+                }
+                winHandler.bringToFront(window.getClassName(), window.getHandle());
+                // Force a recomposite so the restack is visible on the native Vulkan/ASR path too.
+                try { xServerView.requestRender(); } catch (Exception ignored) {}
+            } else {
+                Log.d("TMDBG", "onTmBringToFront no window for pid=" + pid + ", falling back to by-name UDP");
+                winHandler.bringToFront(name);
+            }
         };
 
         // End Process runs the same renderer-agnostic winhandler command the rest of the app uses.
         // It used to be wrapped in a native ContentDialog.confirm, but that dialog does not display
         // over the Vulkan/ASR fullscreen SurfaceView, so End Process silently did nothing there (the
-        // confirm never appeared). Run the command directly so it works on every renderer.
-        ds.onTmKillProcess = name -> { if (winHandler != null) winHandler.killProcess(name); };
+        // confirm never appeared). Run the command directly so it works on every renderer. (The deeper
+        // cause of the Vulkan/ASR breakage was this whole method bailing before the callbacks were
+        // wired — now fixed by calling setupTmCallbacks() ahead of the GL-only early return.)
+        ds.onTmKillProcess = name -> {
+            Log.d("TMDBG", "onTmKillProcess cb: name=" + name + " winHandler=" + (winHandler != null));
+            if (winHandler != null) winHandler.killProcess(name);
+        };
 
         ds.onTmSetAffinity = (pid, mask) -> {
             if (winHandler != null) winHandler.setProcessAffinity(pid, mask);

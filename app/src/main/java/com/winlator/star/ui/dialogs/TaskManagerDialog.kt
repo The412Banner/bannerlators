@@ -197,7 +197,7 @@ private fun ProcessRow(proc: XServerDialogState.TmProcess, state: XServerDialogS
                     text = { Text("Bring to Front") },
                     onClick = {
                         menuExpanded = false
-                        state.onTmBringToFront?.invoke(proc.name)
+                        state.onTmBringToFront?.invoke(proc.name, proc.pid)
                         state.dismiss()
                     }
                 )
