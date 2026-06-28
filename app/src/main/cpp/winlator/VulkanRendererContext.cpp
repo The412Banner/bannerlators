@@ -52,9 +52,11 @@ static void fsrEasuCon(uint32_t con0[4], uint32_t con1[4], uint32_t con2[4], uin
     con3[3] = 0;
 }
 
-static void fsrRcasCon(uint32_t con[4], float sharpnessStops) {
-    float s = exp2f(-sharpnessStops);     // 0 stops = sharpest
-    con[0] = fsrPackF(s);
+static void fsrRcasCon(uint32_t con[4], float rcasScale) {
+    // The shader uses con.x as a direct multiplier on the RCAS lobe, so the linear slider
+    // scale maps straight through: 0 = no sharpening (passthrough), 1 = full RCAS (the
+    // exp2(-0 stops) ceiling). No over-drive past spec.
+    con[0] = fsrPackF(rcasScale);
     con[1] = 0;                            // fp16 packed sharpness (unused by fp32 path)
     con[2] = 0;
     con[3] = 0;
@@ -1232,7 +1234,9 @@ void VulkanRendererContext::recordUpscalePasses(VkCommandBuffer cb, uint32_t img
 // before recordCmdBuf. Resources are (re)created here as needed.
 void VulkanRendererContext::planUpscaleFrame() {
     upFrame.active=false;
-    upFrame.cas  = casEnabled;
+    // CAS sharpness 0 = OFF (skip the pass entirely) so the slider's 0 stop is true neutral.
+    const bool casOn = casEnabled && casSharpness > 0;
+    upFrame.cas  = casOn;
     upFrame.hdr  = hdrEnabled;
     upFrame.fxaa = fxaaEnabled;
     upFrame.toon = toonEnabled;
@@ -1243,7 +1247,7 @@ void VulkanRendererContext::planUpscaleFrame() {
     if (swapchain==VK_NULL_HANDLE) return;
 
     // Any of the 7 composable effects engages the post chain (even at mode 0/1/2).
-    const bool fxOn = casEnabled || hdrEnabled || fxaaEnabled || toonEnabled ||
+    const bool fxOn = casOn || hdrEnabled || fxaaEnabled || toonEnabled ||
                       colorEnabled || ntscEnabled || crtEnabled;
     const float scW=(float)swapchainExt.width, scH=(float)swapchainExt.height;
     const bool renderAboveDisplay =
@@ -1301,15 +1305,16 @@ void VulkanRendererContext::planUpscaleFrame() {
                     p.viewportInfo[1]=1.f/(float)containerHeight;
                     p.viewportInfo[2]=(float)containerWidth;
                     p.viewportInfo[3]=(float)containerHeight;
-                    // SGSR EdgeSharpness from the slider: 0.5 .. 2.5 (default 2.0 at 0.25 stops).
-                    p.edgeSharpness = 0.5f + (1.0f - upscaleSharpnessStops) * 2.0f;
+                    // SGSR EdgeSharpness from the slider, span DOUBLED: 0.5 (neutral, slider 0)
+                    // .. 4.5 (slider 100). The spatial reconstruction runs regardless of edge.
+                    p.edgeSharpness = 0.5f + upscaleSharpness01 * 4.0f;
                 } else if (mode==6) {
                     // Sharpen-only: RCAS samples the offscreen (game res) 1:1; the quad maps
                     // [0,1] across the fit rect, so outputSize = game res keeps texelFetch in
                     // bounds (1:1 at native, nearest scale+sharpen below native).
                     RcasPushConstants& r=upFrame.rcasPC;
                     r.ndc[0]=nx0; r.ndc[1]=ny0; r.ndc[2]=nx1; r.ndc[3]=ny1;
-                    fsrRcasCon(r.con, upscaleSharpnessStops);
+                    fsrRcasCon(r.con, upscaleSharpness01);
                     r.outW=(float)containerWidth; r.outH=(float)containerHeight;
                 } else {                                     // fsr (4) / fsr_fit (5)
                     EasuPushConstants& e=upFrame.easuPC;
@@ -1321,7 +1326,7 @@ void VulkanRendererContext::planUpscaleFrame() {
                     e.outW=(float)outW; e.outH=(float)outH;
                     RcasPushConstants& r=upFrame.rcasPC;
                     r.ndc[0]=nx0; r.ndc[1]=ny0; r.ndc[2]=nx1; r.ndc[3]=ny1;
-                    fsrRcasCon(r.con, upscaleSharpnessStops);
+                    fsrRcasCon(r.con, upscaleSharpness01);
                     r.outW=(float)outW; r.outH=(float)outH;
                 }
             }
@@ -1342,7 +1347,7 @@ void VulkanRendererContext::planUpscaleFrame() {
     if (fxOn && upFrame.active) {
         const int fw=(int)swapchainExt.width, fh=(int)swapchainExt.height;
         const int nEffects=(int)fxaaEnabled+(int)toonEnabled+(int)colorEnabled+
-                           (int)casEnabled+(int)hdrEnabled+(int)ntscEnabled+(int)crtEnabled;
+                           (int)casOn+(int)hdrEnabled+(int)ntscEnabled+(int)crtEnabled;
         bool ok = ensureFx1(fw,fh) && (nEffects<2 || ensureFx2(fw,fh));
         if (!ok) {
             // Out of memory for the fx targets: skip effects this frame. Keep the
@@ -1369,7 +1374,7 @@ void VulkanRendererContext::planUpscaleFrame() {
             c.ndc[0]=full[0]; c.ndc[1]=full[1]; c.ndc[2]=full[2]; c.ndc[3]=full[3];
             c.brightness=colorBrightness; c.contrast=colorContrast; c.gamma=colorGamma;
         }
-        if (casEnabled) {
+        if (casOn) {
             CasPushConstants& c=upFrame.casPC;
             c.ndc[0]=full[0]; c.ndc[1]=full[1]; c.ndc[2]=full[2]; c.ndc[3]=full[3];
             c.resolution[0]=(float)fw; c.resolution[1]=(float)fh;
@@ -1906,12 +1911,13 @@ void VulkanRendererContext::setColorGrade(float brightness, float contrast, floa
 
 void VulkanRendererContext::setUpscaleSharpness(int sharpness) {
     if (sharpness<0) sharpness=0; if (sharpness>100) sharpness=100;
-    // Slider 0..100 -> RCAS stops: slider 100 = 0 stops (sharpest), slider 0 = 1.0 stop
-    // (softest). Default slider 75 -> 0.25 stops, matching the previous hard-coded value.
-    float stops = (float)(100 - sharpness) / 100.0f;
-    if (upscaleSharpnessStops==stops) return;
-    RLOG("setUpscaleSharpness: slider=%d -> %.3f stops", sharpness, stops);
-    upscaleSharpnessStops=stops;
+    // Slider 0..100 -> linear sharpness 0..1: 0 = neutral (RCAS lobe scale 0 = passthrough;
+    // SGSR edge at its 0.5 floor; the spatial upscale still runs), 100 = max (full RCAS,
+    // SGSR edge 4.5). Continuous for SGSR/FSR/Sharpen.
+    float s01 = (float)sharpness / 100.0f;
+    if (upscaleSharpness01==s01) return;
+    RLOG("setUpscaleSharpness: slider=%d -> %.3f", sharpness, s01);
+    upscaleSharpness01=s01;
     needsRender.store(true); dirtyCV.notify_one();
 }
 

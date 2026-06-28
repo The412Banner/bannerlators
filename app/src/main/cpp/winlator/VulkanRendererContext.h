@@ -387,12 +387,12 @@ private:
 
     // Composable post effects, independent of the scaling mode. CAS layers a sharpen
     // on top of any mode (incl. native res); HDR is a binary fake-HDR. The upscaler
-    // sharpness (RCAS stops / SGSR EdgeSharpness) is driven by its own slider; default
-    // 0.25 stops matches the value the upscaler shipped hard-coded.
+    // sharpness (RCAS lobe scale / SGSR EdgeSharpness) is driven by its own slider as a
+    // linear 0..1 value: 0 = neutral (no sharpening; the upscale still runs), 1 = max.
     bool              casEnabled        = false;
     int               casSharpness      = 60;     // slider 0..100 -> CAS SHARPNESS
     bool              hdrEnabled        = false;
-    float             upscaleSharpnessStops = 0.25f; // RCAS stops; SGSR edge derived
+    float             upscaleSharpness01 = 0.75f; // slider/100; RCAS lobe scale, SGSR edge derived
 
     // Phase 2 screen effects (GL EffectComposer parity). FXAA/Toon/CRT/NTSC are
     // binary; Color is the brightness/contrast/gamma grade (always-applied via the
