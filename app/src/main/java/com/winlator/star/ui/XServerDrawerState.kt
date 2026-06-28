@@ -66,6 +66,31 @@ object XServerDrawerState {
     private val _fpsLimit = MutableStateFlow(60)
     val fpsLimit: StateFlow<Int> = _fpsLimit
 
+    // VRR / refresh-rate matching: vote the panel refresh rate to follow the game's FPS. Default ON
+    // (safe — only votes a rate while the FPS limiter is actually capping). Complementary to the
+    // limiter (which caps the producer/render rate).
+    private val _matchRefreshRate = MutableStateFlow(true)
+    val matchRefreshRate: StateFlow<Boolean> = _matchRefreshRate
+
+    // Whether the active display can actually do VRR (refresh-rate matching). Default true (assume
+    // capable until the activity seeds the real value in setupUI) so the toggle doesn't flicker.
+    private val _vrrSupported = MutableStateFlow(true)
+    val vrrSupported: StateFlow<Boolean> = _vrrSupported
+
+    // Manual refresh-rate lock (Hz), used when matchRefreshRate (Auto) is OFF. 0 = none/native.
+    private val _manualRefreshRate = MutableStateFlow(0)
+    val manualRefreshRate: StateFlow<Int> = _manualRefreshRate
+
+    // Distinct refresh rates the active display supports (ascending). Empty = nothing to pick (the
+    // panel has a single rate); seeded by the activity in setupUI.
+    private val _supportedRefreshRates = MutableStateFlow<List<Int>>(emptyList())
+    val supportedRefreshRates: StateFlow<List<Int>> = _supportedRefreshRates
+
+    // Live (actual) display refresh rate in Hz; 0 = unknown. Updated by the activity from a display
+    // listener so the readout can show what Auto landed on while the manual slider is greyed.
+    private val _currentRefreshRate = MutableStateFlow(0)
+    val currentRefreshRate: StateFlow<Int> = _currentRefreshRate
+
     private val _fpsExpanded = MutableStateFlow(false)
     val fpsExpanded: StateFlow<Boolean> = _fpsExpanded
 
@@ -105,6 +130,15 @@ object XServerDrawerState {
     // FPS limiter is a standalone host-side present pacer, independent of frame gen. Fired when the
     // in-game Limit FPS toggle/slider changes; the activity applies it to the host renderer live.
     @JvmField var onFpsLimitChange: Runnable? = null
+    // Fired when the in-game "Match refresh rate to FPS" toggle changes; the activity persists it
+    // and re-applies the panel refresh-rate vote (applyVrr) live.
+    @JvmField var onMatchRefreshChange: Runnable? = null
+    // Fired when the in-game manual refresh-rate chip selection changes (Auto OFF); the activity
+    // persists it and re-applies the panel refresh-rate vote (reapplyVrr) live.
+    @JvmField var onManualRefreshChange: Runnable? = null
+    // Fired when the HUD/FPS drawer tab opens; the activity re-reads the live display refresh rate
+    // so the "Rate" readout is fresh on open (the display listener keeps it current thereafter).
+    @JvmField var onRefreshRatePoll: Runnable? = null
     // Fired when the Controls-tab opacity slider moves; the activity reads overlayOpacity,
     // applies it to the live InputControlsView and persists the pref.
     @JvmField var onOverlayOpacityChange: Runnable? = null
@@ -136,6 +170,11 @@ object XServerDrawerState {
     fun setFrameGenEngine(v: String)       { _frameGenEngine.value = v }
     fun setFpsLimiterEnabled(v: Boolean)   { _fpsLimiterEnabled.value = v }
     fun setFpsLimit(v: Int)                { _fpsLimit.value = v }
+    fun setMatchRefreshRate(v: Boolean)    { _matchRefreshRate.value = v }
+    fun setVrrSupported(v: Boolean)        { _vrrSupported.value = v }
+    fun setManualRefreshRate(v: Int)       { _manualRefreshRate.value = v }
+    fun setSupportedRefreshRates(v: List<Int>) { _supportedRefreshRates.value = v }
+    fun setCurrentRefreshRate(v: Int)      { _currentRefreshRate.value = v }
 
     fun setFpsExpanded(v: Boolean) { _fpsExpanded.value = v }
     fun setFpsConfig(v: String) { _fpsConfig.value = v }
@@ -159,6 +198,11 @@ object XServerDrawerState {
         _frameGenEngine.value = "off"
         _fpsLimiterEnabled.value = false
         _fpsLimit.value = 60
+        _matchRefreshRate.value = true
+        _vrrSupported.value = true
+        _manualRefreshRate.value = 0
+        _supportedRefreshRates.value = emptyList()
+        _currentRefreshRate.value = 0
         _cursorExpanded.value = false
         _fpsExpanded.value = false
         _fpsConfig.value = ""
@@ -171,6 +215,9 @@ object XServerDrawerState {
         onRelativeMouseMovement = null; onDisableMouse = null
         onNativeRenderingToggle = null; onFpsConfigApply = null
         onBionicFgConfigChange = null; onFpsLimitChange = null
+        onMatchRefreshChange = null
+        onManualRefreshChange = null
+        onRefreshRatePoll = null
         onOverlayOpacityChange = null
         onCursorExpandedChanged = null
     }

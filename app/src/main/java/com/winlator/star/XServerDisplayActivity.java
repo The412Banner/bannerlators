@@ -566,6 +566,24 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (limitVal > 0) container.setFpsLimiterValue(limitVal);
             container.saveData();
         };
+        // VRR / refresh-rate matching toggle. Persists to the container and re-votes the panel
+        // refresh rate live (applyVrr). Independent of frame-gen; works on all 3 host renderers.
+        state.onMatchRefreshChange = () -> {
+            boolean on = XServerDrawerState.INSTANCE.getMatchRefreshRate().getValue();
+            container.setMatchRefreshRate(on);
+            container.saveData();
+            reapplyVrr();
+        };
+        // Manual refresh-rate lock (Auto OFF). Persists the chosen rate and re-applies the panel vote
+        // live (reapplyVrr reads the limiter state; applyVrr uses the manual rate when Auto is off).
+        state.onManualRefreshChange = () -> {
+            int rate = XServerDrawerState.INSTANCE.getManualRefreshRate().getValue();
+            container.setManualRefreshRate(rate);
+            container.saveData();
+            reapplyVrr();
+        };
+        // Drawer HUD/FPS tab opened — refresh the live display-rate readout.
+        state.onRefreshRatePoll = this::updateCurrentRefreshRate;
         state.onToggleFullscreen       = () -> {
             xServerView.getRenderer().toggleFullscreen();
             touchpadView.toggleFullscreen();
@@ -741,6 +759,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
         XServerDrawerState.INSTANCE.setFrameGenEngine(fgEngine);
         XServerDrawerState.INSTANCE.setFpsLimiterEnabled(fpsLimOn);
         XServerDrawerState.INSTANCE.setFpsLimit(container.getFpsLimiterValue());
+        XServerDrawerState.INSTANCE.setMatchRefreshRate(resolvedMatchRefreshRate());
+        XServerDrawerState.INSTANCE.setVrrSupported(
+            com.winlator.star.widget.XServerView.isDisplayVrrCapable(getWindowManager().getDefaultDisplay()));
+        XServerDrawerState.INSTANCE.setSupportedRefreshRates(
+            com.winlator.star.widget.XServerView.getSupportedRefreshRates(getWindowManager().getDefaultDisplay()));
+        XServerDrawerState.INSTANCE.setManualRefreshRate(resolvedManualRefreshRate());
+        updateCurrentRefreshRate();
 
         containerManager.activateContainer(container);
 
@@ -1131,6 +1156,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
         ProcessHelper.resumeAllWineProcesses();
+        // Re-assert the VRR vote — onStop() released it when backgrounded.
+        reapplyVrr();
+        // Track the live panel rate again (the readout shows it while Auto is on).
+        registerVrrDisplayListener();
+        updateCurrentRefreshRate();
     }
 
     @Override
@@ -1286,6 +1316,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         super.onStop();
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
+        // Release the panel refresh-rate vote while backgrounded so we don't pin the display rate
+        // for whatever is composited on top. onResume() re-asserts it.
+        if (xServerView != null) xServerView.setDisplayFrameRate(0f, VRR_FRAME_RATE_COMPATIBILITY);
+        unregisterVrrDisplayListener();
     }
 
     private void releasePointerCaptureIfNeeded(String reason) {
@@ -2928,6 +2962,31 @@ return true;
         return container.isFpsLimiterEnabled();
     }
 
+    // Per-game override for VRR / refresh-rate matching (shortcut wins over the container default).
+    // Mirrors resolvedFpsLimiterEnabled(). Null-safe for early calls before the container is loaded.
+    private boolean resolvedMatchRefreshRate() {
+        if (container == null) return false;
+        if (shortcut != null) {
+            return shortcut.getExtra("matchRefreshRate", container.isMatchRefreshRate() ? "1" : "0").equals("1");
+        }
+        return container.isMatchRefreshRate();
+    }
+
+    // Per-game override for the manual refresh-rate lock (shortcut wins over the container default).
+    // Mirrors resolvedMatchRefreshRate(). 0 = no manual lock. Null-safe for early calls.
+    private int resolvedManualRefreshRate() {
+        if (container == null) return 0;
+        if (shortcut != null) {
+            try {
+                return Integer.parseInt(shortcut.getExtra("manualRefreshRate",
+                    String.valueOf(container.getManualRefreshRate())));
+            } catch (NumberFormatException e) {
+                return container.getManualRefreshRate();
+            }
+        }
+        return container.getManualRefreshRate();
+    }
+
     // lsfg-vk does its OWN frame pacing when it is multiplying (multiplier >= 2). Layering the
     // standalone IdleNotify limiter on top double-paces the present stream: our pacer throttles
     // lsfg's already-multiplied output, clamping the panel to the limiter value (killing the FG
@@ -2961,6 +3020,10 @@ return true;
     // the guest by pacing its IdleNotify (so the game itself slows -> in-game HUD reflects it, GPU
     // drops). Also feeds the renderer's SurfaceControl frame-rate hint (active in Vulkan native mode).
     private void applyFpsLimit(int fps) {
+        // Capture the un-guarded cap (the limiter value, 0 = uncapped) BEFORE the lsfg guard zeroes
+        // the local `fps`. VRR votes the DISPLAYED rate, which in the lsfg-governs case is cap x mult
+        // even though the present pacer steps aside (fps -> 0). This is the only place the two diverge.
+        int vrrCap = fps;
         // Step aside while lsfg-vk is multiplying -- it paces itself (see lsfgGovernsFps()).
         if (lsfgGovernsFps()) fps = 0;
         com.winlator.star.xserver.extensions.PresentExtension pe =
@@ -2970,6 +3033,99 @@ return true;
             HostRenderer r = xServerView.getRenderer();
             if (r != null) r.setFpsLimit(fps);
         }
+        // VRR / refresh-rate matching: vote the panel cadence to match the displayed FPS.
+        applyVrr(vrrCap);
+    }
+
+    // Surface.FRAME_RATE_COMPATIBILITY_DEFAULT (== 0). Referenced as a literal so the call site is not
+    // an API-30 field access; the real API call is guarded inside XServerView.setDisplayFrameRate.
+    private static final int VRR_FRAME_RATE_COMPATIBILITY = 0;
+
+    // Vote a panel refresh rate that matches the DISPLAYED frame rate (VRR / refresh-rate matching).
+    // Complementary to the FPS limiter: the limiter caps the producer/render rate, this matches the
+    // display/panel rate so the panel cadence follows render cadence (smoother + power savings).
+    //   Auto ON, cap == 0 (limiter off)    -> vote 0f (clear; panel runs free)
+    //   Auto ON, normal / bionic-fg        -> vote cap
+    //   Auto ON, lsfg multiplying (>= 2)   -> vote cap x mult (the displayed rate)
+    //   Auto OFF, manual rate > 0          -> vote that rate (lock, independent of the FPS cap)
+    //   Auto OFF, manual rate == 0         -> vote 0f (no lock; panel runs free)
+    private void applyVrr(int cap) {
+        if (xServerView == null) return;
+        float vrrRate = 0.0f;
+        if (container != null && resolvedMatchRefreshRate()) {
+            // Auto (match FPS): vote the panel cadence to follow the displayed FPS while capping.
+            if (cap > 0) {
+                if (lsfgGovernsFps()) {
+                    int mult = XServerDrawerState.INSTANCE.getFrameGenMultiplier().getValue();
+                    vrrRate = (float) cap * (mult >= 2 ? mult : 1);
+                } else {
+                    vrrRate = (float) cap;
+                }
+            }
+        } else if (container != null) {
+            // Manual: lock the panel to the chosen rate, independent of the FPS cap. 0 = no lock.
+            int manual = resolvedManualRefreshRate();
+            if (manual > 0) vrrRate = (float) manual;
+        }
+        xServerView.setDisplayFrameRate(vrrRate, VRR_FRAME_RATE_COMPATIBILITY);
+        // onCreate pins the window's preferredRefreshRate to the panel max (for smooth UI). That
+        // window-level request out-votes the VRR surface vote, so the panel never leaves max. When VRR is
+        // matching a capped rate, lower the window preference to that rate too; otherwise restore the max.
+        applyWindowPreferredRefreshRate(vrrRate);
+    }
+
+    // Keep the window's preferred refresh rate in step with VRR so it doesn't fight the surface vote.
+    // vrrRate > 0 -> prefer that exact rate (the panel switches to the matching mode); 0 -> restore max.
+    private void applyWindowPreferredRefreshRate(float vrrRate) {
+        runOnUiThread(() -> {
+            android.view.WindowManager.LayoutParams p = getWindow().getAttributes();
+            float desired = vrrRate > 0f ? vrrRate : pickHighestRefreshRate();
+            if (p.preferredRefreshRate != desired) {
+                p.preferredRefreshRate = desired;
+                getWindow().setAttributes(p);
+            }
+        });
+    }
+
+    // Re-apply the VRR vote from the current remembered limiter state (used on resume and when the
+    // match-refresh toggle changes live, without re-poking the present pacer / renderer).
+    private void reapplyVrr() {
+        XServerDrawerState s = XServerDrawerState.INSTANCE;
+        boolean limOn  = s.getFpsLimiterEnabled().getValue();
+        int   limitVal = s.getFpsLimit().getValue();
+        applyVrr(limOn && limitVal > 0 ? limitVal : 0);
+    }
+
+    // Push the live (actual) display refresh rate into the drawer so the readout can show what the
+    // panel is really running at while Auto (match FPS) is on and the manual slider is greyed.
+    private void updateCurrentRefreshRate() {
+        int rate = com.winlator.star.widget.XServerView.getCurrentRefreshRate(getWindowManager().getDefaultDisplay());
+        XServerDrawerState.INSTANCE.setCurrentRefreshRate(rate);
+    }
+
+    // Listen for panel mode switches so the readout tracks the real rate live (e.g. when VRR drops
+    // the panel 144->60 after a vote). Registered while resumed, released on stop.
+    private android.hardware.display.DisplayManager.DisplayListener vrrDisplayListener;
+
+    private void registerVrrDisplayListener() {
+        if (vrrDisplayListener != null) return;
+        android.hardware.display.DisplayManager dm =
+            (android.hardware.display.DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        if (dm == null) return;
+        vrrDisplayListener = new android.hardware.display.DisplayManager.DisplayListener() {
+            @Override public void onDisplayAdded(int displayId) {}
+            @Override public void onDisplayRemoved(int displayId) {}
+            @Override public void onDisplayChanged(int displayId) { updateCurrentRefreshRate(); }
+        };
+        dm.registerDisplayListener(vrrDisplayListener, handler);
+    }
+
+    private void unregisterVrrDisplayListener() {
+        if (vrrDisplayListener == null) return;
+        android.hardware.display.DisplayManager dm =
+            (android.hardware.display.DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        if (dm != null) dm.unregisterDisplayListener(vrrDisplayListener);
+        vrrDisplayListener = null;
     }
 
 

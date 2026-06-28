@@ -2,6 +2,141 @@
 
 ---
 
+## 2026-06-28 (s4) — ▶️ RESUME / CURRENT STATUS: VRR + manual picker built & verified; pacing tweak pending
+
+**Where things stand on the graphics roadmap:**
+- **STEP 1 (debanding + NIS): DONE — MERGED to main** (`feat/deband-nis` ff `71e2d27..4565b80`, branch deleted).
+  Both device-proven on Vulkan via the new AIO torture cards (banding ramp + scaling combo). Not in a tagged
+  release yet (per versioning rule — no stable cut without explicit say-so).
+- **STEP 2 (VRR / refresh-rate matching): BUILT + DEVICE-VERIFIED**, branch `feat/vrr-refresh-rate` (off main,
+  NOT merged). Took 3 fixes to get the panel to actually move: seamless→ALWAYS (`c29acc0`), capability gating
+  (`83da657`), and the big one — window `preferredRefreshRate` was pinning the panel to max and out-voting our
+  surface vote (`35dd636`). After that, all 4 states verified on-device (Vulkan, AYANEO 144Hz panel):
+  cap+match→60, cap+nomatch→144, uncapped+match→144, incapable→greyed. Clean 60↔144 both directions.
+- **Manual refresh-rate picker: BUILT** (`fa77da6`, CI `28333613335` GREEN) — unified 'Refresh rate' drawer
+  control (Auto match-FPS + manual snap-to-supported-modes chips, auto-detected via getSupportedRefreshRates;
+  Auto greys chips; whole group greys on incapable devices). Editor got a manual FilterChip row. Auto path
+  byte-identical (reviewed). DEVICE-TEST OWED.
+
+**Open issue — FPS oscillation (user-observed):** with limiter=60 + Auto-match ON, FPS swings 56↔64 every few
+seconds. Two suspects: (1) **AYASpace system refresh control** — the test device is an AYANEO handheld whose
+AYASpace overlay has its OWN 'Refresh Rate' control (Auto/144/120/90/60), was pinned to 144; its polling
+service likely re-asserts 144 vs our VRR every few seconds (matches the timing). (2) **limiter/VSync beat** —
+matching the panel to exactly the cap removes the 144Hz headroom that hid the limiter's pacing jitter (panel
+likely 59.94 vs cap 60.0). 
+
+**▶️ NEXT (test plan, before merge):** (1) DIAGNOSTIC — set AYASpace Refresh Rate→Auto, re-test: swing stops =
+system contention (config fix, document it), persists = pacing beat. (2) Install build `28333613335`, verify
+manual picker (Auto-off+pick 90/120 → dumpsys locks panel to it regardless of cap) + headroom check (manual
+120 + cap 60 should be smooth) + auto-path 4/4 regression. (3) If pacing beat confirmed → add **cap-below-
+refresh** fix (pace limiter to ~refresh−1 when Auto matching). (4) Then MERGE feat/vrr-refresh-rate (VRR +
+manual picker + any pacing fix) to main → then STEP 3.
+
+**Device-driving notes:** measure VRR while game is FOREGROUND (it releases the vote on background); 'go'
+handshake + `sleep 12; dumpsys` works. Key greps: activeMode= , setFrameRate=/{10492, the per-layer
+`Hz ... Always/OnlySeamless` vote line. Move-cursor-to-touchpoint is ON (tap absolute). Newest device
+screenshots in /sdcard/Pictures/Screenshots/.
+
+---
+
+## 2026-06-28 (s4) — 🆕 Manual refresh-rate picker built (unified Auto + manual control)
+
+On top of the verified VRR, added a unified "Refresh rate" drawer control: the match-refresh toggle is now
+"Auto (match FPS)" + a chip row of the panel's supported rates (auto-detected via `getSupportedRefreshRates`).
+Auto ON → chips greyed (VRR drives it); Auto OFF → pick a rate and the panel locks to it regardless of the FPS
+cap; whole group greys on incapable devices. `applyVrr` extended with an additive manual branch (auto path
+byte-identical, reviewed). New state manualRefreshRate/supportedRefreshRates/onManualRefreshChange + Container
+`manualRefreshRate` extra + resolver + editor FilterChip row. Commit `fa77da6`, CI run `28333613335`.
+Device-test owed: Auto-off + pick 90 → panel locks 90 regardless of cap; chips greyed when Auto on; auto path
+4/4 regression. Then merge the whole `feat/vrr-refresh-rate` (VRR + manual picker) to main.
+
+---
+
+## 2026-06-28 (s4) — ✅✅ VRR device-test #3: WORKING (+ clear-path verified) — panel drops 144→60 to match the FPS cap
+
+Build `28332650876` (seamless fix `c29acc0` + capability gating `83da657` + window-pin fix `35dd636`). On
+Vulkan, FPS cap 60, Match-refresh ON, game foreground: **activeMode 144.00→60.00 Hz** — the panel physically
+switched. Override `{10492, 60.00 Hz}`, both layer votes now `60 Hz SeamedAndSeamless` (game surface + window
+pref agree). VRR is device-proven end-to-end. The `preferredRefreshRate` lever moves this panel, so both
+auto-VRR and a future manual refresh-rate picker will work here.
+
+**Before merge:** verify toggle-off/uncapped returns the panel to 144 (clear path); optional GL/ASR spot-check
+(shared code, Vulkan proven). **Next feature (green-lit):** manual refresh-rate picker — one control with
+'Auto (match FPS)' + manual snap-to-supported-modes (60/90/120/144 auto-detected via getSupportedModes); Auto
+greys the slider; whole control greys on single-mode/pre-A11 devices. Same `preferredRefreshRate` lever.
+
+
+**Clear-path verified (test #3b):** toggling "Match refresh rate to FPS" OFF returned the panel 144 Hz (activeMode 60→144, both votes restored to 144). So VRR does the full round trip — drops to the cap when on, restores max when off. Also verified the cap-dependency: limiter OFF + match ON (uncapped) → panel returns to 144 (VRR only acts while capping). All 4 states confirmed {ON+match→60, ON+nomatch→144, OFF+match→144, incapable→greyed}. **VRR comprehensively verified and ready to merge.**
+
+
+---
+
+## 2026-06-28 (s4) — 🐛➡️✅ VRR device-test #2: surface fix confirmed, fixed a 2nd blocker (window pins max refresh)
+
+Re-tested with the seamless fix (`c29acc0`) + capability gating (`83da657`). Our game-surface vote is now correct —
+`60.00 Hz Default SeamedAndSeamless` (the force-switch worked; was OnlySeamless). But the panel still held 144
+because a 2nd layer voted 144: `XServerDisplayActivity.onCreate` pins `window.preferredRefreshRate = max` (144)
+for smooth UI, and that window-level request out-votes the surface vote. **Fix `35dd636`:** new
+`applyWindowPreferredRefreshRate(vrrRate)` (called from applyVrr) lowers the window preference to the matched
+rate when VRR is capping, restores max otherwise. CI run `28332650876`. Retest: expect activeMode 144→60.
+Lesson: an emulator that force-pins preferredRefreshRate to max blocks ANY app VRR vote — keep it in step.
+
+---
+
+## 2026-06-28 (s4) — 🐛➡️✅ VRR device-test #1: found + fixed the "panel won't drop" bug
+
+Tested VRR on-device (AIO, OpenGL renderer, FPS cap 60, Match-refresh ON, game@60). Panel stayed at 144 Hz —
+frameRateOverride showed our app un-throttled `{10492, 144}`. Root cause via dumpsys layer line
+`60.00 Hz Default OnlySeamless`: our 60 Hz vote WAS placed correctly, but with **seamless-only** strategy, which
+a peak-refresh 144 panel ignores. The code bug: `XServerView.applyFrameRateToSurface` only used the 3-arg
+`setFrameRate(..., ONLY_IF_SEAMLESS)` when `FRAME_RATE_SEAMLESS_ONLY` was true, else fell through to the 2-arg
+overload — which **also defaults to ONLY_IF_SEAMLESS**, so the "force" path was never taken.
+
+**Fix `c29acc0`:** when SDK≥31, pass the strategy explicitly — `ONLY_IF_SEAMLESS` if seamless-only else
+`CHANGE_FRAME_RATE_ALWAYS` (force the mode switch). CI run `28331250229`. Retest owed: reinstall, re-measure
+(expect override→cap, activeMode drop). Notes: 40 fps is an awkward cap for a 144 panel (144/40=3.6) — use 60;
+container was GL, also test Vulkan; if ALWAYS still won't drop it's device display policy, not our code.
+
+**➕ Capability gating (`83da657`, CI `28332020195`):** the "Match refresh rate to FPS" toggle is now **greyed out** on devices that can't do VRR — `XServerView.isDisplayVrrCapable(display)` = SDK>=30 AND >1 distinct refresh rate among supported modes; gated in the in-game drawer (XServerDrawerState.vrrSupported, seeded at launch) + the ContainerDetail editor (probes the default display), with an "Unavailable on this display" hint. Single-mode/60Hz-only + pre-Android-11 → disabled. Build 28332020195 includes BOTH this AND the seamless-only fix `c29acc0`, so it supersedes 28331250229 — install THIS one for the retest. User's 144/120/90/60 panel = capable → toggle stays enabled.
+
+**Same-device test protocol (1-thing-at-a-time):** VRR releases its vote on background (onStop→0), so measure
+while the game is foreground — user stays in game, sends "go", switches back; I fire `sleep 12; dumpsys` to
+capture with the vote reapplied. Confirm foreground via topResumedActivity.
+
+---
+
+## 2026-06-28 (s4) — 🆕 STEP 2: VRR / refresh-rate matching IMPLEMENTED (branch `feat/vrr-refresh-rate`, device-test owed)
+
+Step 1 (debanding+NIS) merged to main earlier today; started Step 2 = make the panel refresh rate follow the
+game FPS via `Surface.setFrameRate` votes (complementary to the FPS limiter: limiter=render rate, VRR=display
+rate). One Surface-level vote on the parent SurfaceView covers all 3 host renderers (GL / Vulkan compositor /
+SurfaceFlinger-ASR) since SF aggregates frame-rate votes over the layer subtree; existing Vulkan native child-SC
+votes left intact.
+
+5 commits on `feat/vrr-refresh-rate` (off main, pushed, NOT merged):
+1. `4882473` XServerView.setDisplayFrameRate(float,int) — SDK_INT>=30 guard, picks active holder Surface,
+   remembers last rate + re-asserts in surfaceChanged (added a holder callback to glSurfaceView which had none).
+2. `4671c26` applyVrr()/reapplyVrr()/resolvedMatchRefreshRate() in XServerDisplayActivity — votes 0 when
+   off/uncapped, `cap` normally, `cap×mult` in the lsfg-governs case; wired into applyFpsLimit + onStop(release)
+   + onResume(reassert) + drawer onMatchRefreshChange.
+3. `dcbefb5` Container `matchRefreshRate` extra (default ON) + shortcut resolver.
+4. `2b603e5` drawer "Match refresh rate to FPS" toggle + XServerDrawerState flow.
+5. `5ff90db` ContainerDetail editor switch + strings.
+
+Reviewed rate logic + cross-layer contract names (sound; `getFrameGenMultiplier()` confirmed to exist).
+CI run `28330068467` ✅GREEN (all flavors compile). No release/tag cut.
+
+**▶️ DEVICE-TEST (user starting now):** `dumpsys SurfaceFlinger | grep -i frameRate` to confirm the panel takes
+the vote. Verify: vote = cap when capped, cap×mult under lsfg, clears (0) when toggle-off/uncapped, re-asserts
+bg→fg. **PREREQ: turn the FPS limiter ON + set a cap** (VRR only votes when capped; limiter is the existing
+pre-feature, VRR just matches the panel to it). Needs a high-refresh panel (dumpsys shows the modes).
+**Renderer priority:** Vulkan first (full stack, most likely to land) → OpenGL → SurfaceFlinger/ASR last + most
+scrutiny (relies on SF aggregating the parent-Surface vote to the native child SC; if it doesn't land there →
+do optional commit 6 = native ASurfaceTransaction_setFrameRate on the game child SC). Everyday use: Vulkan.
+Risk: setFrameRate is a HINT (battery-saver may ignore).
+
+---
+
 ## 2026-06-28 (s4) — ✅ VULKAN RETEST PASSED on new AIO torture cards → `feat/deband-nis` CLEARED TO MERGE
 
 User built the AIO Graphics Test with the Banding scene + new "Scaling Tests >" sub-page (builder used the
