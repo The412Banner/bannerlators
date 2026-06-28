@@ -874,6 +874,20 @@ private fun RefreshRateSlider(rates: List<Int>, selected: Int, enabled: Boolean,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         )
+        // Tick labels under each notch so the snap values are visible, not just anonymous notches.
+        // Padded by ~the thumb radius so the end labels line up with the end notches.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            stops.forEach { s ->
+                Text(
+                    if (s == 0) "Off" else "$s",
+                    fontSize = 10.sp,
+                    color = if (enabled) DimWhite else dim
+                )
+            }
+        }
     }
 }
 
@@ -997,11 +1011,11 @@ private fun HudContent(state: XServerDrawerState) {
             !vrrSupported ->
                 "Unavailable — this display has a single refresh rate, so there's nothing to match."
             matchRefreshOn ->
-                "Auto is on — the panel follows your FPS."
+                "Auto is on — the display follows your FPS."
             manualRefreshRate > 0 ->
-                "Panel locked to ${manualRefreshRate} Hz."
+                "Display locked to ${manualRefreshRate} Hz."
             else ->
-                "Pick a rate to lock the panel, or turn Auto on to follow your FPS."
+                "Pick a rate to lock the display, or turn Auto on to follow your FPS."
         },
         color = DimWhite.copy(alpha = 0.5f),
         fontSize = 11.sp,
