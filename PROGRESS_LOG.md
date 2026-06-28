@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-06-27 — Implement open issues #22 (magnifier) + #20 (FEX Performance+TSO preset)
+
+gl-upscaler-parity merged to main (`6d5f75b`). New branch `fix/issues-22-magnifier-20-fextso`
+off main. NOT merged, NOT device-tested; CI build `28308479676`.
+
+**#22 magnifier (`d7a736e`):** `showMagnifierOverlay()` cast the renderer to `GLRenderer` and
+no-op'd the zoom callback for anything else → on the default Vulkan renderer the overlay opened
+stuck at 100% with dead +/- buttons. Now uses the `HostRenderer` interface (get/setMagnifierZoom
+implemented by all 3 renderers; Vulkan applies it live via `updateTransform`). The other
+GLRenderer cast in `showScreenEffectsDialog` is correct (effects are GL-only) — left as-is.
+
+**#20 FEX "Performance (TSO)" preset (`55fb879`):** fetched the issue screenshot — the reporter's
+preset is Performance with **only `FEX_TSOENABLED=1`** (vector/halfbarrier/memcpy TSO stay off,
+x87-reduced + multiblock on), the lightweight single-TSO-flag variant. Added `PERFORMANCE_TSO`
+to `FEXCorePreset` + a `getEnvVars` block + `getPresets` entry + `performance_tso` string.
+Additive, no DB migration; auto-appears in the spinner and Compose container/shortcut editors.
+
+NEXT: CI green → device-test (#22 magnifier on a **Vulkan** container; #20 pick preset + launch a
+TSO game) → merge to main.
+
+---
+
 ## 2026-06-27 — Open-issue triage + scopes (#22 magnifier, #20 FEX TSO preset) — QUEUED
 
 Scoped while the gl-upscaler-parity slider CI built. To be implemented on a **fresh branch off
