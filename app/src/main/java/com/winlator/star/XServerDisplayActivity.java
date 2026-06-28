@@ -750,6 +750,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         XServerDrawerState.INSTANCE.setFpsLimiterEnabled(fpsLimOn);
         XServerDrawerState.INSTANCE.setFpsLimit(container.getFpsLimiterValue());
         XServerDrawerState.INSTANCE.setMatchRefreshRate(resolvedMatchRefreshRate());
+        XServerDrawerState.INSTANCE.setVrrSupported(
+            com.winlator.star.widget.XServerView.isDisplayVrrCapable(getWindowManager().getDefaultDisplay()));
 
         containerManager.activateContainer(container);
 

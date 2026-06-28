@@ -670,18 +670,26 @@ private fun TopLevelFields(
             )
         }
 
-        // Match refresh rate to FPS (VRR). Votes the panel cadence to follow the game's FPS; safe to
-        // leave on (no-op unless the FPS limiter is actually capping). Can also be toggled live in-game.
+        // Match refresh rate to FPS (VRR). Greyed out on displays that can't do it (single refresh
+        // rate or pre-Android-11); otherwise safe to leave on (no-op unless the FPS limiter is capping).
+        val vrrCtx = LocalContext.current
+        val vrrCapable = remember {
+            val disp = if (android.os.Build.VERSION.SDK_INT >= 30) vrrCtx.display
+                       else (vrrCtx.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay
+            com.winlator.star.widget.XServerView.isDisplayVrrCapable(disp)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Switch(
-                checked = viewModel.matchRefreshRate,
+                checked = viewModel.matchRefreshRate && vrrCapable,
+                enabled = vrrCapable,
                 onCheckedChange = { viewModel.matchRefreshRate = it }
             )
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.match_refresh_rate), modifier = Modifier.weight(1f))
         }
         Text(
-            text = stringResource(R.string.match_refresh_rate_hint),
+            text = if (vrrCapable) stringResource(R.string.match_refresh_rate_hint)
+                   else stringResource(R.string.match_refresh_rate_unsupported),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 52.dp, top = 2.dp, bottom = 4.dp)

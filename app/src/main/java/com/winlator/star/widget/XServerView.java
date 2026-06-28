@@ -202,4 +202,13 @@ public class XServerView extends FrameLayout {
             // Surface was released, or the rate/compat is rejected — ignore, vote is best-effort.
         }
     }
+
+    /** True if this display can actually do VRR (refresh-rate matching): Surface.setFrameRate exists
+     *  (API 30+) AND the panel exposes more than one distinct refresh rate to switch between. */
+    public static boolean isDisplayVrrCapable(android.view.Display display) {
+        if (Build.VERSION.SDK_INT < 30 || display == null) return false;
+        java.util.HashSet<Integer> rates = new java.util.HashSet<>();
+        for (android.view.Display.Mode m : display.getSupportedModes()) rates.add(Math.round(m.getRefreshRate()));
+        return rates.size() > 1;
+    }
 }

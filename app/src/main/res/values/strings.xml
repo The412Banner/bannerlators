@@ -478,6 +478,7 @@
     <string name="fps_limiter_ingame_hint">Loads the limiter; set the cap (10–200) live from the in-game FPS menu.</string>
     <string name="match_refresh_rate">Match refresh rate to FPS</string>
     <string name="match_refresh_rate_hint">Votes the display refresh rate to follow the game\'s FPS (smoother motion + power saving). Only acts while the FPS limiter is capping; otherwise the panel runs free.</string>
+    <string name="match_refresh_rate_unsupported">Unavailable on this display (single refresh rate or Android 10 or older).</string>
     <string name="export_container">Export Container</string>
     <string name="exporting_container">Exporting Container...</string>
     <string name="importing_container">Importing Container...</string>

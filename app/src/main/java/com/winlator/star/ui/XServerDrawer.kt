@@ -935,15 +935,19 @@ private fun HudContent(state: XServerDrawerState) {
 
     // ── VRR: match the display panel's refresh rate to the on-screen FPS ──
     val matchRefreshRate by state.matchRefreshRate.collectAsState()
+    val vrrSupported by state.vrrSupported.collectAsState()
     var matchRefreshOn by remember(matchRefreshRate) { mutableStateOf(matchRefreshRate) }
-    ToggleRow("Match refresh rate to FPS", matchRefreshOn) {
+    ToggleRow("Match refresh rate to FPS", matchRefreshOn && vrrSupported, enabled = vrrSupported) {
         matchRefreshOn = it
         state.setMatchRefreshRate(it)
         state.onMatchRefreshChange?.run()
     }
     Text(
-        "Votes the display refresh rate to follow the game's FPS (smoother + power saving). " +
-            "Only acts while the FPS limiter is capping.",
+        if (vrrSupported)
+            "Votes the display refresh rate to follow the game's FPS (smoother + power saving). " +
+                "Only acts while the FPS limiter is capping."
+        else
+            "Unavailable — this display has a single refresh rate, so there's nothing to match.",
         color = DimWhite.copy(alpha = 0.5f),
         fontSize = 11.sp,
         modifier = Modifier.padding(start = 4.dp, top = 2.dp)

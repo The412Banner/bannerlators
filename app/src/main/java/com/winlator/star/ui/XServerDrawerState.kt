@@ -72,6 +72,11 @@ object XServerDrawerState {
     private val _matchRefreshRate = MutableStateFlow(true)
     val matchRefreshRate: StateFlow<Boolean> = _matchRefreshRate
 
+    // Whether the active display can actually do VRR (refresh-rate matching). Default true (assume
+    // capable until the activity seeds the real value in setupUI) so the toggle doesn't flicker.
+    private val _vrrSupported = MutableStateFlow(true)
+    val vrrSupported: StateFlow<Boolean> = _vrrSupported
+
     private val _fpsExpanded = MutableStateFlow(false)
     val fpsExpanded: StateFlow<Boolean> = _fpsExpanded
 
@@ -146,6 +151,7 @@ object XServerDrawerState {
     fun setFpsLimiterEnabled(v: Boolean)   { _fpsLimiterEnabled.value = v }
     fun setFpsLimit(v: Int)                { _fpsLimit.value = v }
     fun setMatchRefreshRate(v: Boolean)    { _matchRefreshRate.value = v }
+    fun setVrrSupported(v: Boolean)        { _vrrSupported.value = v }
 
     fun setFpsExpanded(v: Boolean) { _fpsExpanded.value = v }
     fun setFpsConfig(v: String) { _fpsConfig.value = v }
@@ -170,6 +176,7 @@ object XServerDrawerState {
         _fpsLimiterEnabled.value = false
         _fpsLimit.value = 60
         _matchRefreshRate.value = true
+        _vrrSupported.value = true
         _cursorExpanded.value = false
         _fpsExpanded.value = false
         _fpsConfig.value = ""
