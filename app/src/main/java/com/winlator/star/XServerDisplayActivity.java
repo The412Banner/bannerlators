@@ -3709,8 +3709,11 @@ return true;
             if (winHandler != null) winHandler.bringToFront(name);
         };
 
-        ds.onTmKillProcess = name -> ContentDialog.confirm(this, R.string.do_you_want_to_end_this_process,
-            () -> { if (winHandler != null) winHandler.killProcess(name); });
+        // End Process runs the same renderer-agnostic winhandler command the rest of the app uses.
+        // It used to be wrapped in a native ContentDialog.confirm, but that dialog does not display
+        // over the Vulkan/ASR fullscreen SurfaceView, so End Process silently did nothing there (the
+        // confirm never appeared). Run the command directly so it works on every renderer.
+        ds.onTmKillProcess = name -> { if (winHandler != null) winHandler.killProcess(name); };
 
         ds.onTmSetAffinity = (pid, mask) -> {
             if (winHandler != null) winHandler.setProcessAffinity(pid, mask);
