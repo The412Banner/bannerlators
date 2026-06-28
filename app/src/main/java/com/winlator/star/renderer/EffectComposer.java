@@ -299,12 +299,19 @@ public class EffectComposer {
         this.upscaleSharpness = sharpness01;
         upscalePrimary = null;
         upscaleSecondary = null;
-        // Spatial passes: SGSR is single-pass; FSR (1c) adds EASU+RCAS.
+        // Spatial passes: SGSR is single-pass; FSR / FSR-Fit are EASU then RCAS.
         switch (mode) {
             case 3: // SGSR
                 upscalePrimary = new com.winlator.star.renderer.effects.SGSREffect();
                 break;
-            // cases 4/5 (FSR / FSR-Fit) wired in 1c.
+            case 4: // FSR (fill)
+            case 5: // FSR (Fit)
+                // On the GL path the upscaler source is the already-letterboxed,
+                // display-aspect compositor frame, so "fit" and "fill" produce the same
+                // result; both run the full EASU -> RCAS FSR1 chain.
+                upscalePrimary   = new com.winlator.star.renderer.effects.FSREasuEffect();
+                upscaleSecondary = new com.winlator.star.renderer.effects.FSRRcasEffect();
+                break;
             default:
                 break;
         }
