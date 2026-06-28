@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-06-28 (s4) — 🐛➡️✅ VRR device-test #1: found + fixed the "panel won't drop" bug
+
+Tested VRR on-device (AIO, OpenGL renderer, FPS cap 60, Match-refresh ON, game@60). Panel stayed at 144 Hz —
+frameRateOverride showed our app un-throttled `{10492, 144}`. Root cause via dumpsys layer line
+`60.00 Hz Default OnlySeamless`: our 60 Hz vote WAS placed correctly, but with **seamless-only** strategy, which
+a peak-refresh 144 panel ignores. The code bug: `XServerView.applyFrameRateToSurface` only used the 3-arg
+`setFrameRate(..., ONLY_IF_SEAMLESS)` when `FRAME_RATE_SEAMLESS_ONLY` was true, else fell through to the 2-arg
+overload — which **also defaults to ONLY_IF_SEAMLESS**, so the "force" path was never taken.
+
+**Fix `c29acc0`:** when SDK≥31, pass the strategy explicitly — `ONLY_IF_SEAMLESS` if seamless-only else
+`CHANGE_FRAME_RATE_ALWAYS` (force the mode switch). CI run `28331250229`. Retest owed: reinstall, re-measure
+(expect override→cap, activeMode drop). Notes: 40 fps is an awkward cap for a 144 panel (144/40=3.6) — use 60;
+container was GL, also test Vulkan; if ALWAYS still won't drop it's device display policy, not our code.
+
+**Same-device test protocol (1-thing-at-a-time):** VRR releases its vote on background (onStop→0), so measure
+while the game is foreground — user stays in game, sends "go", switches back; I fire `sleep 12; dumpsys` to
+capture with the vote reapplied. Confirm foreground via topResumedActivity.
+
+---
+
 ## 2026-06-28 (s4) — 🆕 STEP 2: VRR / refresh-rate matching IMPLEMENTED (branch `feat/vrr-refresh-rate`, device-test owed)
 
 Step 1 (debanding+NIS) merged to main earlier today; started Step 2 = make the panel refresh rate follow the
