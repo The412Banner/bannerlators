@@ -299,9 +299,14 @@ public class EffectComposer {
         this.upscaleSharpness = sharpness01;
         upscalePrimary = null;
         upscaleSecondary = null;
-        // Spatial passes are wired in 1b (SGSR) / 1c (FSR / FSR-Fit).
+        // Spatial passes: SGSR is single-pass; FSR (1c) adds EASU+RCAS.
         switch (mode) {
-            default: break;
+            case 3: // SGSR
+                upscalePrimary = new com.winlator.star.renderer.effects.SGSREffect();
+                break;
+            // cases 4/5 (FSR / FSR-Fit) wired in 1c.
+            default:
+                break;
         }
         renderer.xServerView.requestRender();
     }
