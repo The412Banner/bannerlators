@@ -1246,6 +1246,196 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
 
+    // === ReShade (vkBasalt) per-game effect config =============================================
+    // Writes ONE merged vkBasalt.conf when a ReShade effect is selected, folding in the existing
+    // CAS/DLS sharpness path so the two never fight over the env (the old code set an inline
+    // VKBASALT_CONFIG for CAS; ReShade needs a config FILE for the source/include/texture paths and
+    // uniform values — so when both are wanted, everything goes through the single file here).
+    //
+    // Layout: the chosen effect's whole subfolder is COPIED into the container's guest HOME
+    // (.config/vkBasalt/effects/<name>/) so every path in the conf is HOST-ABSOLUTE inside rootDir
+    // (this fork does NOT proot — proven by the spike), and any .fxh includes / textures travel with
+    // it. effects = <reshade>:cas  (sharpen LAST, the usual order). Returns the host-absolute conf
+    // path for VKBASALT_CONFIG_FILE, or null when no ReShade effect is selected (caller then keeps
+    // the legacy inline CAS path untouched).
+    private String writeVkBasaltConfig() {
+        String effectName = resolvedReshadeEffect();
+        if (effectName == null || effectName.equals("None") || effectName.isEmpty()) return null;
+        if (!reshadeSupported()) return null; // WineD3D/GL/GDI titles can't carry the layer
+
+        com.winlator.star.reshade.ReshadeManager.ReshadeEffect effect =
+            com.winlator.star.reshade.ReshadeManager.findEffect(this, effectName);
+        if (effect == null) {
+            Log.w("VkBasalt", "Selected ReShade effect not found in drop-in folder: " + effectName);
+            return null;
+        }
+
+        try {
+            File configDir = new File(imageFs.home_path, ".config/vkBasalt");
+            File effectsRoot = new File(configDir, "effects");
+            File destDir = new File(effectsRoot, effect.name);
+            // Refresh the staged copy each launch so edits to the drop-in folder take effect.
+            FileUtils.delete(destDir);
+            destDir.mkdirs();
+            if (!FileUtils.copy(effect.dir, destDir)) {
+                Log.e("VkBasalt", "Failed to stage ReShade effect folder: " + effect.dir);
+                return null;
+            }
+            String destDirPath = destDir.getAbsolutePath();           // host-absolute
+            File fxDest = new File(destDir, effect.fxFile.getName());
+            String fxPath = fxDest.getAbsolutePath();
+
+            // Parsed per-uniform overrides (shortcut/container JSON) layered over the .fx defaults.
+            org.json.JSONObject paramJson = null;
+            String paramsRaw = resolvedReshadeParams();
+            if (paramsRaw != null && !paramsRaw.isEmpty()) {
+                try { paramJson = new org.json.JSONObject(paramsRaw); }
+                catch (org.json.JSONException ignored) {}
+            }
+
+            // The effect technique name vkBasalt keys on. vkBasalt derives it from the config key
+            // (effectKey = path). Use a stable, lower-case, syntax-safe key.
+            String effectKey = effect.name.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase(java.util.Locale.US);
+            if (effectKey.isEmpty()) effectKey = "reshade";
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("# Written by Bannerlator (per-game ReShade effect via vkBasalt)\n");
+            // Sharpen LAST: reshade first, then the existing CAS/DLS chain (if any).
+            StringBuilder chain = new StringBuilder(effectKey);
+            if (vkbasaltConfig != null && !vkbasaltConfig.isEmpty()) {
+                // The legacy inline string is "effects=<cas|dls>;casSharpness=..;...". Pull the
+                // effect name + carry the sharpness keys into this merged file.
+                appendSharpnessFromInline(sb, chain);
+            }
+            sb.append("effects = ").append(chain).append("\n");
+            sb.append(effectKey).append(" = ").append(fxPath).append("\n");
+            sb.append("reshadeTexturePath = ").append(destDirPath).append("\n");
+            sb.append("reshadeIncludePath = ").append(destDirPath).append("\n");
+
+            // Reflected uniform values (defaults, overridden by the saved per-game/container JSON).
+            // vkBasalt reads `.fx` shaders (NOT ReShade preset .ini), so we materialize the values as
+            // top-level conf keys named after each uniform. NB (open question / clean seam): the exact
+            // key form the bundled libvkbasalt expects for uniform overrides is device-unverified —
+            // formatUniformLine() is the single place to adjust it if needed.
+            for (com.winlator.star.reshade.ReshadeManager.ReshadeParam p : effect.params) {
+                float value = p.defaultValue;
+                if (paramJson != null && paramJson.has(p.name)) {
+                    value = (float) paramJson.optDouble(p.name, value);
+                }
+                sb.append(formatUniformLine(p, value));
+            }
+
+            sb.append("toggleKey = Home\n");
+            sb.append("enableOnLaunch = True\n");
+
+            File confFile = new File(configDir, "vkBasalt.conf");
+            FileUtils.writeString(confFile, sb.toString());
+            String confPath = confFile.getAbsolutePath();
+            Log.d("VkBasalt", "Wrote merged ReShade conf (" + chain + ") -> " + confPath);
+            return confPath;
+        } catch (Exception e) {
+            Log.e("VkBasalt", "Failed to write ReShade vkBasalt.conf", e);
+            return null;
+        }
+    }
+
+    // Fold the legacy inline CAS/DLS string ("effects=cas;casSharpness=..;dlsSharpness=..;
+    // dlsDenoise=..;enableOnLaunch=True") into the merged file: append the sharpen effect to the
+    // chain and copy its sharpness keys as conf lines.
+    private void appendSharpnessFromInline(StringBuilder sb, StringBuilder chain) {
+        String sharpenEffect = null;
+        for (String kv : vkbasaltConfig.split(";")) {
+            int eq = kv.indexOf('=');
+            if (eq <= 0) continue;
+            String k = kv.substring(0, eq).trim();
+            String v = kv.substring(eq + 1).trim();
+            if (k.equals("effects")) sharpenEffect = v;
+            else if (k.equals("casSharpness") || k.equals("dlsSharpness") || k.equals("dlsDenoise"))
+                sb.append(k).append(" = ").append(v).append("\n");
+        }
+        if (sharpenEffect != null && !sharpenEffect.isEmpty() && !sharpenEffect.equals("none"))
+            chain.append(":").append(sharpenEffect);
+    }
+
+    // Single source of truth for how a reflected uniform value is written into vkBasalt.conf.
+    private String formatUniformLine(com.winlator.star.reshade.ReshadeManager.ReshadeParam p, float value) {
+        switch (p.type) {
+            case BOOL:
+                return p.name + " = " + (value >= 0.5f ? "1" : "0") + "\n";
+            case INT:
+                return p.name + " = " + Math.round(value) + "\n";
+            case FLOAT:
+            default:
+                return p.name + " = " + String.format(java.util.Locale.US, "%.4f", value) + "\n";
+        }
+    }
+
+    // Seed the in-game ReShade drawer controls from the resolved launch config. Runs in setupUI
+    // (after container/shortcut are assigned). enableOnLaunch=True, so a selected effect is ON.
+    private void seedReshadeDrawerState(XServerDialogState ds) {
+        boolean supported = reshadeSupported();
+        ds.setReshadeSupported(supported);
+        String effectName = resolvedReshadeEffect();
+        boolean hasEffect = supported && effectName != null && !effectName.equals("None") && !effectName.isEmpty();
+        if (!hasEffect) {
+            ds.setReshadeEffectName("None");
+            ds.setReshadeEnabled(false);
+            ds.setReshadeParams(new ArrayList<>());
+            ds.setReshadeValues(new HashMap<>());
+            return;
+        }
+        com.winlator.star.reshade.ReshadeManager.ReshadeEffect effect =
+            com.winlator.star.reshade.ReshadeManager.findEffect(this, effectName);
+        ds.setReshadeEffectName(effect != null ? effect.name : "None");
+        ds.setReshadeEnabled(effect != null);
+        if (effect == null) {
+            ds.setReshadeParams(new ArrayList<>());
+            ds.setReshadeValues(new HashMap<>());
+            return;
+        }
+        ds.setReshadeParams(effect.params);
+        // Values: saved JSON (shortcut override -> container default) layered over the .fx defaults.
+        org.json.JSONObject saved = null;
+        String raw = resolvedReshadeParams();
+        if (raw != null && !raw.isEmpty()) {
+            try { saved = new org.json.JSONObject(raw); } catch (JSONException ignored) {}
+        }
+        HashMap<String, Float> values = new HashMap<>();
+        for (com.winlator.star.reshade.ReshadeManager.ReshadeParam p : effect.params) {
+            float v = p.defaultValue;
+            if (saved != null && saved.has(p.name)) v = (float) saved.optDouble(p.name, v);
+            values.put(p.name, v);
+        }
+        ds.setReshadeValues(values);
+    }
+
+    // SINGLE pluggable seam for ReShade live-apply. For NOW it persists the new uniform values to
+    // the active store and rewrites the merged vkBasalt.conf, so the change is correct on the next
+    // launch (the bundled vkBasalt has no config-watch — see RESHADE_STEP3_PLAN.md §5). When the
+    // live mechanism lands (a vkBasalt config-watch patch for live uniforms, and/or an X11 Home-key
+    // inject for live on/off), wire it HERE — this is the only place the rest of the feature calls.
+    private void applyReshadeLive(boolean enabled, Map<String, Float> values) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject();
+            if (values != null) {
+                for (Map.Entry<String, Float> e : values.entrySet())
+                    json.put(e.getKey(), (double) e.getValue());
+            }
+            String jsonStr = json.length() == 0 ? null : json.toString();
+            if (shortcut != null) {
+                shortcut.putExtra("reshadeParams", jsonStr);
+                shortcut.saveData();
+            } else if (container != null) {
+                container.setReshadeParams(jsonStr);
+                container.saveData();
+            }
+        } catch (JSONException ignored) {}
+        // Rewrite the conf so a relaunch reflects the new values (resolvedReshadeParams now reads
+        // the freshly-saved JSON). enableOnLaunch stays True; `enabled` is reserved for the live
+        // toggle mechanism. TODO(live-apply): trigger config-watch / X11 Home-inject here.
+        writeVkBasaltConfig();
+    }
+
     private void savePlaytimeData() {
         long endTime = System.currentTimeMillis();
         long playtime = endTime - startTime;
@@ -2076,6 +2266,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
             ds.onVulkanScreenEffectsApply = null;
         }
 
+        // ReShade (vkBasalt) drawer state — renderer-agnostic (the layer hooks the guest Vulkan
+        // swapchain, not our host renderer), gated only on DXVK/VKD3D. Seeded HERE, in setupUI,
+        // because `container`/`shortcut` are assigned by now (seeding in onCreate would capture a
+        // null effect). Live-apply rides the single onReshadeApply -> applyReshadeLive seam.
+        seedReshadeDrawerState(ds);
+        ds.onReshadeApply = (enabled, values) -> applyReshadeLive(enabled, values);
+
         // Input Controls state (renderer-independent: controller profiles + vibration work on
         // BOTH the GL and Vulkan host renderers, so this must run before the GL-only guard below.
         // Previously the early return for non-GL renderers left the profile dropdown empty.)
@@ -2504,10 +2701,21 @@ public class XServerDisplayActivity extends AppCompatActivity {
     envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
     envVars.put("GALLIUM_DRIVER", "zink");
 
-    // 2. SHARED LIBS EXTRACTION (First Time Boot Only)
+    // 2. SHARED LIBS EXTRACTION
+    // First boot extracts everything. After that, extra_libs.tzst carries the vkBasalt layer
+    // (libvkbasalt.so + the implicit_layer.d manifest) that powers the CAS/DLS sharpness AND the
+    // ReShade feature — containers created before that bundle landed never got it, so the feature
+    // silently no-ops on them. Re-extract extra_libs whenever the layer .so is missing from this
+    // container's rootDir, so pre-existing containers heal on next launch. Cheap: a single exists()
+    // check guards the (one-time, idempotent) re-extraction.
+    File vkBasaltSo = new File(imageFs.getLibDir(), "libvkbasalt.so");
     if (firstTimeBoot) {
         Log.d("XServerDisplayActivity", "First time container boot, re-extracting layers and extra_libs");
         TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
+        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
+    }
+    else if (!vkBasaltSo.exists()) {
+        Log.d("XServerDisplayActivity", "vkBasalt layer absent (pre-existing container) — re-extracting extra_libs");
         TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs.tzst", rootDir);
     }
 
@@ -2611,7 +2819,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
     if (fdDevFeatures != null && fdDevFeatures.equals("1"))
         envVars.put("FD_DEV_FEATURES", "enable_tp_ubwc_flag_hint=1");
 
-    if (vkbasaltConfig != null && !vkbasaltConfig.isEmpty()) {
+    // ReShade (vkBasalt) — when a per-game/container effect is selected, write ONE merged conf
+    // file that also folds in the CAS/DLS sharpness chain, and point the layer at it via the config
+    // FILE env. When no ReShade effect is selected, fall back to the legacy inline CAS path
+    // UNCHANGED (the existing sharpness feature keeps working exactly as before).
+    String reshadeConf = writeVkBasaltConfig();
+    if (reshadeConf != null) {
+        envVars.put("ENABLE_VKBASALT", "1");
+        envVars.put("VKBASALT_CONFIG_FILE", reshadeConf);
+    }
+    else if (vkbasaltConfig != null && !vkbasaltConfig.isEmpty()) {
         envVars.put("ENABLE_VKBASALT", "1");
         envVars.put("VKBASALT_CONFIG", vkbasaltConfig);
     }
@@ -3036,6 +3253,25 @@ return true;
 
     private String resolvedFrameGenEngine() {
         return shortcut != null ? shortcut.getExtra("frameGenEngine", container.getFrameGenEngine()) : container.getFrameGenEngine();
+    }
+
+    // ReShade effect selection: shortcut overrides the container default. "None"/empty -> no effect.
+    private String resolvedReshadeEffect() {
+        if (container == null) return "None";
+        return shortcut != null ? shortcut.getExtra("reshadeEffect", container.getReshadeEffect()) : container.getReshadeEffect();
+    }
+
+    // Per-uniform value overrides (JSON {name: value}); shortcut wins over the container default.
+    private String resolvedReshadeParams() {
+        if (container == null) return "";
+        return shortcut != null ? shortcut.getExtra("reshadeParams", container.getReshadeParams()) : container.getReshadeParams();
+    }
+
+    // ReShade only rides the guest-side Vulkan swapchain (DXVK/VKD3D via Turnip), so it's a no-op on
+    // WineD3D/GL/GDI titles. Renderer-agnostic (works under any host renderer). Drives the editor
+    // hint + the in-game drawer grey-out (mirrors how SGSR/HDR are gated).
+    private boolean reshadeSupported() {
+        return dxwrapper != null && (dxwrapper.contains("dxvk") || dxwrapper.contains("vegas"));
     }
 
     private boolean resolvedFpsLimiterEnabled() {
