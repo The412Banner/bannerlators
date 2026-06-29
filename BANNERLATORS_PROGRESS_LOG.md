@@ -450,3 +450,17 @@ match). #1620 nightly.link artifact = a full `app.gamenative` v1.1.0 test APK (c
 `libasurface_renderer.so` + renamed `libahbimage.so`) → A/B-test only; `.so` not graftable into our
 tree (Java/JNI changed) — port from source. Details in memory
 `reference_gamenative_surfaceflinger_renderer.md`.
+
+## 2026-06-29 — AIO Graphics Test cube-cull fix re-bundled into container template
+The DX10/DX11 plain cube + cube-grid scenes rendered inside-out (CCW-front geometry hit
+D3D's default CULL_BACK + CW-front since those scenes never set a rasterizer). Fixed in
+AIO-Graphics-Test (global CULL_NONE, matching the GL/Vulkan cubes), CI run 28344205408,
+device-proven. Swapped the rebuilt 32/64-bit exes into
+`app/src/main/assets/container_pattern_common.tzst` (drive_c/AIO Graphics Test/) via
+tar --delete + --append on the decompressed tar: only the 2 exes change, all other 100
+entries byte-identical, swapped exes carry sibling metadata (uid 10314/gid 1023, mode
+0660, mtime 2026-06-22 09:00). 102/102 entries; embedded exes MD5-match the CI artifacts
+(64:0d12d92… 32:004678a7…). Committed `0eb3cde`, ff-merged to main + pushed.
+⚠️ TEMPLATE = NEW containers only — existing containers keep the old exe (reinstall-imagefs
+preserves home/), so to update them push the exes via root bridge or make a new container.
+Lands in the next Bannerlator build; no tag/release cut.
