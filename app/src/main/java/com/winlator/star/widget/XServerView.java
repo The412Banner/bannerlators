@@ -151,8 +151,12 @@ public class XServerView extends FrameLayout {
     }
 
     public Object getSurfaceControl() {
-        if (android.os.Build.VERSION.SDK_INT >= 29 && vulkanSurfaceView != null) {
-            return vulkanSurfaceView.getSurfaceControl();
+        // GLSurfaceView extends SurfaceView, so it inherits getSurfaceControl() (API 29+).
+        // Returning the GL surface's SurfaceControl lets DirectScanout host child game/cursor
+        // SurfaceControls under it (GL Native Rendering, P2+). For Vulkan, unchanged.
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            if (vulkanSurfaceView != null) return vulkanSurfaceView.getSurfaceControl();
+            if (glSurfaceView != null) return glSurfaceView.getSurfaceControl();
         }
         return null;
     }
