@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-06-29 (spike) — 🧪 SPIKE: vkBasalt on-device ReShade `.fx` compile (branch `spike/vkbasalt-reshade`, THROWAWAY)
+
+**Goal:** prove an arbitrary color ReShade `.fx` compiles ON-DEVICE via vkBasalt and applies LIVE to a DXVK
+game. Not a feature — hardcoded one shader, no UI/scanner/sliders. De-risks a future "drop-in ReShade folder".
+
+**Findings before any device test (binary recon + code):**
+- Our shipped `app/src/main/assets/graphics_driver/extra_libs.tzst` ALREADY contains the FULL vkBasalt:
+  `usr/lib/libvkbasalt.so` (17.5 MB — embeds the entire `reshadefx` compiler: lexer/preprocessor/
+  effect_parser/codegen_spirv + `vkBasalt::ReshadeEffect`, config keys `reshadeTexturePath`/
+  `reshadeIncludePath`, outputs `/tmp/vkBasalt.spv`) + `usr/share/vulkan/implicit_layer.d/vkBasalt.json`.
+  **No tzst repack needed.**
+- vkBasalt is ALREADY WIRED as the CAS/DLS "sharpness" feature (`XServerDisplayActivity` field `vkbasaltConfig`,
+  sets `ENABLE_VKBASALT=1` + inline `VKBASALT_CONFIG`). So layer discovery (`VK_LAYER_PATH` →
+  `rootDir/usr/share/vulkan/implicit_layer.d`, `WRAPPER_LAYER_PATH` → `rootDir/usr/lib`) already works.
+- This fork does NOT proot — guest env uses HOST absolute paths (`HOME=imageFs.home_path`,
+  `rootDir.getPath()+...`); lsfg passes `conf.getAbsolutePath()`. So every path inside `vkBasalt.conf` MUST be
+  host-absolute, NOT `/home/xuser/...`.
+- ⚠️ **No live config-watch:** the `.so` has NO inotify/mtime/reload strings (unlike our patched lsfg). vkBasalt
+  reads config once at swapchain create. The only live mechanism is the `toggleKey` (HOME, via
+  `keyboard_input_x11.cpp` / `libX11.so`) which toggles the whole effect on/off — NOT live uniform/shader swap.
+  → Live-slider half of the vision is structurally unsupported by THIS build regardless of device.
+
+**Change (minimal, 1 file `XServerDisplayActivity.java`):**
+- `writeVkBasaltSpike()` (mirrors `writeBionicFgConfig`): writes a self-contained CC0 sepia `.fx` (no `#include`,
+  no textures, NO depth) + `vkBasalt.conf` (host-absolute paths, `enableOnLaunch=True`, `toggleKey=Home`) into
+  `<home>/.config/vkBasalt/`.
+- In `extractGraphicsDriverFiles()`: UNCONDITIONALLY `ENABLE_VKBASALT=1` + `VKBASALT_CONFIG_FILE=<host conf>`
+  (wins over the CAS inline path when the spike writes OK).
+
+**Status:** code complete, CI dispatch + device test pending. Expected verdict ceiling = YELLOW (compile+apply at
+launch likely; live file-rewrite reload = NO by binary; live HOME-toggle = maybe).
+
+---
+
 ## 2026-06-28 (s4) — ▶️ RESUME / CURRENT STATUS: VRR + manual picker built & verified; pacing tweak pending
 
 **Where things stand on the graphics roadmap:**

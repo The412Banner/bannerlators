@@ -1246,6 +1246,63 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
 
+    // === SPIKE (branch spike/vkbasalt-reshade, THROWAWAY — NOT a feature) =====================
+    // Proof-of-concept: compile an arbitrary color ReShade .fx ON-DEVICE via vkBasalt and apply it
+    // LIVE to a DXVK game. Mirrors writeBionicFgConfig: drops a self-contained, public-domain (CC0)
+    // sepia .fx (no #include, no textures, NO depth) + a vkBasalt.conf into the guest HOME's
+    // .config/vkBasalt/. This fork does NOT proot — the native Vulkan loader/layer opens HOST
+    // absolute paths (HOME=imageFs.home_path, like lsfg's LSFG_CONFIG=conf.getAbsolutePath()), so
+    // every path written into vkBasalt.conf is the HOST absolute path, not /home/xuser/....
+    // NB: this vkBasalt build has NO mtime/inotify config watch (confirmed in the .so) — the only
+    // live mechanism is the HOME toggleKey (on/off), not file-rewrite. Returns the host-absolute
+    // path to vkBasalt.conf for VKBASALT_CONFIG_FILE, or null on failure.
+    private String writeVkBasaltSpike() {
+        try {
+            File configDir = new File(imageFs.home_path, ".config/vkBasalt");
+            configDir.mkdirs();
+            String guestDir = configDir.getAbsolutePath(); // host-absolute .config/vkBasalt
+            // Self-contained ReShade FX. Strong sepia so the A/B is unmistakable and any R/B swizzle
+            // is obvious. Backbuffer via the COLOR semantic; fullscreen triangle via SV_VertexID.
+            String fx =
+                "// Spike sepia - throwaway, public domain (CC0). Self-contained: no ReShade.fxh.\n" +
+                "texture SpikeBackBufferTex : COLOR;\n" +
+                "sampler SpikeBackBuffer { Texture = SpikeBackBufferTex; };\n" +
+                "void VS_Spike(in uint id : SV_VertexID, out float4 pos : SV_Position, out float2 uv : TEXCOORD0) {\n" +
+                "    uv.x = (id == 2) ? 2.0 : 0.0;\n" +
+                "    uv.y = (id == 1) ? 2.0 : 0.0;\n" +
+                "    pos = float4(uv * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);\n" +
+                "}\n" +
+                "float4 PS_Spike(float4 vpos : SV_Position, float2 uv : TEXCOORD0) : SV_Target {\n" +
+                "    float3 c = tex2D(SpikeBackBuffer, uv).rgb;\n" +
+                "    float3 s;\n" +
+                "    s.r = dot(c, float3(0.393, 0.769, 0.189));\n" +
+                "    s.g = dot(c, float3(0.349, 0.686, 0.168));\n" +
+                "    s.b = dot(c, float3(0.272, 0.534, 0.131));\n" +
+                "    return float4(saturate(s), 1.0);\n" +
+                "}\n" +
+                "technique spike {\n" +
+                "    pass {\n" +
+                "        VertexShader = VS_Spike;\n" +
+                "        PixelShader = PS_Spike;\n" +
+                "    }\n" +
+                "}\n";
+            FileUtils.writeString(new File(configDir, "Spike.fx"), fx);
+            String conf =
+                "# Written by Bannerlator SPIKE (vkbasalt-reshade). THROWAWAY.\n" +
+                "effects = spike\n" +
+                "spike = " + guestDir + "/Spike.fx\n" +
+                "reshadeTexturePath = " + guestDir + "\n" +
+                "reshadeIncludePath = " + guestDir + "\n" +
+                "toggleKey = Home\n" +
+                "enableOnLaunch = True\n";
+            FileUtils.writeString(new File(configDir, "vkBasalt.conf"), conf);
+            return guestDir + "/vkBasalt.conf";
+        } catch (Exception e) {
+            Log.e("VkBasaltSpike", "Failed to write vkBasalt spike config", e);
+            return null;
+        }
+    }
+
     private void savePlaytimeData() {
         long endTime = System.currentTimeMillis();
         long playtime = endTime - startTime;
@@ -2611,7 +2668,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
     if (fdDevFeatures != null && fdDevFeatures.equals("1"))
         envVars.put("FD_DEV_FEATURES", "enable_tp_ubwc_flag_hint=1");
 
-    if (vkbasaltConfig != null && !vkbasaltConfig.isEmpty()) {
+    // === SPIKE (vkbasalt-reshade): force-load a hardcoded ReShade .fx, UNCONDITIONAL. THROWAWAY.
+    // When the spike config writes OK, it wins over the existing CAS/DLS inline path. Uses the conf
+    // FILE (not inline VKBASALT_CONFIG) so the file can be rewritten mid-game for the live-reload
+    // probe (best-effort; this build has no mtime watch).
+    String vkBasaltSpikeConf = writeVkBasaltSpike();
+    if (vkBasaltSpikeConf != null) {
+        envVars.put("ENABLE_VKBASALT", "1");
+        envVars.put("VKBASALT_CONFIG_FILE", vkBasaltSpikeConf);
+        Log.d("VkBasaltSpike", "ENABLE_VKBASALT=1 VKBASALT_CONFIG_FILE=" + vkBasaltSpikeConf);
+    } else if (vkbasaltConfig != null && !vkbasaltConfig.isEmpty()) {
         envVars.put("ENABLE_VKBASALT", "1");
         envVars.put("VKBASALT_CONFIG", vkbasaltConfig);
     }
