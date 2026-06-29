@@ -75,6 +75,7 @@ public enum Binding {
     }
 
     public static Binding fromString(String name) {
+        if (name == null) return Binding.NONE;
         switch (name) {
             case "KEY_INSERT":
                 return Binding.KEY_INSERT;
@@ -85,7 +86,14 @@ public enum Binding {
             case "KEY_ALT":
                 return Binding.KEY_ALT_L;
             default:
-                return valueOf(name);
+                // Unknown/renamed binding names (e.g. from a fork's profile) must not
+                // abort the whole import; fall back to NONE instead of throwing.
+                try {
+                    return valueOf(name);
+                }
+                catch (IllegalArgumentException e) {
+                    return Binding.NONE;
+                }
         }
     }
 

@@ -126,7 +126,12 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
             JSONArray elementsJSONArray = new JSONArray();
             if (!elementsLoaded && file.isFile()) {
                 JSONObject profileJSONObject = new JSONObject(FileUtils.readString(file));
-                elementsJSONArray = profileJSONObject.getJSONArray("elements");
+                // Preserve the on-disk elements when they were never loaded into memory,
+                // but tolerate a profile that has no (or a malformed) elements array
+                // otherwise the whole save() throws and is silently swallowed below,
+                // discarding edits made elsewhere (e.g. controller bindings).
+                JSONArray existingElements = profileJSONObject.optJSONArray("elements");
+                if (existingElements != null) elementsJSONArray = existingElements;
             }
             else for (ControlElement element : elements) elementsJSONArray.put(element.toJSONObject());
             data.put("elements", elementsJSONArray);
@@ -183,21 +188,27 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
             if (!profileJSONObject.has("controllers")) return controllers;
             JSONArray controllersJSONArray = profileJSONObject.getJSONArray("controllers");
             for (int i = 0; i < controllersJSONArray.length(); i++) {
-                JSONObject controllerJSONObject = controllersJSONArray.getJSONObject(i);
-                String id = controllerJSONObject.getString("id");
-                ExternalController controller = new ExternalController();
-                controller.setId(id);
-                controller.setName(controllerJSONObject.getString("name"));
+                // Skip a single malformed controller instead of aborting the whole load.
+                try {
+                    JSONObject controllerJSONObject = controllersJSONArray.getJSONObject(i);
+                    String id = controllerJSONObject.getString("id");
+                    ExternalController controller = new ExternalController();
+                    controller.setId(id);
+                    controller.setName(controllerJSONObject.getString("name"));
 
-                JSONArray controllerBindingsJSONArray = controllerJSONObject.getJSONArray("controllerBindings");
-                for (int j = 0; j < controllerBindingsJSONArray.length(); j++) {
-                    JSONObject controllerBindingJSONObject = controllerBindingsJSONArray.getJSONObject(j);
-                    ExternalControllerBinding controllerBinding = new ExternalControllerBinding();
-                    controllerBinding.setKeyCode(controllerBindingJSONObject.getInt("keyCode"));
-                    controllerBinding.setBinding(Binding.fromString(controllerBindingJSONObject.getString("binding")));
-                    controller.addControllerBinding(controllerBinding);
+                    JSONArray controllerBindingsJSONArray = controllerJSONObject.getJSONArray("controllerBindings");
+                    for (int j = 0; j < controllerBindingsJSONArray.length(); j++) {
+                        JSONObject controllerBindingJSONObject = controllerBindingsJSONArray.getJSONObject(j);
+                        ExternalControllerBinding controllerBinding = new ExternalControllerBinding();
+                        controllerBinding.setKeyCode(controllerBindingJSONObject.getInt("keyCode"));
+                        controllerBinding.setBinding(Binding.fromString(controllerBindingJSONObject.getString("binding")));
+                        controller.addControllerBinding(controllerBinding);
+                    }
+                    controllers.add(controller);
                 }
-                controllers.add(controller);
+                catch (JSONException | IllegalArgumentException e) {
+                    e.printStackTrace();
+                }
             }
             controllersLoaded = true;
         }
@@ -219,29 +230,36 @@ public class ControlsProfile implements Comparable<ControlsProfile> {
             JSONObject profileJSONObject = new JSONObject(FileUtils.readString(file));
             JSONArray elementsJSONArray = profileJSONObject.getJSONArray("elements");
             for (int i = 0; i < elementsJSONArray.length(); i++) {
-                JSONObject elementJSONObject = elementsJSONArray.getJSONObject(i);
-                ControlElement element = new ControlElement(inputControlsView);
-                element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
-                element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
-                element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
-                element.setX((int)(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
-                element.setY((int)(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
-                element.setScale((float)elementJSONObject.getDouble("scale"));
-                element.setText(elementJSONObject.getString("text"));
-                element.setIconId(elementJSONObject.getInt("iconId"));
-                if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
-                if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
+                // Skip a single malformed element (unknown type/shape/range from a fork's
+                // profile, missing keys, etc.) instead of aborting the whole load.
+                try {
+                    JSONObject elementJSONObject = elementsJSONArray.getJSONObject(i);
+                    ControlElement element = new ControlElement(inputControlsView);
+                    element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
+                    element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
+                    element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
+                    element.setX((int)(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
+                    element.setY((int)(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
+                    element.setScale((float)elementJSONObject.getDouble("scale"));
+                    element.setText(elementJSONObject.getString("text"));
+                    element.setIconId(elementJSONObject.getInt("iconId"));
+                    if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
+                    if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
 
-                boolean hasGamepadBinding = true;
-                JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
-                for (int j = 0; j < bindingsJSONArray.length(); j++) {
-                    Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
-                    element.setBindingAt(j, Binding.fromString(bindingsJSONArray.getString(j)));
-                    if (!binding.isGamepad()) hasGamepadBinding = false;
+                    boolean hasGamepadBinding = true;
+                    JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
+                    for (int j = 0; j < bindingsJSONArray.length(); j++) {
+                        Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
+                        element.setBindingAt(j, binding);
+                        if (!binding.isGamepad()) hasGamepadBinding = false;
+                    }
+
+                    if (!virtualGamepad && hasGamepadBinding) virtualGamepad = true;
+                    elements.add(element);
                 }
-
-                if (!virtualGamepad && hasGamepadBinding) virtualGamepad = true;
-                elements.add(element);
+                catch (JSONException | IllegalArgumentException e) {
+                    e.printStackTrace();
+                }
             }
             elementsLoaded = true;
         }
