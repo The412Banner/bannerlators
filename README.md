@@ -186,9 +186,9 @@ every answer includes file paths and line numbers so you can verify it yourself.
 ### Live dialogue box (GitHub Issues)
 
 [Open a new question](https://github.com/The412Banner/Bannerlator/issues/new?template=ask-the-ai.yml)
-→ type your question into the form → submit. A bot reads the codebase and posts
-the answer as a comment on your issue. You can follow up with more questions in
-the same thread.
+→ type your question into the form → submit. A maintainer gives it a quick look,
+and the bot reads the codebase and posts the answer as a comment on your issue,
+citing the exact files. For a follow-up, open another question.
 
 > ⚙️ **One-time setup:** The repo owner needs to add their opencode auth as a
 > secret. Run `cat ~/.local/share/opencode/auth.json` locally, copy the entire
