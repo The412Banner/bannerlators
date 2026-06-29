@@ -1,16 +1,33 @@
 name: "🤖 AMA — Answer the AI"
 
+# SECURITY MODEL (public repo):
+# - Trigger is `labeled`, gated to the `question` label. On a public repo only
+#   users with triage/write/maintain/admin can add labels, so this is a
+#   human-in-the-loop approval gate — a random visitor cannot self-trigger a run
+#   (the issue template deliberately does NOT auto-apply `question`).
+# - All untrusted text (issue body, derived question, model answer) is passed via
+#   `env:` and referenced as a quoted variable. It is NEVER inlined into a `run:`
+#   or `script:` body with ${{ }} — that would be a shell/JS injection vector.
+# - opencode runs with bash/write/edit/webfetch disabled (see .claude/agents/
+#   ama-agent.md), so a prompt-injected question cannot shell out, write files, or
+#   exfiltrate over the network. The answer is also scrubbed of key-like strings
+#   before posting as a defense-in-depth backstop.
+
 on:
   issues:
-    types: [opened, edited]
+    types: [labeled]
 
 permissions:
   issues: write
   contents: read
 
+concurrency:
+  group: ama-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   answer:
-    if: contains(github.event.issue.labels.*.name, 'question')
+    if: github.event.label.name == 'question'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
 
@@ -18,128 +35,128 @@ jobs:
     - name: Check out repo
       uses: actions/checkout@v4
       with:
-        fetch-depth: 100
+        fetch-depth: 1
 
     - name: Extract question from issue
       id: question
+      env:
+        # Untrusted. Only ever referenced as the quoted shell var "$BODY".
+        BODY: ${{ github.event.issue.body }}
       run: |
-        BODY="${{ github.event.issue.body }}"
-        QUESTION=$(echo "$BODY" | sed -n '/### Your question/,/^###/p' | tail -n +2 | head -n -1 || echo "$BODY")
-        QUESTION=$(echo "$QUESTION" | head -500)
-        echo "q<<__EOF__" >> $GITHUB_OUTPUT
-        echo "$QUESTION" >> $GITHUB_OUTPUT
-        echo "__EOF__" >> $GITHUB_OUTPUT
+        QUESTION=$(printf '%s' "$BODY" \
+          | sed '/^### Your question$/d' \
+          | sed '/^[[:space:]]*$/d')
+        if [ -z "$QUESTION" ]; then
+          QUESTION=$(printf '%s' "$BODY")
+        fi
+        QUESTION=$(printf '%s' "$QUESTION" | head -c 4000)
+        {
+          echo "q<<__Q_EOF__"
+          printf '%s\n' "$QUESTION"
+          echo "__Q_EOF__"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Install opencode
-      run: |
-        npm install -g opencode@latest 2>&1 | tail -3
+      run: npm install -g opencode@latest 2>&1 | tail -3
 
     - name: Configure opencode credentials
+      id: creds
       env:
         OPENCODE_AUTH: ${{ secrets.OPENCODE_AUTH }}
       run: |
         if [ -z "$OPENCODE_AUTH" ]; then
-          echo "no-auth" >> /tmp/ama-status
-          echo "⚠️ OPENCODE_AUTH secret not configured" >&2
+          echo "status=no-auth" >> "$GITHUB_OUTPUT"
           exit 0
         fi
         mkdir -p ~/.local/share/opencode
-        echo "$OPENCODE_AUTH" > ~/.local/share/opencode/auth.json
-        echo "auth-ok" >> /tmp/ama-status
+        ( umask 177; printf '%s' "$OPENCODE_AUTH" > ~/.local/share/opencode/auth.json )
+        echo "status=ok" >> "$GITHUB_OUTPUT"
 
     - name: Answer via opencode big-pickle
       id: answer
+      if: steps.creds.outputs.status == 'ok'
+      env:
+        # Untrusted. Passed only as a single quoted argument to opencode.
+        Q: ${{ steps.question.outputs.q }}
       run: |
-        if [ "$(cat /tmp/ama-status)" = "no-auth" ]; then
-          echo "ans=⚠️ **OPENCODE_AUTH** is not configured." >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        Q='${{ steps.question.outputs.q }}'
-
         OUTPUT=$(opencode run "$Q" \
           --agent ama-agent \
           --model opencode/big-pickle \
           --format json \
           --pure \
-          2>/dev/null)
+          2>/dev/null || true)
 
-        ANSWER=$(echo "$OUTPUT" | jq -s '
+        ANSWER=$(printf '%s' "$OUTPUT" | jq -s '
           [.[] | select(.type == "text" and .part.type == "text") | .part.text]
           | join("\n\n")
-        ' --raw-output)
+        ' --raw-output 2>/dev/null || true)
 
         if [ -z "$ANSWER" ] || [ "$ANSWER" = "null" ]; then
-          echo "ans=⚠️ **No answer generated.** The AI may have timed out or hit an error." >> $GITHUB_OUTPUT
-        else
-          echo "ans<<__ANS_EOF__" >> $GITHUB_OUTPUT
-          echo "$ANSWER" >> $GITHUB_OUTPUT
-          echo "__ANS_EOF__" >> $GITHUB_OUTPUT
+          ANSWER="⚠️ No answer generated. The AI may have timed out or hit an error."
         fi
 
+        # Defense in depth: scrub anything that looks like a secret key before it
+        # can reach a public comment, in case a prompt injection coaxed one out.
+        ANSWER=$(printf '%s' "$ANSWER" | sed -E 's/sk-[A-Za-z0-9_-]{16,}/[redacted]/g')
+
+        {
+          echo "ans<<__ANS_EOF__"
+          printf '%s\n' "$ANSWER"
+          echo "__ANS_EOF__"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Remove credentials from runner
+      if: always()
+      run: rm -f ~/.local/share/opencode/auth.json
+
     - name: Post answer as comment
+      if: always()
       uses: actions/github-script@v7
+      env:
+        # Passed as env data, not interpolated into the script body.
+        STATUS: ${{ steps.creds.outputs.status }}
+        ANSWER: ${{ steps.answer.outputs.ans }}
       with:
         script: |
-          const answer = `${{ steps.answer.outputs.ans }}`;
+          const status = process.env.STATUS;
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
 
-          if (answer.includes('OPENCODE_AUTH')) {
+          if (status === 'no-auth') {
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## 🤖 Bannerlator AI
-
-              ⚠️ The **OPENCODE_AUTH** secret hasn't been configured yet.
-
-              **For the repo owner:**
-              1. Run this on your local machine: \`cat ~/.local/share/opencode/auth.json\`
-              2. Copy the entire JSON object
-              3. Go to **Settings → Secrets and variables → Actions**
-              4. Add a repository secret named \`OPENCODE_AUTH\` with the copied JSON
-
-              The JSON looks like:
-              \`\`\`json
-              {
-                "opencode": {
-                  "type": "api",
-                  "key": "sk-..."
-                }
-              }
-              \`\`\`
-
-              Once set, close and reopen this issue or edit the question to trigger an answer.`
-            });
-            await github.rest.issues.removeLabel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              name: 'question'
-            });
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['ama-unconfigured']
+              owner, repo, issue_number,
+              body: [
+                '## 🤖 Bannerlator AI',
+                '',
+                "⚠️ The **OPENCODE_AUTH** secret hasn't been configured yet.",
+                '',
+                '**For the repo owner:**',
+                '1. Run locally: `cat ~/.local/share/opencode/auth.json`',
+                '2. Copy the entire JSON object',
+                '3. **Settings → Secrets and variables → Actions → New repository secret**',
+                '4. Name it `OPENCODE_AUTH`, paste the JSON, save',
+                '',
+                'Then remove and re-add the `question` label to retry.',
+              ].join('\n'),
             });
             return;
           }
 
+          const answer = process.env.ANSWER || '⚠️ No answer generated.';
           await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            body: `## 🤖 Bannerlator AI
-
-${answer}
-
----
-_Cited from the [Bannerlator codebase](https://github.com/${{ github.repository }}). Ask a follow-up in the comments — the AI will re-answer with new context._`
+            owner, repo, issue_number,
+            body: [
+              '## 🤖 Bannerlator AI',
+              '',
+              answer,
+              '',
+              '---',
+              `_Cited from the [Bannerlator codebase](https://github.com/${owner}/${repo}). For a follow-up, a maintainer removes and re-adds the \`question\` label to re-run._`,
+            ].join('\n'),
           });
 
-          await github.rest.issues.addLabels({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            labels: ['answered']
-          });
+          // Reset state so re-adding `question` triggers a fresh run.
+          try {
+            await github.rest.issues.removeLabel({ owner, repo, issue_number, name: 'question' });
+          } catch (e) { /* label may already be gone */ }
+          await github.rest.issues.addLabels({ owner, repo, issue_number, labels: ['answered'] });

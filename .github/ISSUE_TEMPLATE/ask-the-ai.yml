@@ -1,16 +1,20 @@
 name: "🤖 Ask the AI"
 description: "Ask any question about Bannerlator — how it works, where a feature lives, what a setting does, or why something behaves a certain way. The AI searches the actual codebase and answers with file paths and line numbers."
 title: "Q: "
-labels: ["question"]
+# NOTE: deliberately labels `ama-request`, NOT `question`. The answer workflow
+# triggers only on the `question` label, which a maintainer applies after a quick
+# look. On a public repo only maintainers can add labels, so this keeps a random
+# visitor from triggering paid AI runs directly. Do not add `question` here.
+labels: ["ama-request"]
 body:
   - type: markdown
     attributes:
       value: |
         Ask anything about Bannerlator. Every answer is verified against the
-        source code, docs, configs, and commit history of this repo.
+        source code, docs, and configs of this repo.
 
-        If you have a follow-up, just reply in the comments — the AI will
-        re-answer with your new context.
+        A maintainer will review your question and the AI will reply in a
+        comment, citing the exact files. For a follow-up, ask in a new issue.
 
   - type: textarea
     id: question
