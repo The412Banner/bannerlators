@@ -34,7 +34,11 @@ jobs:
         !contains(github.event.issue.labels.*.name, 'answered')) ||
       (github.event.action == 'labeled' && github.event.label.name == 'question')
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    # Big/complex questions can take a while. Keep this comfortably ABOVE the
+    # internal `timeout` on the opencode call below, so a slow answer ends the
+    # opencode step gracefully (and the Post-answer step still runs) instead of
+    # the whole job being hard-cancelled at the limit (which skips posting).
+    timeout-minutes: 20
 
     steps:
     - name: Guardrails — rate limit & monthly cap
@@ -144,7 +148,11 @@ jobs:
         # Untrusted. Passed only as a single quoted argument to opencode.
         Q: ${{ steps.question.outputs.q }}
       run: |
-        OUTPUT=$(opencode run "$Q" \
+        # `timeout` is BELOW the job's timeout-minutes so that if opencode hangs,
+        # the step ends cleanly (exit 124, swallowed by `|| true`) and the
+        # "Post answer" step still runs to post the fallback notice. Otherwise a
+        # job-level cancellation would abort posting and leave the issue silent.
+        OUTPUT=$(timeout 17m opencode run "$Q" \
           --agent ama-agent \
           --model opencode/big-pickle \
           --format json \
