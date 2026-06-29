@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/github/downloads/The412Banner/Bannerlator/total?style=for-the-badge&label=Downloads&color=ff2d9b" alt="Total Downloads">
   <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-7a4cff?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/License-GPL--3.0-2d9bff?style=for-the-badge" alt="License">
-  <a href="#-ask-me-anything"><img src="https://img.shields.io/badge/Ask%20AI-7b2ff7?style=for-the-badge&logo=claude&logoColor=white" alt="Ask AI"></a>
+  <a href="https://github.com/The412Banner/Bannerlator/issues/new?template=ask-the-ai.yml"><img src="https://img.shields.io/badge/💬%20Ask%20the%20AI-Ask%20about%20the%20app-7b2ff7?style=for-the-badge&logo=claude&logoColor=white" alt="Ask the AI"></a>
 </p>
 
 <p align="center">
@@ -180,58 +180,47 @@ This project is built via **GitHub Actions only** — local builds are not suppo
 ## 🤖 Ask Me Anything
 
 Got a question about Bannerlator? **Ask the codebase directly.** An AI reads the
-actual source code and answers with file paths and line numbers, so you can verify
-every answer yourself. It never guesses — if the answer isn't in the code, it says so.
+actual source code and answers with the exact file names and line numbers, so you
+can check it yourself. It never guesses — if the answer isn't in the code, it says so.
 
-### How to submit a question
+<p align="center">
+  <a href="https://github.com/The412Banner/Bannerlator/issues/new?template=ask-the-ai.yml">
+    <img src="https://img.shields.io/badge/💬%20Ask%20a%20Question-Open%20the%20form-7b2ff7?style=for-the-badge&logo=claude&logoColor=white" alt="Ask a Question">
+  </a>
+</p>
 
-1. **[Click here to open a new question →](https://github.com/The412Banner/Bannerlator/issues/new?template=ask-the-ai.yml)**
-   (or go to the **Issues** tab → **New issue** → **🤖 Ask the AI**).
-   *You'll need a free GitHub account to post.*
-2. **Type your question** in the form. Be specific — name the feature, setting, or
-   file you're asking about (see the examples below).
-3. **Submit it.** Your question is created as an Issue and the bot starts working
-   automatically — no approval step.
-4. **Read the answer.** About **1–2 minutes** later, the bot posts its answer as a
-   comment on your issue, with the exact files it used, and marks it **`answered`**.
-5. **Follow-up?** Open a new question — one question per issue.
+**It's three steps:**
 
-> ⏳ **Nothing happened after a couple of minutes?** A few questions per person per
-> day are free; past that, or if the monthly limit is reached, the bot will post a
-> short notice asking you to try again later. It also only answers questions sent
-> through the form above — not regular bug reports or feature requests.
+1. **[Open the question form](https://github.com/The412Banner/Bannerlator/issues/new?template=ask-the-ai.yml)** (you'll need a free GitHub account).
+2. Type your question — be specific, and name a feature, setting, or file.
+3. Submit. The AI replies in a comment on your issue, usually within **1–2 minutes**.
 
-### Tips for a good question
+That's it — no approval step, nothing else to do.
 
-- ✅ *"How does the FPS limiter throttle the game?"* — specific, names a feature.
-- ✅ *"Which file builds the container card layout?"* — asks for a concrete location.
-- ❌ *"Why is my game slow?"* — the bot answers what the **code** says, not how a
-  specific game runs on your device. Ask about how a feature works, where something
-  lives, or what a setting does.
+> ℹ️ Only questions sent through the form get answered (not bug reports or feature
+> requests). A few questions per person per day are free; past that, the AI will
+> ask you to try again later.
 
-### Prefer the command line?
+**Good things to ask:**
 
-If you have [opencode](https://opencode.ai) installed (`npm install -g opencode-ai`),
-you can run the same agent locally against a clone of this repo, no waiting:
+- *"How does the FPS limiter work?"*
+- *"Where is the GOG store integration implemented?"*
+- *"What values does the scaling mode picker accept?"*
+- *"How are release builds signed and distributed?"*
+
+*Avoid device-specific troubleshooting like "why is my game slow?" — the AI explains
+what the **code** does, not how a game runs on your phone.*
+
+<details>
+<summary>Prefer the command line?</summary>
+
+With [opencode](https://opencode.ai) installed (`npm install -g opencode-ai`), run the
+same agent locally against a clone of this repo:
 
 ```
 opencode run "your question" --agent ama-agent --model opencode/big-pickle
 ```
-
-### What you can ask
-
-| Question | Example |
-|---|---|
-| How does a feature work? | *"How does the FPS limiter work?"* |
-| Where is X implemented? | *"Where is the GOG store integration implemented?"* |
-| What settings are available? | *"What valid values does the scaling mode picker accept?"* |
-| Which file controls Y? | *"Which file controls the container card layout?"* |
-| Build & release questions | *"How are release builds signed and distributed?"* |
-| Compatibility questions | *"Why does Turnip on Android 10 use a different driver path?"* |
-
-<p align="center">
-  <i>The AI never guesses. If the answer isn't in the codebase, it says so.</i>
-</p>
+</details>
 
 <details>
 <summary><b>Maintainers / forks — one-time setup</b></summary>
