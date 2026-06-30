@@ -18,6 +18,10 @@ class ContainersViewModel(app: Application) : AndroidViewModel(app) {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // One-shot user message (e.g. a failed duplicate). Screen shows it then calls messageShown().
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message
+
     private var manager: ContainerManager = ContainerManager(app)
 
     init {
@@ -29,12 +33,18 @@ class ContainersViewModel(app: Application) : AndroidViewModel(app) {
         _containers.value = manager.getContainers().toList()
     }
 
+    fun messageShown() {
+        _message.value = null
+    }
+
     fun duplicate(container: Container, onDone: () -> Unit) {
         _isLoading.value = true
-        // duplicateContainerAsync posts its callback on the main Handler internally
-        manager.duplicateContainerAsync(container) {
+        // duplicateContainerAsync posts its callback (with the new Container, or null on
+        // hard failure) on the main Handler internally.
+        manager.duplicateContainerAsync(container) { result ->
             _isLoading.value = false
             refresh()
+            _message.value = if (result == null) "Couldn't duplicate container" else "Container duplicated"
             onDone()
         }
     }

@@ -210,6 +210,91 @@ public abstract class FileUtils {
         }
     }
 
+    /**
+     * Copy a container prefix tree, PRESERVING symlinks. Unlike {@link #copy}, which skips
+     * symlinks (intentionally — many callers want a deref/skip), this recreates each symlink
+     * so the duplicated prefix keeps its .wine/dosdevices drive letters (c:, z:, f:, d:, and
+     * external game drives). Self-referential absolute symlinks that point back into the source
+     * root are rewritten to point into the destination root.
+     *
+     * A single unreadable/locked file (EACCES, ENOSPC mid-copy, etc.) is logged + skipped, not
+     * fatal — the container is still created. {@code skippedCount[0]} (if non-null) is incremented
+     * per skipped file so the caller can surface it.
+     *
+     * @return false ONLY when the destination ROOT directory could not be created; true otherwise.
+     */
+    public static boolean copyContainer(File src, File dst, String srcRootPath, String dstRootPath,
+                                        Callback<File> callback) {
+        return copyContainer(src, dst, srcRootPath, dstRootPath, callback, null);
+    }
+
+    public static boolean copyContainer(File src, File dst, String srcRootPath, String dstRootPath,
+                                        Callback<File> callback, int[] skippedCount) {
+        if (isSymlink(src)) {
+            String target = readSymlink(src);
+            // Rewrite self-referential absolute links so z:/h:/etc. point into the NEW container.
+            if (target != null && srcRootPath != null && target.startsWith(srcRootPath)) {
+                target = dstRootPath + target.substring(srcRootPath.length());
+            }
+            // Recreate the link itself — do NOT follow it.
+            symlink(target, dst.getAbsolutePath());
+            return true;
+        }
+
+        if (src.isDirectory()) {
+            if (!dst.exists() && !dst.mkdirs()) {
+                Log.e(TAG, "Failed to create directory during duplicate: " + dst.getAbsolutePath());
+                return false;
+            }
+            if (callback != null) callback.call(dst);
+
+            String[] filenames = src.list();
+            if (filenames != null) {
+                for (String filename : filenames) {
+                    // Skip the transient wineserver runtime dir — it holds a unix socket + lock
+                    // (can't be FileChannel-copied) and wineserver REQUIRES it be owner-only 0700;
+                    // copying it (at 0771) makes wineserver refuse to start and the duplicate won't
+                    // boot. It's recreated fresh at next launch.
+                    if (".wineserver".equals(filename)) continue;
+                    // A child failure must NOT abort the directory — log + continue.
+                    copyContainer(new File(src, filename), new File(dst, filename),
+                            srcRootPath, dstRootPath, callback, skippedCount);
+                }
+            }
+            return true;
+        }
+
+        // Regular file — mirror copy()'s FileChannel transferTo loop, but skip-on-error.
+        File parent = dst.getParentFile();
+        if (!src.exists() || (parent != null && !parent.exists() && !parent.mkdirs())) {
+            Log.w(TAG, "Skipping unreadable file during duplicate: " + src.getAbsolutePath());
+            if (skippedCount != null) skippedCount[0]++;
+            return true;
+        }
+
+        try (FileChannel inChannel = (new FileInputStream(src)).getChannel();
+             FileChannel outChannel = (new FileOutputStream(dst)).getChannel()) {
+            long size = inChannel.size();
+            long position = 0;
+            while (position < size) {
+                long transferred = inChannel.transferTo(position, size - position, outChannel);
+                if (transferred <= 0) break;
+                position += transferred;
+            }
+            if (position < size)
+                throw new IOException("Incomplete copy: " + position + "/" + size + " bytes");
+
+            if (callback != null) callback.call(dst);
+            return true;
+        } catch (IOException e) {
+            // Skip the file, don't abort the whole duplicate.
+            Log.w(TAG, "Skipping unreadable file during duplicate: " + src.getAbsolutePath(), e);
+            dst.delete();
+            if (skippedCount != null) skippedCount[0]++;
+            return true;
+        }
+    }
+
     // Byte-accurate copy progress (copied/total bytes), reported as the copy proceeds.
     public interface ProgressCallback { void onProgress(long copiedBytes, long totalBytes); }
 

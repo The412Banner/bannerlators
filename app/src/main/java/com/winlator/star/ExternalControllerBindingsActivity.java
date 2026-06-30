@@ -300,6 +300,14 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         private void loadBindingSpinner(ViewHolder holder, final ExternalControllerBinding item) {
             final Context $this = ExternalControllerBindingsActivity.this;
 
+            // The binding-type spinner used android:entries in XML, which would resolve
+            // to the framework item layout (dark text on this black screen). Set the
+            // adapter in code with our blue-text item layouts instead.
+            ArrayAdapter<CharSequence> typeAdapter = ArrayAdapter.createFromResource(
+                    $this, R.array.binding_type_entries, R.layout.binding_spinner_item);
+            typeAdapter.setDropDownViewResource(R.layout.binding_spinner_dropdown_item);
+            holder.bindingType.setAdapter(typeAdapter);
+
             Runnable update = () -> {
                 String[] bindingEntries = null;
                 switch (holder.bindingType.getSelectedItemPosition()) {
@@ -314,8 +322,10 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
                         break;
                 }
 
-                holder.binding.setAdapter(
-                        new ArrayAdapter<>($this, android.R.layout.simple_spinner_dropdown_item, bindingEntries));
+                ArrayAdapter<String> bindingAdapter =
+                        new ArrayAdapter<>($this, R.layout.binding_spinner_item, bindingEntries);
+                bindingAdapter.setDropDownViewResource(R.layout.binding_spinner_dropdown_item);
+                holder.binding.setAdapter(bindingAdapter);
                 AppUtils.setSpinnerSelectionFromValue(holder.binding, item.getBinding().toString());
             };
 

@@ -331,6 +331,13 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         final Spinner sBindingType = view.findViewById(R.id.SBindingType);
         final Spinner sBinding = view.findViewById(R.id.SBinding);
 
+        // Set the binding-type adapter in code (was android:entries in XML) so it uses
+        // our blue-text item layouts and stays readable on a black background.
+        ArrayAdapter<CharSequence> typeAdapter = ArrayAdapter.createFromResource(
+                this, R.array.binding_type_entries, R.layout.binding_spinner_item);
+        typeAdapter.setDropDownViewResource(R.layout.binding_spinner_dropdown_item);
+        sBindingType.setAdapter(typeAdapter);
+
         Runnable update = () -> {
             String[] bindingEntries = null;
             switch (sBindingType.getSelectedItemPosition()) {
@@ -338,7 +345,10 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                 case 1: bindingEntries = Binding.mouseBindingLabels(); break;
                 case 2: bindingEntries = Binding.gamepadBindingLabels(); break;
             }
-            sBinding.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, bindingEntries));
+            ArrayAdapter<String> bindingAdapter =
+                    new ArrayAdapter<>(this, R.layout.binding_spinner_item, bindingEntries);
+            bindingAdapter.setDropDownViewResource(R.layout.binding_spinner_dropdown_item);
+            sBinding.setAdapter(bindingAdapter);
             AppUtils.setSpinnerSelectionFromValue(sBinding, element.getBindingAt(index).toString());
         };
 
