@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-06-30 — Per-profile custom accent color for on-screen controls (CODE DONE + reviewed + CI building)
+
+**TL;DR:** Users can override the theme accent on the in-game touch controls with a **custom color saved
+per control profile (= per game)**, so the same setup returns next launch. Follow-app-theme stays the
+default. Commit `f6ea902` on `feat/ui-rebuild`, CI run `28455766095` building, **at the device gate**.
+Not merged (umbrella hold).
+
+### What changed (11 files)
+- `ControlsProfile` gains `customAccentEnabled` + `customAccentColor`, serialized in `save()` (header,
+  before the elements array). `InputControlsManager.loadProfile` parses them and replaces the brittle
+  `fieldsRead==3` break with an explicit break at `elements`/`controllers` — robust to the optional
+  fields and old profiles (which just default to follow-theme).
+- `InputControlsView.resolveBaseAccentArgb()` = the active profile's custom color when it opted in,
+  else the theme accent; the Phase-4a accent getters all derive from it (ControlElement inherits).
+- Shared HSV picker extracted to `ui/components/ColorPicker.kt` (reused by Appearance, the in-game
+  Controls tab, and a `ComposeView`-hosted `AlertDialog` for the legacy editor, with the three
+  ViewTree owners wired so Compose runs outside the activity content view).
+- In-game: `XServerDrawerState` + Controls-tab "Follow app theme" toggle + picker; `XServerDisplayActivity`
+  seeds from the active profile and persists + redraws live on change / profile switch.
+- Out-of-game: `InputControlsFragment` + layout get a Follow-theme checkbox + color swatch → shared picker.
+
+### Device-test gate (pending)
+Default = follow theme (unchanged); toggle off → pick color → controls recolor live; set on game A,
+relaunch A → persists; game B keeps its own; toggle back on → returns to theme; editor picker persists;
+old profiles still load.
+
+---
+
 ## 2026-06-30 — UI rebuild Phase 4a: on-screen touch controls follow theme accent — ✅ DEVICE-PROVEN
 
 Commit `df5ce64` on `feat/ui-rebuild`, CI `28453428988` green. Device-proven via user screenshot on a
