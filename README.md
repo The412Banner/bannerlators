@@ -51,33 +51,31 @@
 |---|---|
 | **App label** | `Bannerlator Bionic` (standard) · `Bannerlator Bionic PuBG` (pubg) · `Bannerlator Bionic Ludashi` (ludashi) |
 | **Packages** | `com.winlator.banner` (standard) · `com.tencent.ig` (pubg) · `com.ludashi.benchmark` (ludashi) |
-| **Version** | Bannerlator **V 2.0** — built from Star **marcescence** (`versionName 2.0`, `versionCode 32`) |
+| **Version** | Bannerlator **V 2.1.1** — built from Star **marcescence** (`versionName 2.1.1`, `versionCode 34`) |
 | **Android SDK** | `compileSdk 34` · `targetSdk 28` · `minSdk 26` (Android 8.0+) |
 | **Lineage** | Winlator → cmod → Bionic Nightly → Star Bionic → **marcescence** → **Bannerlator** |
 
 ---
 
-## 🆕 What's New in 2.1
+## 🆕 What's New in 2.1.1
 
-2.1 is a **smoothness & polish** release. The headline is **VRR / refresh-rate matching** — your screen's refresh rate can now follow your in-game frame rate for smoother, less-torn, lower-power gameplay — joined by a new **NIS** upscaler and a **debanding** pass on the Vulkan compositor, plus two notable fixes: the in-game **Task Manager** now works on the Vulkan renderer, and the install progress bar no longer hangs at 98%.
+2.1.1 adds a major new feature — **ReShade post-processing** — plus a **low-latency mode for the OpenGL renderer**, and fixes two community-reported bugs around **controller bindings** and **container duplication**.
 
-**🏎️ Match refresh rate to FPS (VRR) — new.** Your display's refresh rate can now **track your frame rate** instead of staying locked at the panel's maximum. Turn on **Auto (match FPS)** to have the panel follow whatever the game is running at, or use the **manual refresh-rate slider** to pin a fixed rate that snaps to your panel's supported modes — **Off / 60 / 90 / 120 / 144 Hz** — with a live readout of the rate the display actually settled on. It's available in both the **in-game drawer** and the **container settings editor**, greys out automatically on displays without variable-refresh support, and works on **all three host renderers** (Vulkan, OpenGL, SurfaceFlinger). The payoff: smoother motion, less tearing, and lower power draw whenever a game runs below your panel's max refresh.
+**🎨 ReShade post-processing — new.** Real ReShade `.fx` effects now run on top of your games: color grading, sharpening, film grain, CRT looks, tonemapping and more. Effects compile **on-device** through a bundled [vkBasalt](https://github.com/DadSchoorse/vkBasalt) layer (so there's no PC step), and you get them two ways:
+- **On-demand catalog** — pick from a built-in list of ~100 curated, license-safe effects in the container / shortcut editor; each one downloads on tap, so the app stays small.
+- **Drop-in folder** — drop your own effect folders into `Android/data/<package>/files/ReShade/` and they show up in the picker too.
 
-> 🎮 **Handheld note (AYANEO / AYASpace and similar):** set the system **Refresh Rate** to **Auto** in the device's own settings so the app is allowed to drive the panel — a fixed system rate will override it.
+Effects have a **dedicated ReShade tab** in the in-game drawer with **auto-generated, properly typed controls** — sliders, on/off toggles, dropdowns and colour pickers built straight from each shader's parameters — so you can **toggle effects and tune them live** while the game runs, with a **Reset to defaults** button. *Applies to **DXVK / VKD3D (Vulkan-backed) games**; depth effects (SSAO/DOF) are not included yet.*
 
-**🟩 NIS upscaler — new scaling mode.** **NVIDIA Image Scaling (NVScaler)** joins **SGSR** and **FSR** in the in-game **Scaling mode** picker on the Vulkan renderer — a single-pass, aspect-fit upscaler with its own **sharpness** slider, giving you another option when a game renders below display resolution.
+> 🙏 ReShade support is built on **[vkBasalt](https://github.com/DadSchoorse/vkBasalt)** by **DadSchoorse** (zlib) — the original layer that embeds the ReShade FX compiler — packaged for Winlator by **[Pipetto-crypto](https://github.com/Pipetto-crypto/winlator)** and carried through **[StevenMXZ](https://github.com/StevenMXZ/Winlator-Ludashi)**'s Ludashi line. Bundled / catalog effects are MIT / CC0 shaders by the **ReShade ([crosire](https://github.com/crosire/reshade-shaders))**, **prod80**, **luluco250** and **fubax** authors. See [Credits](#-credits).
 
-**🎨 Debanding — smoother gradients.** A new **debanding** pass on the Vulkan compositor dithers away the visible "stripes" you get in smooth gradients, skies, and dark scenes on 8-bit output. Switch it on with an adjustable **strength** slider; it runs as the very last step before the image reaches the screen, with no meaningful performance cost.
+**⚡ Native Rendering (Low-Latency Mode) on OpenGL — new.** The direct-scanout **Native Rendering** path — which skips the compositor blit to cut input lag — now works on the **OpenGL** renderer too, not just Vulkan. It's a per-container toggle; like the Vulkan path it's mutually exclusive with the GL post-processing effects/scaling (those grey out while it's on, since it bypasses the compositor).
 
-**🩹 In-game Task Manager fixed on Vulkan / ASR.** The in-game drawer's **Task Manager** — **End Process** and **Bring to Front** — was dead on the **default Vulkan renderer** (and the SurfaceFlinger / ASR path) and only worked on OpenGL. Both actions now work on every renderer, so you can kill a hung game from the drawer again.
+**🎮 Controller binding screen now readable (#37).** On the external-controller binding screen the dropdown menus rendered **dark text on a dark background**, so the bindings were effectively invisible. The text is now clearly readable. This rounds out the earlier controller-binding fixes (bindings now persist, and Ludashi-format profile import works).
 
-**🩹 Install progress no longer hangs at 98%.** On a fresh first-launch setup — and on **Settings → Reinstall ImageFS** — the progress bar used to **freeze at 98%** while the **Proceed** button was already showing, leaving people unsure whether to keep waiting. It now correctly reaches **100% / Installation complete** at the true end of setup.
+**📦 Container Duplicate / Export fixed (#39).** Duplicating a container — especially a downloaded **Proton 11** one — could **silently do nothing**, or produce a copy that lost its game drive-letters, lost its settings, or wouldn't boot. This was actually **five** separate bugs (dropped drive-letter symlinks, an abort on a single unreadable file, only a handful of settings being copied, a crash when a graphics driver was missing, and the wine socket directory breaking boot). Duplicate and export now copy a container faithfully — it appears in the list, keeps its drive mappings and all settings, and boots. A failed duplicate now shows a clear message instead of silently doing nothing.
 
-**🧪 Updated AIO Graphics Test (v1.6.1).** New containers ship with **AIO Graphics Test v1.6.1**, adding dedicated **banding** and **scaling** test scenes for checking the debander and the upscalers on your own device.
-
-**💬 Ask the AI about Bannerlator (new — on GitHub).** You can now ask questions about how Bannerlator works straight from the repo: an AI reads the actual source code and replies with file references. Hit the **Ask the AI** badge at the top of this page. *(This is a repo/community feature — it isn't part of the app.)*
-
-> ℹ️ **NIS** is NVIDIA's open-source Image Scaling (MIT); **debanding** uses a terminal TPDF/IGN dither pass before the 8-bit swapchain; the **VRR** work votes the display's refresh rate through Android's `Surface.setFrameRate` / `SurfaceControl` APIs. See [Credits](#-credits).
+> ℹ️ ReShade runs through the bundled **vkBasalt** Vulkan layer, which compiles `.fx` to SPIR-V on-device and feeds Turnip — so it only affects **Vulkan-backed (DXVK / VKD3D)** games, on any host renderer. See [Credits](#-credits).
 
 ---
 
@@ -103,11 +101,12 @@ Everything Bannerlator offers, at a glance. No PC and no root required — it ru
 ### 🖥️ Renderers
 - Multiple host renderers — **Vulkan**, **OpenGL**, and **VirGL**.
 - > ℹ️ The **Vulkan host renderer** uses the rendering path from **[StevenMXZ](https://github.com/StevenMXZ/Winlator-Ludashi)** (Winlator-Ludashi); its `AHardwareBuffer` present path — what makes Vulkan / DXVK / VKD3D content actually display correctly — was ported from / cross-examined against **[GameNative](https://github.com/utkarshdalal/GameNative)**. See [Credits](#-credits).
-- **Native Rendering+** — low-latency direct-scanout presentation on the Vulkan renderer (mutually exclusive with the Vulkan post-processing presets below, since it bypasses the compositor).
+- **Native Rendering (Low-Latency Mode)** — low-latency direct-scanout presentation on **both the Vulkan *and* OpenGL renderers**, skipping the compositor blit to cut input lag (mutually exclusive with that renderer's post-processing effects / scaling, since it bypasses the compositor).
 - **Spatial upscalers on *both* the Vulkan *and* OpenGL renderers** — **SGSR** (Snapdragon GSR 1.0) and **FSR / FSR-Fit** (AMD FidelityFX Super Resolution 1.0), plus **NIS** (NVIDIA Image Scaling, Vulkan), a **Sharpen** (RCAS) mode and Linear / Nearest, all switchable live in the in-game drawer. On Vulkan it engages when a game renders below display resolution; on OpenGL it renders the scene at a reduced internal resolution and reconstructs it back up. Every sharpness slider runs 0 (off) → 100 (max).
 - **Supersampling (Render scale)** — render above display resolution (1.25× / 1.5× / 2×) and downsample with a Lanczos-2 filter for DSR / OGSSAA-style anti-aliasing; set per container / per shortcut.
 - **Screen effects on both the OpenGL *and* Vulkan renderers** — FXAA, Toon, CRT, NTSC, Color grading, **CAS** sharpening, and fake-HDR (the Vulkan path runs them through a new post-processing pipeline; previously they were OpenGL-only).
 - **Debanding (Vulkan)** — an optional terminal dither pass that removes the visible banding from smooth gradients, skies, and dark scenes on 8-bit output, with an adjustable strength.
+- **ReShade post-processing** — run real ReShade `.fx` effects (colour grading, sharpen, film grain, CRT, tonemap…) on **DXVK / VKD3D** games. Effects compile **on-device** via a bundled **[vkBasalt](https://github.com/DadSchoorse/vkBasalt)** layer; pick from an **on-demand catalog** of ~100 curated MIT/CC0 effects or drop your own into the `ReShade/` folder. A dedicated in-game **ReShade tab** auto-generates properly typed controls (sliders / toggles / dropdowns / colour pickers) from each shader, so you can **toggle and tune effects live** with a Reset-to-defaults button. *(Color effects today; depth effects such as SSAO/DOF are not included yet.)*
 - **Match refresh rate to FPS (VRR)** — the display's refresh rate can follow your frame rate: an **Auto (match FPS)** toggle or a manual **60 / 90 / 120 / 144 Hz** slider, on all three host renderers, auto-disabled on displays that don't support variable refresh.
 - Adjustable resolution and frame-rate limit.
 
@@ -247,7 +246,7 @@ This build stands on a long chain of prior work — its direct lineage, plus the
 |---|---|
 | **brunodev85** | Original [Winlator](https://github.com/brunodev85/winlator) — Wine + Box64 + Turnip on Android. Foundation of every fork below. Also serves the `input_controls` profiles consumed by this fork: <https://raw.githubusercontent.com/brunodev85/winlator/main/input_controls/> |
 | **coffincolors** | [`cmod` Winlator fork](https://github.com/coffincolors/winlator) — package `com.winlator.cmod` and the customization layer this codebase is built on. |
-| **Pipetto-crypto** | [Winlator Bionic fork](https://github.com/Pipetto-crypto/winlator) (the "Bionic" half of *Star Bionic*) and the upstream [Box64 fix branch](https://github.com/Pipetto-crypto/box64). Co-credited on cmod. |
+| **Pipetto-crypto** | [Winlator Bionic fork](https://github.com/Pipetto-crypto/winlator) (the "Bionic" half of *Star Bionic*) and the upstream [Box64 fix branch](https://github.com/Pipetto-crypto/box64). Co-credited on cmod. Also packaged **vkBasalt** into the Winlator shortcut pipeline — the integration Bannerlator's **ReShade** feature builds on. |
 | **jacojayy** | Maintainer of the [Star](https://github.com/jacojayy/star) line. Timeline Semaphore patches in the bundled Turnip driver for newer DXVK compatibility. Official site developer and maintainer. |
 | **Star / Frost dev team** | The [star-emu](https://github.com/star-emu) team behind the original *Star Bionic* and *Winlator Frost* lines this build continues from. |
 | **isygold** (AGBOOLA Israel Oluwagbogo) | [Star Engine / VEGAS](https://github.com/isygold/vegas-releases) — the Adreno-optimized DXVK fork this build's `v1.3-vegas` is named for, eliminating stutter and adding real-time upscaling on mobile GPUs, plus tuned [dxvk.conf profiles](https://github.com/isygold/DXVK.CONF-FILE-SETTINGS-). |
@@ -257,6 +256,7 @@ This build stands on a long chain of prior work — its direct lineage, plus the
 | **xXJSONDeruloXx** | [bionic-fg](https://github.com/xXJSONDeruloXx/bionic-fg) — the Android/bionic Vulkan **frame-generation** layer powering Bannerlator's Frame Generation feature. Included in-tree as a git submodule with the author's permission. |
 | **PancakeTAS** | [lsfg-vk](https://github.com/PancakeTAS/lsfg-vk) — the open-source Vulkan frame-generation layer (a Vulkan-layer reimplementation of Lossless Scaling's frame generation) that Bannerlator's **second, user-selectable FG engine** is built on. |
 | **FrankBarretta** | [lsfg-vk-android](https://github.com/FrankBarretta/lsfg-vk-android) — the Android/bionic port of lsfg-vk (AHardwareBuffer path + `vkCmdPipelineBarrier2` shim) that runs as Bannerlator's lsfg-vk engine on the Turnip stack. The in-game live multiplier/flow-scale reload uses the `conf.toml` mtime-watch mechanism from **GameNative's** [lsfg-vk-android fork](https://github.com/GameNative). No proprietary shaders are bundled — users supply their own `Lossless.dll` ([Lossless Scaling](https://store.steampowered.com/app/993090/Lossless_Scaling/) by THS) via the in-app picker. |
+| **DadSchoorse** | [vkBasalt](https://github.com/DadSchoorse/vkBasalt) (zlib) — the Vulkan post-processing layer that embeds the ReShade FX compiler. Bannerlator's **ReShade** feature is a continuation of this work: the bundled layer is built from DadSchoorse's source, patched for live on-device toggle and slider control. The bundled / catalog `.fx` effects are MIT / CC0 shaders by the **ReShade ([crosire](https://github.com/crosire/reshade-shaders))**, **prod80 ([prod80-reshade-repository](https://github.com/prod80/prod80-reshade-repository))**, **luluco250 ([FXShaders](https://github.com/luluco250/FXShaders))** and **fubax** authors, each under their own MIT / CC0 license. |
 | **leegao** (Lee Gao) | Vulkan texture-compression work used for mobile-GPU compatibility and performance — the [BCn decompression layer](https://github.com/leegao/bcn_layer) and real-time [ASTC/ETC compute-shader encoders](https://github.com/leegao). |
 | **The412Banner** | Full Jetpack Compose UI migration, in-game overlay rewrite, controller-support restore (SDL2 SoName fix + four event files), Box64 edit-dialog fix, theme system, and CI/release infrastructure. Also maintains the [Nightlies WCP Hub](https://github.com/The412Banner/Nightlies) and [Banners-Turnip](https://github.com/The412Banner/Banners-Turnip). |
 
@@ -277,6 +277,7 @@ The Wine/translation stack this app bundles or downloads:
 | **Proton layers (bionic)** | [GameNative](https://github.com/utkarshdalal/GameNative) |
 | **Frame Generation (bionic-fg)** | [xXJSONDeruloXx](https://github.com/xXJSONDeruloXx/bionic-fg) |
 | **Frame Generation (lsfg-vk)** | [PancakeTAS](https://github.com/PancakeTAS/lsfg-vk) · Android port [FrankBarretta](https://github.com/FrankBarretta/lsfg-vk-android) · live-reload fork [GameNative](https://github.com/utkarshdalal/GameNative) · DLL [Lossless Scaling](https://store.steampowered.com/app/993090/Lossless_Scaling/) (user-supplied) |
+| **Post-processing (ReShade / vkBasalt)** | [vkBasalt](https://github.com/DadSchoorse/vkBasalt) by [DadSchoorse](https://github.com/DadSchoorse) (zlib) · Winlator packaging [Pipetto-crypto](https://github.com/Pipetto-crypto/winlator) · effects by [crosire](https://github.com/crosire/reshade-shaders) · [prod80](https://github.com/prod80/prod80-reshade-repository) · [luluco250](https://github.com/luluco250/FXShaders) · fubax (MIT / CC0) |
 
 Additional credits surfaced in the **Star Bionic REVAMPED** project (`star.bionic-revamp`):
 
