@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-06-30 — UI rebuild Phase 4a: on-screen touch controls follow theme accent (CODE DONE + CI building)
+
+**TL;DR:** Phase 4 = the native/legacy surfaces that Compose theming doesn't reach, wired to the
+accent via `AppThemeState.getCurrentAccentArgb()`. **P4a = the in-game on-screen touch controls** —
+code-complete on `feat/ui-rebuild` (commit `df5ce64`), CI run `28453428988` building, **at the device
+gate**. Not merged (umbrella hold). Next after device-proof = P4b (legacy XML).
+
+### What changed (2 files)
+- `widget/InputControlsView.java`: `getSecondaryColor()` now returns the live theme accent (keeping
+  the overlay alpha) instead of hardcoded `#0277BD`. Added `getAccentColor()` (full-opacity accent) +
+  `getAccentBrightColor()` (accent lerped 55% toward white, for the pressed highlight) + a small
+  `lerpToWhite` helper. `getPrimaryColor()` (white idle controls) unchanged.
+- `inputcontrols/ControlElement.java`: every `0xff0277bd` → `getAccentColor()` and every `0xff64ddff`
+  → `getAccentBrightColor()` across the classic-style strokes, dpad/stick, and button-icon tints;
+  collapsed the now-identical GAMEHUB/default icon-tint branch. **Key fix:** `resolveAccentColor()` was
+  a `-1` stub (forcing the always-blue fallback) — wired it to `getAccentColor()`, so the GAMEHUB
+  "glass" control style (fill/stroke/pressed/text/thumb) now follows the theme too.
+
+### Deliberately out of scope
+- **Perf HUD** (`PerfHudView` / `FrameRating*` / `HudMetrics`) — all colors are semantic (FPS
+  thresholds + per-metric identity), left untouched (same reasoning as the P3 per-tech dots).
+- Idle control tint (white), semantic reds/blacks, and `CPUListView`/`EnvVarsView` (already on the bridge).
+- **P4b — legacy XML `@color/colorPrimary` surfaces** (binding spinners, content_dialog,
+  input_controls_fragment, main_menu_header, …) — deferred to a separate follow-up; judgment-heavy and
+  touches the intentional binding-spinner-blue fix.
+
+### Device-test gate (pending)
+Install (manual), launch a container, open the on-screen controls, apply Sunset → control accent
+(selected/active/pressed strokes, dpad/stick, icon tints) should be orange not blue, in both the
+classic and GAMEHUB visual styles; idle controls stay white; controls still register touch/press.
+
+---
+
 ## 2026-06-30 — UI rebuild: Phase 3 DEVICE-PROVEN + Games-cards-match-Containers follow-up (device-proven)
 
 **TL;DR:** Phase 3 (app-screen colour sweep) is now **device-proven** (all 4 checks pass), and a
