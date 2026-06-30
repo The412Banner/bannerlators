@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-06-30 — Theme + Drawer rebuild: Phase 1 DEVICE-PROVEN (all checklist items pass)
+
+**TL;DR:** Phase 1 (themed icons + button restyle of BOTH drawers) is now **device-proven**.
+On-device verification on the ludashi build (`com.ludashi.benchmark` code 34, branch
+`feat/drawer-rebuild-p1` @ `f30db20`, CI `28434248077` green @ `f30db209`) passed all four
+checklist items with **no wiring regressions**. At the merge decision; not yet merged.
+
+### Device test results (release-device-engineer, root bridge)
+- **(a) App drawer — PASS** — LIBRARY/SYSTEM/STORES section headers (STORES "· unchanged"
+  subtitle), distinct gamepad Games icon, palette Appearance icon (distinct from Settings),
+  "NEW" badge, accent glow bar on selected item.
+- **(b) Appearance reachable + live recolor — PASS** — Appearance opens from the drawer;
+  Sunset preset recolored the whole app AND the drawer live; restored to AMOLED default.
+  (Also clears the previously-untested base build `96ed50e`: Appearance nav entry +
+  PrimaryDim→accentDim fix both confirmed — scaling chips/borders recolored orange.)
+- **(c) In-game drawer — PASS** — AIO Graphics Test container (OpenGL): Graphics rail shows a
+  monitor/display icon as a filled accent pill; selected "Linear" scaling chip accent-filled
+  with black text; whole in-game drawer themed orange under Sunset.
+- **(d) Wiring intact — PASS, no regressions** — launch ×2, tab-switch, Task Manager (7 procs),
+  End Process → real kill → clean Shutdown teardown to app, Bring-to-Front dispatched clean
+  (visual no-op on single-window AIO = documented native-fullscreen visibility limit), Pause
+  fired, Exit closed cleanly to Games.
+
+### Decisions
+- **"NEW" badge on Appearance: KEEP for this release** (clean accent pill, not noisy; treat
+  as temporary — fine to drop later once Appearance is discovered).
+- Out-of-P1-scope (NOT a regression): Games-screen FAB + renderer/DXVK chips stayed blue under
+  Sunset — screen-level hardcoded literals = the deferred P3 336-literal sweep.
+
+### Next
+- **Merge decision** for `feat/drawer-rebuild-p1` (stacked off the unmerged base
+  `feat/theme-centralize-drawer` @ `96ed50e` — merging P1 carries the base; both proven
+  together). → then **Phase 2** (drawer dialogs, incl. native ContentDialog → Compose).
+
 ## 2026-06-30 — Theme + Drawer rebuild: plans reconciled, Phase 1 (drawer rebuild) building
 
 **TL;DR:** Merged the recolor-only theme-centralization plan with the new drawer-rebuild
