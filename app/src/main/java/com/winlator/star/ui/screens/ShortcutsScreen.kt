@@ -138,6 +138,7 @@ import com.winlator.star.inputcontrols.InputControlsManager
 import com.winlator.star.midi.MidiManager
 import com.winlator.star.store.StarLaunchBridge
 import com.winlator.star.ui.theme.Divider as DividerColor
+import com.winlator.star.ui.theme.LocalAccentDim
 import com.winlator.star.ui.theme.OnSurface
 import com.winlator.star.ui.theme.OnSurfaceVariant
 import com.winlator.star.ui.theme.Surface as SurfaceColor
@@ -346,15 +347,15 @@ fun ShortcutsScreen(vm: ShortcutsViewModel = viewModel()) {
                     .padding(16.dp)
                     .size(56.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .border(1.5.dp, Color(0xFF0055FF), RoundedCornerShape(12.dp))
-                    .background(Color.Black)
+                    .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable { showImportContainerPicker = true },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = "Add Shortcut",
-                    tint = Color(0xFF0055FF),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp),
                 )
             }
@@ -774,7 +775,8 @@ private fun ShortcutGridItem(
             .border(
                 width = 2.dp,
                 brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF0033AA), Color(0xFF0055FF), Color(0xFF4488FF)),
+                    // accent-family gradient: dim → accent → accent, so the grid-tile border follows the theme
+                    colors = listOf(LocalAccentDim.current, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary),
                 ),
                 shape = RoundedCornerShape(8.dp),
             )
@@ -839,7 +841,7 @@ private fun ShortcutGridItem(
             DropdownMenuItem(text = { Text("Clone to container") }, leadingIcon = { Icon(Icons.Filled.ContentCopy, null) }, onClick = { menuExpanded = false; onClone() })
             DropdownMenuItem(text = { Text("Add to home screen") }, leadingIcon = { Icon(Icons.Filled.AddToHomeScreen, null) }, onClick = { menuExpanded = false; onAddToHome() })
             DropdownMenuItem(text = { Text("Export") }, leadingIcon = { Icon(Icons.Filled.Upload, null) }, onClick = { menuExpanded = false; onExport() })
-            DropdownMenuItem(text = { Text("Scrape cover") }, leadingIcon = { Icon(Icons.Filled.Search, null, tint = Color(0xFF1C85FE)) }, onClick = { menuExpanded = false; onScrapeCover() })
+            DropdownMenuItem(text = { Text("Scrape cover") }, leadingIcon = { Icon(Icons.Filled.Search, null, tint = MaterialTheme.colorScheme.primary) }, onClick = { menuExpanded = false; onScrapeCover() })
             DropdownMenuItem(text = { Text("Properties") }, leadingIcon = { Icon(Icons.Filled.Info, null) }, onClick = { menuExpanded = false; onProperties() })
         }
     }

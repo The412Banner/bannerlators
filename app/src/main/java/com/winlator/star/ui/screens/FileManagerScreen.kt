@@ -66,7 +66,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,7 +84,6 @@ import com.winlator.star.core.FileUtils
 import com.winlator.star.core.PeIconExtractor
 import com.winlator.star.core.StringUtils
 import com.winlator.star.core.WinePath
-import com.winlator.star.ui.theme.OnSurfaceVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,11 +96,9 @@ private val FileTypeIcon: Map<String, ImageVector> = mapOf(
     "folder" to Icons.Filled.Folder,
 )
 
-private val CardFill = Color(0xFF0A0A0A)
-private val CardStroke = Color(0xFF242424)
-private val DividerColor = Color(0xFF333333)
-private val IconBlue = Color(0xFF1C85FE)
-private val IconWhite = Color(0xFFECECEC)
+// Color-only sweep: the former card-fill / card-stroke / divider / icon-blue / icon-white
+// constants were rerouted onto MaterialTheme.colorScheme tokens (surface / outline / primary /
+// onSurface) at their use sites so a theme preset/accent recolors them.
 
 // True when [child] is [ancestor] itself or lives anywhere inside it.
 private fun isWithin(child: File, ancestor: File): Boolean {
@@ -432,7 +428,7 @@ fun FileManagerScreen() {
                     containers.forEach { container ->
                         Text(
                             text = container.name,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -459,7 +455,7 @@ fun FileManagerScreen() {
                     containers.forEach { container ->
                         Text(
                             text = container.name,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 14.sp,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -483,7 +479,7 @@ fun FileManagerScreen() {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0D0D0D))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             IconButton(onClick = {
@@ -491,7 +487,7 @@ fun FileManagerScreen() {
                 // Don't climb above the current drive's root.
                 if (currentDir != currentRoot && parent != null && parent.exists()) loadDirectory(parent)
             }, enabled = currentDir != currentRoot) {
-                Icon(Icons.Filled.ArrowBack, "Back", tint = IconBlue)
+                Icon(Icons.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.primary)
             }
 
             val imagefsDir = File(context.filesDir, "imagefs")
@@ -503,12 +499,12 @@ fun FileManagerScreen() {
             Box {
                 Text(
                     text = "  $currentDriveLabel  ",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF0A0A0A))
+                        .background(MaterialTheme.colorScheme.surface)
                         .clickable { showDriveMenu = true }
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
@@ -519,7 +515,7 @@ fun FileManagerScreen() {
                     DropdownMenuItem(
                         text = { Text("Drive C:") },
                         leadingIcon = {
-                            Icon(Icons.Filled.SdStorage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.SdStorage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         },
                         onClick = {
                             showDriveMenu = false
@@ -534,7 +530,7 @@ fun FileManagerScreen() {
                     DropdownMenuItem(
                         text = { Text("Drive Z:") },
                         leadingIcon = {
-                            Icon(Icons.Filled.Storage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         },
                         onClick = {
                             showDriveMenu = false
@@ -545,7 +541,7 @@ fun FileManagerScreen() {
                         DropdownMenuItem(
                             text = { Text(label) },
                             leadingIcon = {
-                                Icon(Icons.Filled.Storage, null, tint = IconBlue, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             },
                             onClick = {
                                 showDriveMenu = false
@@ -560,7 +556,7 @@ fun FileManagerScreen() {
 
             Text(
                 text = currentDir.absolutePath,
-                color = OnSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -568,7 +564,7 @@ fun FileManagerScreen() {
             )
         }
 
-        HorizontalDivider(color = DividerColor)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
         // ── Paste banner ──
         if (clipboardFile != null) {
@@ -576,18 +572,18 @@ fun FileManagerScreen() {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CardStroke.copy(alpha = 0.1f))
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
                     .clickable { performPaste() }
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Icon(Icons.Filled.ContentPaste, "Paste", tint = IconBlue, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.ContentPaste, "Paste", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "Paste ${clipboardFile?.name}${if (isCutOperation) " (move)" else ""} here",
-                    color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { clipboardFile = null; isCutOperation = false }) {
-                    Text("Cancel", color = OnSurfaceVariant, fontSize = 12.sp)
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             }
         }
@@ -597,24 +593,24 @@ fun FileManagerScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0A0A0A))
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 val pctText = if (operationDeterminate) "  ${(operationProgress * 100).toInt()}%" else ""
-                Text("$operationLabel$pctText", color = OnSurfaceVariant, fontSize = 12.sp)
+                Text("$operationLabel$pctText", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 Spacer(Modifier.height(4.dp))
                 if (operationDeterminate) {
                     LinearProgressIndicator(
                         progress = { operationProgress },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        color = IconBlue,
-                        trackColor = DividerColor,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline,
                     )
                 } else {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        color = IconBlue,
-                        trackColor = DividerColor,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline,
                     )
                 }
             }
@@ -634,7 +630,7 @@ fun FileManagerScreen() {
                             modifier = Modifier.fillParentMaxSize(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("Empty directory", color = OnSurfaceVariant)
+                            Text("Empty directory", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
@@ -671,17 +667,17 @@ fun FileManagerScreen() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0D0D0D))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             OutlinedButton(
                 onClick = { showNewFolderDialog = true },
-                border = BorderStroke(1.dp, CardStroke),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) {
-                Icon(Icons.Filled.CreateNewFolder, null, modifier = Modifier.size(18.dp), tint = IconBlue)
+                Icon(Icons.Filled.CreateNewFolder, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(6.dp))
-                Text("New Folder", color = Color.White)
+                Text("New Folder", color = MaterialTheme.colorScheme.onBackground)
             }
         }
     }
@@ -720,8 +716,8 @@ private fun FileItemRow(
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .clickable(onClick = onTap),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = CardFill),
-        border = BorderStroke(1.dp, CardStroke),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -737,19 +733,19 @@ private fun FileItemRow(
                 isExe -> Icon(
                     painter = painterResource(R.drawable.icon_menu_container),
                     contentDescription = null,
-                    tint = IconWhite,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(36.dp),
                 )
                 isDir -> Icon(
                     imageVector = Icons.Filled.Folder,
                     contentDescription = null,
-                    tint = IconBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp),
                 )
                 else -> Icon(
                     imageVector = Icons.Filled.InsertDriveFile,
                     contentDescription = null,
-                    tint = IconWhite,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(36.dp),
                 )
             }
@@ -757,7 +753,7 @@ private fun FileItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = file.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -768,40 +764,40 @@ private fun FileItemRow(
                         if (!isDir) append(StringUtils.formatBytes(file.length())).append("  \u2022  ")
                         append(dateFormat.format(Date(file.lastModified())))
                     },
-                    color = OnSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                 )
             }
             Box {
                 IconButton(onClick = onMenu) {
-                    Icon(Icons.Filled.MoreVert, "Actions", tint = IconBlue, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.MoreVert, "Actions", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = onDismissMenu) {
                     if (canRun) {
                         DropdownMenuItem(
                             text = { Text("Run") },
-                            leadingIcon = { Icon(Icons.Filled.PlayArrow, null, tint = IconBlue) },
+                            leadingIcon = { Icon(Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary) },
                             onClick = { onDismissMenu(); onRun() },
                         )
                     }
                     DropdownMenuItem(
                         text = { Text("Rename") },
-                        leadingIcon = { Icon(Icons.Filled.Edit, null, tint = IconBlue) },
+                        leadingIcon = { Icon(Icons.Filled.Edit, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onDismissMenu(); onRename() },
                     )
                     DropdownMenuItem(
                         text = { Text("Copy") },
-                        leadingIcon = { Icon(Icons.Filled.FileCopy, null, tint = IconBlue) },
+                        leadingIcon = { Icon(Icons.Filled.FileCopy, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onDismissMenu(); onCopy() },
                     )
                     DropdownMenuItem(
                         text = { Text("Cut") },
-                        leadingIcon = { Icon(Icons.Filled.ContentCut, null, tint = IconBlue) },
+                        leadingIcon = { Icon(Icons.Filled.ContentCut, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onDismissMenu(); onCut() },
                     )
                     DropdownMenuItem(
                         text = { Text("Delete") },
-                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = IconBlue) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { onDismissMenu(); onDelete() },
                     )
                 }

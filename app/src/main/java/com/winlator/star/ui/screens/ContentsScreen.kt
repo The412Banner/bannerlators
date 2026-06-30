@@ -66,10 +66,6 @@ import com.winlator.star.container.ContainerManager
 import com.winlator.star.contents.ContentProfile
 import com.winlator.star.contents.ContentsManager
 import com.winlator.star.ui.findActivity
-import com.winlator.star.ui.theme.Divider as DividerColor
-import com.winlator.star.ui.theme.OnSurface
-import com.winlator.star.ui.theme.OnSurfaceVariant
-import com.winlator.star.ui.theme.Surface
 import com.winlator.star.ui.theme.SurfaceVariant
 import java.util.concurrent.Executors
 
@@ -144,7 +140,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .background(Surface)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -155,13 +151,13 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
                     label = { Text(type.toString()) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 )
             }
         }
 
-        Divider(color = DividerColor)
+        Divider(color = MaterialTheme.colorScheme.outline)
 
         // ── Install button ────────────────────────────────────────────────────
         Button(
@@ -176,7 +172,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
             Text("Install content from file")
         }
 
-        Divider(color = DividerColor)
+        Divider(color = MaterialTheme.colorScheme.outline)
 
         // ── Content list ──────────────────────────────────────────────────────
         if (profiles.isEmpty()) {
@@ -186,7 +182,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
                     .weight(1f, fill = false),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("No content available.", color = OnSurfaceVariant)
+                Text("No content available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             // Installed (local) content floats to the top of the list.
@@ -214,7 +210,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
                         onInfo = { showInfoFor = profile },
                         onRemove = { confirmRemove = profile },
                     )
-                    Divider(color = DividerColor)
+                    Divider(color = MaterialTheme.colorScheme.outline)
                 }
             }
         }
@@ -269,7 +265,7 @@ fun ContentsScreen(vm: ContentsViewModel = viewModel()) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp),
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF0055FF))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(16.dp))
                     Text(msg, color = Color.White)
                 }
@@ -508,7 +504,7 @@ private fun ContentItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Icon(
@@ -521,8 +517,8 @@ private fun ContentItem(
         Column(modifier = Modifier
             .weight(1f)
             .padding(horizontal = 12.dp)) {
-            Text("Version: ${profile.verName}", style = MaterialTheme.typography.bodyLarge, color = OnSurface)
-            Text("Code: ${profile.verCode}",    style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            Text("Version: ${profile.verName}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text("Code: ${profile.verCode}",    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         if (!isLocal) {
@@ -539,12 +535,13 @@ private fun ContentItem(
             Icon(
                 imageVector = Icons.Filled.CheckCircle,
                 contentDescription = "Installed",
-                tint = Color(0xFF4FC3F7),
+                tint = Color(0xFF4FC3F7), // intentional: distinct "installed" status blue, not the accent
+
                 modifier = Modifier.size(24.dp),
             )
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Options", tint = OnSurfaceVariant)
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(

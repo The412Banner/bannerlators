@@ -37,7 +37,6 @@ import com.winlator.star.contents.ContentsManager
 import com.winlator.star.contents.Downloader
 import com.winlator.star.core.TarCompressorUtils
 import com.winlator.star.ui.findActivity
-import com.winlator.star.ui.theme.Divider as DividerColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -200,7 +199,7 @@ fun ContentDownloadSheet(
                     }
                     Spacer(Modifier.height(12.dp))
                 }
-                Divider(color = DividerColor)
+                Divider(color = MaterialTheme.colorScheme.outline)
 
                 if (isLoadingRemote) {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -269,7 +268,7 @@ fun ContentDownloadSheet(
                                         onInfo = { showInfoProfile = profile },
                                         onRemove = { confirmRemoveProfile = profile },
                                     )
-                                    Divider(color = DividerColor.copy(alpha = 0.5f))
+                                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                                 }
                             }
                         }
@@ -307,7 +306,7 @@ private fun DownloadContentItem(
     onRemove: () -> Unit,
 ) {
     val busy = isDownloading || isInstalling
-    val installedBlue = Color(0xFF4FC3F7)
+    val installedBlue = Color(0xFF4FC3F7) // intentional: distinct installed/in-use status blue, not the accent
     val cs = MaterialTheme.colorScheme
     // Whole row is tappable to download when it's an available (not-installed, not-busy) entry —
     // matches the adrenotools EntryRow behaviour.
@@ -346,7 +345,8 @@ private fun DownloadContentItem(
                     Icon(Icons.Filled.Info, contentDescription = "Info", tint = cs.onSurfaceVariant,
                         modifier = Modifier.size(20.dp).clickable(onClick = onInfo))
                     Spacer(Modifier.width(14.dp))
-                    Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = Color(0xFFEF5350),
+                    Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = Color(0xFFEF5350), // intentional: destructive-action red
+
                         modifier = Modifier.size(20.dp).clickable(onClick = onRemove))
                 }
                 else -> Icon(Icons.Filled.CloudDownload, contentDescription = "Download", tint = cs.primary,
@@ -357,7 +357,7 @@ private fun DownloadContentItem(
         if (busy) {
             Spacer(Modifier.height(6.dp))
             val frac = (if (isInstalling) installProgress else progress)?.coerceIn(0f, 1f) ?: 0f
-            val barColor = if (isInstalling) Color(0xFF4CAF50) else cs.primary
+            val barColor = if (isInstalling) Color(0xFF4CAF50) else cs.primary // intentional: green = "installing" phase, distinct from blue download phase
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(if (isInstalling) "Installing" else "Downloading",
                     style = MaterialTheme.typography.bodySmall, color = Color(0xFFB0BEC5))

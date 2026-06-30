@@ -361,7 +361,7 @@ private fun ReshadeCatalogRow(
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val installedBlue = Color(0xFF4FC3F7)
+    val installedBlue = Color(0xFF4FC3F7) // intentional: status color (installed/selected indicator, distinct from action accent)
     // Not-installed rows render greyed; tapping them downloads. Installed rows are full-opacity and
     // selectable.
     val contentAlpha = if (isInstalled || isBusy) 1f else 0.5f
@@ -404,7 +404,7 @@ private fun ReshadeCatalogRow(
         if (isBusy) {
             Spacer(Modifier.height(6.dp))
             val frac = progress?.coerceIn(0f, 1f) ?: 0f
-            val barColor = if (phaseLabel == "Installing") Color(0xFF4CAF50) else cs.primary
+            val barColor = if (phaseLabel == "Installing") Color(0xFF4CAF50) else cs.primary // intentional: status color (green = installing/extract phase)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(phaseLabel, style = MaterialTheme.typography.bodySmall, color = Color(0xFFB0BEC5))
                 Text("${(frac * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = Color(0xFFB0BEC5))

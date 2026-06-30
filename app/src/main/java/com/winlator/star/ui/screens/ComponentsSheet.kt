@@ -99,7 +99,7 @@ fun ComponentsSheet(container: Container, onDismiss: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmExec = null },
             containerColor = Color(0xFF2A2A2A),
-            title = { Text("Run ${c.name} installer", color = Color(0xFFEEEEEE)) },
+            title = { Text("Run ${c.name} installer", color = cs.onSurface) },
             text = {
                 Text(
                     "This installs ${c.name} by running its installer inside the container. " +
@@ -200,7 +200,7 @@ private fun ComponentRow(
     onInstall: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val installedBlue = Color(0xFF4FC3F7)
+    val installedBlue = Color(0xFF4FC3F7) // intentional: status color (installed indicator, distinct from action accent)
     // Components needing the exec engine (installer steps, or set_windows/uninstall) are gated by it;
     // the rest by the file-drop installer.
     val reason = if (ComponentExecInstaller.handlesComponent(c)) ComponentExecInstaller.execBlockedReason(c)
