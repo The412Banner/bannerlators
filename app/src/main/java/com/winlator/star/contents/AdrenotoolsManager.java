@@ -46,23 +46,28 @@ public class AdrenotoolsManager {
         File driverPath = new File(adrenotoolsContentDir, adrenoToolsDriverId);
         try {
             File metaProfile = new File(driverPath, "meta.json");
+            // Guard: a missing/unknown driver id has no meta.json -> readString would NPE
+            // (read() returns null). This runs inside a native JNI callback, so an uncaught
+            // throw = SIGABRT. Degrade to "" instead of crashing the whole app.
+            if (!metaProfile.exists()) return "";
             JSONObject jsonObject = new JSONObject(FileUtils.readString(metaProfile));
             libraryName = jsonObject.getString("libraryName");
         }
-        catch (JSONException e) {
+        catch (Exception e) {
         }
         return libraryName;
     }
-    
+
     public String getDriverName(String adrenoToolsDriverId) {
         String driverName = "";
         File driverPath = new File(adrenotoolsContentDir, adrenoToolsDriverId);
         try {
             File metaProfile = new File(driverPath, "meta.json");
+            if (!metaProfile.exists()) return "";
             JSONObject jsonObject = new JSONObject(FileUtils.readString(metaProfile));
             driverName = jsonObject.getString("name");
         }
-        catch (JSONException e) {
+        catch (Exception e) {
         }
         return driverName;
     }
@@ -72,10 +77,11 @@ public class AdrenotoolsManager {
         File driverPath = new File(adrenotoolsContentDir, adrenoToolsDriverId);
         try {
             File metaProfile = new File(driverPath, "meta.json");
+            if (!metaProfile.exists()) return "";
             JSONObject jsonObject = new JSONObject(FileUtils.readString(metaProfile));
             driverVersion = jsonObject.getString("driverVersion");
         }
-        catch (JSONException e) {
+        catch (Exception e) {
         }
         return driverVersion;
     }
