@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-06-29 — bionic-fg: upstream MERGED our compat PR #6; fork synced; branch-landscape mapped for later
+
+**TL;DR:** Our Android wrapper-ICD compatibility fix was **merged into upstream bionic-fg**
+(`xXJSONDeruloXx/bionic-fg` PR #6, squash commit `68497bf`). Synced our fork `main` to it
+(clean fast-forward, identical). Audited what the shipped build contains vs every open branch/PR.
+No code changes this entry — this is a checkpoint so the shader/model work can be picked up later.
+
+### What merged (PR #6 — "Single-device mode + layer-dispatch routing for Android wrapper ICDs")
+- Authored by The412Banner, +310/-22 / 7 files. Fixes the hang-at-first-interpolated-present on the
+  Wine+DXVK -> Turnip `wrapper_icd` stack: (1) manifest `disable_environment`, (2) single-device mode
+  (run gen on the app's OWN VkDevice -> kills the 2-device cross-instance deadlock), (3) dispatch
+  routing via `memPropsFn` + bounded 250ms fence waits + optional `fps_limit`. Device-proven Adreno 750
+  2x/3x/4x. Squash-merge `68497bf` rolled in the 4 layer-robustness refinements too.
+
+### Build provenance (verified 2026-06-29)
+- Bannerlator submodule still pinned to upstream base `4f71770`; CI (`build-bionic-fg.yml`) applies
+  `patches/bionic-fg-bannerlator-fixes.patch` at build time. Verified: that patch applied to the base ==
+  merged `68497bf` **byte-for-byte** (0-line diff). So our source == merged main.
+- Cleanup available (NOT done): bump the submodule to `68497bf` and DELETE the now-redundant patch.
+  Must be one combined change — bumping the pin without removing the patch breaks `git apply` (already
+  applied) and fails the bionic-fg CI build.
+
+### Branch / PR landscape vs the SHIPPED build (`68497bf`)
+- `feat/toml-hot-reload` (upstream) — MERGED, already in our build.
+- **`feat/shader-pool-gamescope-v2`** (our fork, tip `b0c2e5c`) — HIGHEST ROI. New = ~+22.7k lines
+  `shaders_embedded.hpp` (FIXES the malformed `shader_02` we currently ship + pools GameScopeVK/V2
+  shaders) + `model=2` "V2 engine". This is the open shader-pool thread.
+- **`feat/fsr3-optical-flow-model`** (our fork, tip `603d26e`) — HIGHEST CEILING, heaviest. Superset of
+  shader-pool + `model=3` AMD FidelityFX Optical Flow (4 new compute shaders, ~+24.8k embedded,
+  `NOTICE_FIDELITYFX_OPTICALFLOW.md`, standalone `build-so.yml`). Needs on-device perf+visual validation.
+- `fix/model1-remove-warpblend` (upstream, 1 commit) — cheap correctness fix (removes a model-1
+  warp-blend stage that shouldn't exist). Not in our build.
+- PR #5 `feat/future-refresh-pacing` (upstream, OPEN) — alt frame pacing, overlaps our `fps_limit`,
+  unmerged + unproven on Turnip. Lowest confidence.
+
+### Caveat for whoever resumes
+All branches above pre-date the squash, so they sit on the un-squashed compat commits (same content,
+different SHAs) and read "1 behind". To integrate cleanly: REBASE onto synced `main`/`68497bf`
+(cherry-pick only the genuinely-new commits) so the compat changes don't reappear as conflicts.
+**Recommended start = `feat/shader-pool-gamescope-v2`** (fixes a bug we currently ship + it's our own
+half-done work), then FSR3 `model=3`. Save+commit before any same-device test.
+
+---
+
 ## 2026-06-29 (cont.) — STEP 3 ReShade: P2 DEVICE-PROVEN + typed controls/tab/reset + on-demand download catalog LIVE
 
 **TL;DR:** The in-game ReShade feature is now fully device-proven (P2 done). Added typed UI controls,
