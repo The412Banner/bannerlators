@@ -250,9 +250,14 @@ fun FileManagerScreen() {
 
     LaunchedEffect(Unit) { openDrive(rootDir) }
 
-    // System/gesture Back goes up one directory; only when we're at the current drive's
-    // root (top layer) is it disabled, letting Back propagate to close the File Manager.
-    BackHandler(enabled = currentDir != currentRoot) {
+    // System/gesture Back: while the Favorites view is open it closes that first; otherwise
+    // it goes up one directory. Only at the current drive's root with Favorites closed is it
+    // disabled, letting Back propagate to close the File Manager.
+    BackHandler(enabled = showFavorites || currentDir != currentRoot) {
+        if (showFavorites) {
+            showFavorites = false
+            return@BackHandler
+        }
         val parent = currentDir.parentFile
         if (parent != null && parent.exists()) loadDirectory(parent)
     }
