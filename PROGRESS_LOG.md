@@ -51,7 +51,15 @@ only the out-of-game Compose UI and the in-game side drawer + its submenus.
   controller input (legacy `InputControlsView.java`, NOT touched), and all drawer buttons keep their exact
   handlers. Verify gate = on-device functional pass (End Process / Bring to Front / Pause / Exit / Apply &
   Close / ReShade toggle / controller drives game) + before/after color diff. **User drives the device tests.**
-- NEXT: commit + push → CI build → hand user the APK + test checklist.
+- Committed + pushed branch `feat/theme-centralize-drawer`. CI APK build dispatched (main.yml,
+  **run 28419854007**) 2026-06-30 ~04:15Z — in progress. Watching to completion; will fix on red.
+- **PLAN: user device-tests in the MORNING** (user went to bed 2026-06-30). I babysit CI overnight,
+  fix any build break, leave the green APK + test checklist ready.
+- ON-DEVICE CHECKLIST (user drives, I watch logcat): (1) launch game in a real container → open drawer;
+  (2) wiring — Task Mgr End Process / Bring to Front / Pause-Resume / Exit-to-app / Controls Apply&Close /
+  ReShade toggle / controller drives game; (3) app side — launch + edit a container/shortcut; (4) color —
+  default AMOLED drawer unchanged, then custom accent → drawer highlights recolor. EXPECTED non-bug:
+  switch-ON tracks + a couple selected-chip bgs stay dark-blue under custom accent (the PrimaryDim call).
 - Preview mock: `bannerlator_theme_preview_v2.html` (~/Downloads + /sdcard/Download).
 
 ---
