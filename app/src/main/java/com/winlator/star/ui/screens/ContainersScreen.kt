@@ -89,8 +89,17 @@ fun ContainersScreen(
 ) {
     val containers by vm.containers.collectAsState()
     val isLoading by vm.isLoading.collectAsState()
+    val message by vm.message.collectAsState()
     val context = LocalContext.current
     val activity = context as Activity
+
+    // Surface one-shot VM messages (e.g. duplicate success/failure) as a Toast.
+    LaunchedEffect(message) {
+        message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            vm.messageShown()
+        }
+    }
 
     // Refresh list whenever this screen resumes (e.g. returning from ContainerDetail)
     val lifecycleOwner = LocalLifecycleOwner.current

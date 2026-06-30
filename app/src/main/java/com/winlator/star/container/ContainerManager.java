@@ -101,11 +101,11 @@ public class ContainerManager {
         });
     }
 
-    public void duplicateContainerAsync(Container container, Runnable callback) {
+    public void duplicateContainerAsync(Container container, Callback<Container> callback) {
         final Handler handler = new Handler();
         Executors.newSingleThreadExecutor().execute(() -> {
-            duplicateContainer(container);
-            handler.post(callback);
+            final Container result = duplicateContainer(container);
+            handler.post(() -> callback.call(result));
         });
     }
 
@@ -154,40 +154,49 @@ public class ContainerManager {
     }
 
 
-    private void duplicateContainer(Container srcContainer) {
+    private Container duplicateContainer(Container srcContainer) {
         int id = maxContainerId + 1;
 
+        File srcDir = srcContainer.getRootDir();
         File dstDir = new File(homeDir, ImageFs.USER + "-" + id);
-        if (!dstDir.mkdirs()) return;
+        if (!dstDir.mkdirs()) return null;
 
-        // Use the refactored copy method that doesn't require a Context for File operations
-        if (!FileUtils.copy(srcContainer.getRootDir(), dstDir, file -> FileUtils.chmod(file, 0771))) {
+        // copyContainer PRESERVES symlinks (drive letters in .wine/dosdevices) and skips
+        // individual unreadable files instead of aborting the whole duplicate. It returns
+        // false only when the destination root itself couldn't be created.
+        int[] skipped = new int[1];
+        if (!FileUtils.copyContainer(srcDir, dstDir, srcDir.getAbsolutePath(), dstDir.getAbsolutePath(),
+                file -> FileUtils.chmod(file, 0771), skipped)) {
             FileUtils.delete(dstDir);
-            return;
+            return null;
         }
+        if (skipped[0] > 0)
+            Log.w("ContainerManager", "Container duplicate skipped " + skipped[0] + " unreadable file(s)");
 
         Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
+
+        // Copy the FULL source config (40+ fields) so nothing is dropped — the old
+        // field-by-field block silently lost graphicsDriverConfig, renderer*, frameGen*,
+        // fpsLimiter*, fexcore*, reshade*, refreshRate, inputType, controllerMapping, etc.,
+        // which left the duplicate misconfigured (empty driver id -> missing meta.json ->
+        // crash on launch). Load the source's .container JSON, force the NEW id (mirrors
+        // createContainer's data.put("id", id) before loadData), then override only the name.
+        try {
+            JSONObject data = new JSONObject(FileUtils.readString(srcContainer.getConfigFile()));
+            data.put("id", id);
+            dstContainer.loadData(data);
+        } catch (JSONException e) {
+            Log.e("ContainerManager", "Failed to copy container config during duplicate", e);
+            FileUtils.delete(dstDir);
+            return null;
+        }
         dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string._copy) + ")");
-        dstContainer.setScreenSize(srcContainer.getScreenSize());
-        dstContainer.setEnvVars(srcContainer.getEnvVars());
-        dstContainer.setCPUList(srcContainer.getCPUList());
-        dstContainer.setCPUListWoW64(srcContainer.getCPUListWoW64());
-        dstContainer.setGraphicsDriver(srcContainer.getGraphicsDriver());
-        dstContainer.setDXWrapper(srcContainer.getDXWrapper());
-        dstContainer.setDXWrapperConfig(srcContainer.getDXWrapperConfig());
-        dstContainer.setAudioDriver(srcContainer.getAudioDriver());
-        dstContainer.setWinComponents(srcContainer.getWinComponents());
-        dstContainer.setDrives(srcContainer.getDrives());
-        dstContainer.setShowFPS(srcContainer.isShowFPS());
-        dstContainer.setStartupSelection(srcContainer.getStartupSelection());
-        dstContainer.setBox64Preset(srcContainer.getBox64Preset());
-        dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
-        dstContainer.setWineVersion(srcContainer.getWineVersion());
         dstContainer.saveData();
 
         maxContainerId++;
         containers.add(dstContainer);
+        return dstContainer;
     }
 
 
@@ -365,8 +374,15 @@ public class ContainerManager {
                     return;
                 }
 
-                if (!FileUtils.copy(containerDir, destinationDir, file -> FileUtils.chmod(file, 0771))) {
-                    Log.e("ContainerManager", "Failed to export some container files to: " + destinationDir.getPath());
+                // copyContainer tolerates individual unreadable/locked files (skips them instead
+                // of aborting the whole export — the "sometimes works sometimes not" failure) and
+                // preserves symlinks. Symlink recreation no-ops gracefully on the export FS
+                // (Os.symlink ErrnoException is swallowed by FileUtils.symlink). Fails only if the
+                // destination root itself can't be created.
+                if (!FileUtils.copyContainer(containerDir, destinationDir,
+                        containerDir.getAbsolutePath(), destinationDir.getAbsolutePath(),
+                        file -> FileUtils.chmod(file, 0771))) {
+                    Log.e("ContainerManager", "Failed to export container files to: " + destinationDir.getPath());
                     FileUtils.delete(destinationDir); // Optional: Delete partially copied directory
                 }
 
