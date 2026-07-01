@@ -801,6 +801,46 @@ bool VulkanRendererContext::createWinTexResources(WinTex& wt, int w, int h) {
     return true;
 }
 
+// SGSR2 Gate 0 depth-export receiver STUB.
+// Query + LOG the received depth AHB only; no VkImage import, no descriptor/pipeline
+// touch (that is Gate 1). Uses RLOG_E so it always prints regardless of verboseLog.
+// Safe for a null / non-importable AHB (logs + returns). Records the AHB format so
+// Gate 1 can decide R32_SFLOAT vs RGBA8-packed depth.
+void VulkanRendererContext::setDepthAHB(AHardwareBuffer* ahb, int frameId, int w, int h) {
+    if (!ahb) {
+        RLOG_E("setDepthAHB: null AHB (frameId=%d, %dx%d), dropping", frameId, w, h);
+        return;
+    }
+    AHardwareBuffer_Desc desc{};
+    AHardwareBuffer_describe(ahb, &desc);
+    if (!vk_.GetAndroidHardwareBufferPropertiesANDROID) {
+        RLOG_E("setDepthAHB: AHB ext NOT available on host device (frameId=%d); "
+               "desc.format=0x%x desc.usage=0x%llx %ux%u",
+               frameId, desc.format, (unsigned long long)desc.usage, desc.width, desc.height);
+        return;
+    }
+    VkAndroidHardwareBufferFormatPropertiesANDROID fmtP{};
+    fmtP.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
+    VkAndroidHardwareBufferPropertiesANDROID props{};
+    props.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
+    props.pNext = &fmtP;
+    VkResult res = vk_.GetAndroidHardwareBufferPropertiesANDROID(device, ahb, &props);
+    if (res != VK_SUCCESS) {
+        RLOG_E("setDepthAHB: GetAndroidHardwareBufferPropertiesANDROID failed res=%d "
+               "(frameId=%d); desc.format=0x%x desc.usage=0x%llx %ux%u",
+               (int)res, frameId, desc.format, (unsigned long long)desc.usage,
+               desc.width, desc.height);
+        return;
+    }
+    // vk.format == VK_FORMAT_R32_SFLOAT(100) => single-channel float depth survived the
+    // round-trip; == VK_FORMAT_UNDEFINED(0) => opaque external format (RGBA8-packed path).
+    RLOG_E("setDepthAHB GATE0: frameId=%d req %dx%d | vk.format=%d allocationSize=%llu "
+           "memoryTypeBits=0x%x | desc.format=0x%x desc.usage=0x%llx desc=%ux%u layers=%u",
+           frameId, w, h,
+           (int)fmtP.format, (unsigned long long)props.allocationSize, props.memoryTypeBits,
+           desc.format, (unsigned long long)desc.usage, desc.width, desc.height, desc.layers);
+}
+
 bool VulkanRendererContext::importAHBToWinTex(WinTex& wt, AHardwareBuffer* ahb) {
     if (!vk_.GetAndroidHardwareBufferPropertiesANDROID)
         return false;

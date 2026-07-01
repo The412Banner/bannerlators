@@ -122,6 +122,28 @@ Java_com_winlator_star_renderer_GPUImage_destroyImageKHR(JNIEnv *env, jclass obj
     }
 }
 
+// SGSR2 Gate 0: recv an AHB over the socket WITHOUT locking it (see GPUImage.java).
+JNIEXPORT jlong JNICALL
+Java_com_winlator_star_renderer_GPUImage_nativeRecvHardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd) {
+    AHardwareBuffer *ahb;
+    uint8_t buf = 1;
+    if (write(fd, &buf, 1) == -1) {
+        LOGE("nativeRecvHardwareBufferFromSocket: write failed");
+        return 0;
+    }
+    if (AHardwareBuffer_recvHandleFromUnixSocket(fd, &ahb) != 0) {
+        LOGE("nativeRecvHardwareBufferFromSocket: recvHandle failed");
+        return 0;
+    }
+    return (jlong)ahb;
+}
+
+JNIEXPORT void JNICALL
+Java_com_winlator_star_renderer_GPUImage_nativeReleaseHardwareBuffer(JNIEnv *env, jclass obj, jlong ptr) {
+    AHardwareBuffer *ahb = (AHardwareBuffer *)ptr;
+    if (ahb) AHardwareBuffer_release(ahb);
+}
+
 JNIEXPORT void JNICALL
 Java_com_winlator_star_renderer_GPUImage_destroyHardwareBuffer(JNIEnv *env, jclass obj, jlong ptr) {
     AHardwareBuffer *ahb = (AHardwareBuffer *)ptr;

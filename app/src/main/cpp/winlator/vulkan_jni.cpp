@@ -321,6 +321,15 @@ Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeSetPresentMode(JNIEn
     if (r) r->setPresentMode((VkPresentModeKHR)mode);
 }
 
+// SGSR2 Gate 0 depth-export receiver STUB. ahbPtr is an AHardwareBuffer* (jlong) received
+// by the Java DRI3 modifier-1256 branch. We only query + log its Vulkan format/size here;
+// no VkImage import, no descriptor/pipeline changes (that is Gate 1).
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeSetDepthAHB(JNIEnv*, jobject, jlong handle, jlong ahbPtr, jint frameId, jint w, jint h) {
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setDepthAHB(reinterpret_cast<AHardwareBuffer*>(ahbPtr), (int)frameId, (int)w, (int)h);
+}
+
 extern "C" JNIEXPORT jintArray JNICALL
 Java_com_winlator_star_renderer_vulkan_VulkanRenderer_nativeGetSupportedPresentModes(JNIEnv* env, jobject, jlong handle) {
     auto* r = reinterpret_cast<VulkanRendererContext*>(handle);

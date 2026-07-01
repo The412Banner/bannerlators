@@ -258,6 +258,10 @@ public:
     void setPresentMode(VkPresentModeKHR mode);
     std::vector<int> getSupportedPresentModes() const;
 
+    // SGSR2 Gate 0 depth-export receiver STUB: query + log the received depth AHB's
+    // Vulkan format/size and describe(). No VkImage import, no pipeline/descriptor work.
+    void setDepthAHB(AHardwareBuffer* ahb, int frameId, int w, int h);
+
 private:
     struct WinTex {
         VkImage              img            = VK_NULL_HANDLE;

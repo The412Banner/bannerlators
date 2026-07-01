@@ -2,6 +2,7 @@ package com.winlator.star.xserver.extensions;
 
 import android.util.Log;
 import com.winlator.star.renderer.GPUImage;
+import com.winlator.star.renderer.vulkan.VulkanRenderer;
 
 import static com.winlator.star.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
@@ -146,9 +147,55 @@ public class DRI3Extension implements Extension {
             pixmapFromHardwareBuffer(client, pixmapId, width, height, depth, fd);
         }
         else if (modifiers == 1274) {
-            Log.d("Dri3", "Creating pixmap from dmabuf filedescriptor"); 
+            Log.d("Dri3", "Creating pixmap from dmabuf filedescriptor");
             pixmapFromFd(client, pixmapId, width, height, stride, offset, depth, fd, size);
-        }    
+        }
+        else if ((modifiers & 0xFFFFFFFFL) == 1256L) {
+            // SGSR2 Gate 0 depth-export receiver STUB.
+            //
+            // Wire format (must match the guest Wine depth courier):
+            //   modifiers (64-bit) = ((long)frameId << 32) | 1256L
+            //     - low  32 bits = tag 1256 (depth AHB)
+            //     - high 32 bits = synthetic frame-id (guest present counter)
+            //   exactly ONE AHB FD passed as the ancillary FD (same as the 1255 path)
+            //   width/height/stride/offset = standard pixmapFromBuffers fields.
+            //
+            // Using the low 32 bits for the tag keeps the existing exact-match
+            // 1255/1274 branches above unaffected (their high bits are always 0).
+            //
+            // Gate 0 = receive the AHB, query + LOG its format/size natively, then drop.
+            // NOT registered as a Drawable/Pixmap (it is not visible window content);
+            // nothing is rendered (grayscale quad is Gate 1).
+            int frameId = (int)(modifiers >>> 32);
+            Log.d("Dri3", "modifier 1256 (depth AHB) frameId=" + frameId + " w=" + width + " h=" + height);
+            receiveDepthAHB(width, height, frameId, fd);
+        }
+    }
+
+    // Gate 0 STUB: receive a depth AHB from the guest, hand it to the Vulkan renderer
+    // to query + log format/size, then release it. Safe if the AHB is null / recv fails
+    // (log + drop, no crash). Never touches the window/pixmap managers.
+    private void receiveDepthAHB(short width, short height, int frameId, int fd) {
+        // Lock-free recv: the depth AHB may be GPU-only, so we must NOT use the
+        // auto-CPU-locking GPUImage(fd) constructor (it would release such a buffer).
+        long ahbPtr = 0;
+        try {
+            ahbPtr = GPUImage.recvHardwareBufferUnlocked(fd);
+            if (ahbPtr == 0) {
+                Log.w("Dri3", "modifier 1256: failed to receive depth AHB over socket (frameId=" + frameId + "), dropping");
+                return;
+            }
+            VulkanRenderer.acceptDepthAHB(ahbPtr, frameId, width, height);
+        }
+        catch (Throwable t) {
+            Log.w("Dri3", "modifier 1256: error handling depth AHB (frameId=" + frameId + ")", t);
+        }
+        finally {
+            // Gate 0 STUB queries synchronously, so releasing the AHB here is safe.
+            // Not registered as a Drawable/Pixmap -> nothing else references it.
+            GPUImage.releaseHardwareBufferPtr(ahbPtr);
+            XConnectorEpoll.closeFd(fd);
+        }
     }
     
     private void pixmapFromHardwareBuffer(XClient client, int pixmapId, short width, short height, byte depth, int fd) throws IOException, XRequestError {

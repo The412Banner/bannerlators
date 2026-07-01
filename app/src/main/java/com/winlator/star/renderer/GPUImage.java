@@ -115,6 +115,21 @@ public class GPUImage extends Texture {
         gpuImage.destroy();
     }
 
+    // SGSR2 Gate 0: recv an AHB over the socket WITHOUT CPU-locking it. The depth buffer
+    // exported by the guest may be GPU-only; the auto-locking GPUImage(fd) constructor
+    // would fail the CPU lock and release such a buffer. Returns the raw AHardwareBuffer*
+    // (0 on failure). The caller must releaseHardwareBufferPtr() it when done.
+    public static long recvHardwareBufferUnlocked(int socketFd) {
+        return nativeRecvHardwareBufferFromSocket(socketFd);
+    }
+
+    public static void releaseHardwareBufferPtr(long ptr) {
+        if (ptr != 0) nativeReleaseHardwareBuffer(ptr);
+    }
+
+    private static native long nativeRecvHardwareBufferFromSocket(int fd);
+    private static native void nativeReleaseHardwareBuffer(long ptr);
+
     private native long hardwareBufferFromSocket(int fd);
     private native long createHardwareBuffer(short width, short height);
     private native void destroyHardwareBuffer(long hardwareBufferPtr);

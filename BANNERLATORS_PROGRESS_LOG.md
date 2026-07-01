@@ -464,3 +464,49 @@ entries byte-identical, swapped exes carry sibling metadata (uid 10314/gid 1023,
 ⚠️ TEMPLATE = NEW containers only — existing containers keep the old exe (reinstall-imagefs
 preserves home/), so to update them push the exes via root bridge or make a new container.
 Lands in the next Bannerlator build; no tag/release cut.
+
+## 2026-07-01 — SGSR2 Stage A depth-export: GO, planned (3 expert recon passes)
+User greenlit building SGSR2 Stage A (guest→host depth transport). Ran three parallel
+expert recon passes against current source (wine-compat / graphics-vulkan / release-device);
+approved plan at ~/.claude/plans/robust-wiggling-nygaard.md. NOTHING coded yet; default app
+untouched. Ship model = opt-in per-container download-catalog bundle (patched Wine + DXVK),
+compositor changes ship in-app but no-op when depth absent.
+
+Reframed ordering (recon changed it): the true go/no-go is a CAPABILITY PROBE first, before
+any DXVK work, because the only killer risk is whether libvulkan_wrapper.so (Mesa-WSI/Turnip)
+exposes VK_ANDROID_external_memory_android_hardware_buffer (R2 already said yes; Gate 0
+re-confirms end-to-end incl. the X server accepting a modifier-1256 pixmap).
+
+- GATE 0 (no DXVK, no real depth): patched-Wine courier stub — winevulkan make_vulkan:141 add
+  "android" to UNEXPOSED_PLATFORMS (headers/thunks, not advertised); new unix-only
+  dlls/winevulkan/depth_courier_unix.c (#pragma makedep unix) enumerates host device exts +
+  logs AHB-ext presence + allocs a 16x16 AHB-export image + logs
+  VkAndroidHardwareBufferFormatPropertiesANDROID.format (R32F vs RGBA8 decision) + opens a 2nd
+  xcb DRI3 connection (from winex11.drv) and sends a modifier-1256 pixmap. App host stub:
+  DRI3Extension.java:151 new `else if (modifiers==1256)` (frame-id packed in high 32 bits of the
+  64-bit modifiers — zero risk to 1255/1274 readers), recv FD via GPUImage(fd), new JNI
+  nativeSetDepthAHB -> VulkanRendererContext::setDepthAHB that just RLOGs format/size.
+  PASS = device logs show ext exposed + non-null AHB+FD + X server accepts the 1256 pixmap.
+  FAIL at ext exposure -> STOP, moonshot dead.
+- GATE 1 (adds DXVK): depth-capture patch (clone DXVK source first — NOT on disk) + present-time
+  COMPUTE resolve depth->linear R32F (or RGBA8-packed per Gate 0) — compute, not vkCmdCopyImage
+  (depth<->color aspect copy is illegal) + one private winevulkan export entrypoint. Host promotes
+  the stub to a real depth import in importAHBToWinTex:804 (aspect COLOR; NO descriptor-layout
+  change — binds into existing postPipeLayout) + debugDepthPipeline grayscale quad + "latest-depth"
+  holder (real frame-id map deferred to Stage B). PASS = grayscale depth tracks the AIO cube-grid
+  frame-for-frame on device.
+
+Corrected facts this session: guest Wine tree = src/gamenative-proton11 (Wine 11.0) is real (prior
+"proton-wine clone doesn't exist" was stale); DXVK source NOT on disk anywhere; patched arm64ec Wine
+builds ONLY in CI (The412Banner/proton-wine, build-proton-sdk28.yml, branch ge-proton11-bionic,
+bylaws/llvm-mingw toolchain — NOT mstorsjo); DXVK patch venue = The412Banner/Nightlies
+dxvk-binsem-nightly.yml "Clone & Patch" step as the template for a committed
+patches/dxvk-depth-export.patch; delivery = opt-in catalog entries in winlator-contents/contents.json,
+installed via ContentsManager.java. RULE: both guest patches CI-green (git apply --check + full arm64ec
+ninja) BEFORE writing compositor code; decouple the 3 artifacts. Device ready: bridge UP (root), AYANEO
+Pocket FIT (com.winlator.banner), live container xuser-1, AIO DX11 cube-grid scene.
+
+Current-main (76d40cc4) line refs: recordUpscalePasses :1089, planUpscaleFrame :1258,
+importAHBToWinTex :804, createDSLayout :412, createPostPipelines :562, DRI3 1256 insert after :151.
+NEXT = start Gate 0 in parallel (wine-compat courier probe -> CI .wcp; graphics-vulkan 1256 host stub).
+No DXVK until Gate 0 passes.

@@ -34,6 +34,12 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private long nativeHandle = 0;
     private final Object lock = new Object();
 
+    // SGSR2 Gate 0: the most-recently-constructed live Vulkan renderer, so the X server's
+    // DRI3 modifier-1256 depth-AHB receiver (which has no direct renderer reference) can
+    // reach it. Cleared on forceCleanup(). Only ever consulted from the 1256 stub path,
+    // which never fires unless a patched guest sends a depth pixmap -> zero default impact.
+    private static volatile VulkanRenderer activeInstance = null;
+
     public final ViewTransformation viewTransformation = new ViewTransformation();
     private boolean fullscreen = false;
     private float magnifierZoom = 1.0f;
@@ -64,6 +70,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
         rootCursorDrawable = createRootCursorDrawable();
         xServer.windowManager.addOnWindowModificationListener(this);
         xServer.pointer.addOnPointerMotionListener(this);
+        activeInstance = this;
     }
 
     private Drawable createRootCursorDrawable() {
@@ -119,6 +126,8 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
     private native void nativeSetSwapRB(long handle, boolean enabled);
     private native void nativeSetPresentMode(long handle, int mode);
     private native int[] nativeGetSupportedPresentModes(long handle);
+    // SGSR2 Gate 0 depth-export receiver STUB: query + log the depth AHB, render nothing.
+    private native void nativeSetDepthAHB(long handle, long ahbPtr, int frameId, int w, int h);
 
     private static volatile boolean gpuImageChecked = false;
 
@@ -244,6 +253,30 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
         if (nativeMode) xServerView.post(this::releaseScanoutSurfaces);
     }
 
+    // SGSR2 Gate 0 depth-export receiver STUB. Entry point from the X server's DRI3
+    // modifier-1256 branch (DRI3Extension.receiveDepthAHB), which has no renderer
+    // reference. Forwards to the live Vulkan renderer, if any. No-op (log + drop) when
+    // there is no active Vulkan renderer (e.g. GL/ASR host renderer selected) so the
+    // caller never crashes. Nothing is rendered; the AHB is only queried + logged.
+    public static void acceptDepthAHB(long ahbPtr, int frameId, int w, int h) {
+        VulkanRenderer r = activeInstance;
+        if (r == null) {
+            android.util.Log.d("VulkanRenderer", "acceptDepthAHB: no active Vulkan renderer, dropping depth AHB frameId=" + frameId);
+            return;
+        }
+        r.setDepthAHB(ahbPtr, frameId, w, h);
+    }
+
+    private void setDepthAHB(long ahbPtr, int frameId, int w, int h) {
+        synchronized (lock) {
+            if (nativeHandle == 0) {
+                android.util.Log.d("VulkanRenderer", "setDepthAHB: renderer not initialized, dropping depth AHB frameId=" + frameId);
+                return;
+            }
+            nativeSetDepthAHB(nativeHandle, ahbPtr, frameId, w, h);
+        }
+    }
+
     public void forceCleanup() {
         initComplete = false;
         if (initExecutor != null) {
@@ -259,6 +292,7 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                 nativeHandle = 0;
             }
         }
+        if (activeInstance == this) activeInstance = null;
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             try {
                 android.view.SurfaceControl.Transaction txn = new android.view.SurfaceControl.Transaction();
