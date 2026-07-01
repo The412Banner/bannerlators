@@ -4,6 +4,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 
 data class ThemePreset(
     val name: String,
@@ -33,11 +34,17 @@ data class ThemePreset(
 ) {
     fun toColorScheme(accentOverride: Color? = null): androidx.compose.material3.ColorScheme {
         val accent = accentOverride ?: primary
+        // A custom (user-picked) accent can be lighter than the preset's baked onPrimary assumes —
+        // e.g. a white accent, where the default white onPrimary leaves on-accent icons/text
+        // invisible (white-on-white FAB / Play button). Flip to a dark on-accent color for a light
+        // custom accent; built-in presets and dark custom accents keep their designed onPrimary so
+        // the default look stays byte-identical. (issue #46)
+        val onAccent = if (accentOverride != null && accentOverride.luminance() > 0.5f) Color(0xFF000000) else onPrimary
         return darkColorScheme(
             primary              = accent,
-            onPrimary            = onPrimary,
+            onPrimary            = onAccent,
             secondary            = accent,
-            onSecondary          = onPrimary,
+            onSecondary          = onAccent,
             secondaryContainer   = accent.copy(alpha = 0.30f),
             onSecondaryContainer = onSurface,
             background           = background,
@@ -62,11 +69,14 @@ data class ThemePreset(
 
     fun toLightColorScheme(accentOverride: Color? = null): androidx.compose.material3.ColorScheme {
         val accent = accentOverride ?: primary
+        // Same on-accent contrast guard as the dark scheme: a light custom accent (e.g. white)
+        // gets a dark on-accent color so on-accent content stays legible. (issue #46)
+        val onAccent = if (accentOverride != null && accentOverride.luminance() > 0.5f) Color(0xFF000000) else Color(0xFFFFFFFF)
         return lightColorScheme(
             primary              = accent,
-            onPrimary            = Color(0xFFFFFFFF),
+            onPrimary            = onAccent,
             secondary            = accent,
-            onSecondary          = Color(0xFFFFFFFF),
+            onSecondary          = onAccent,
             secondaryContainer   = accent.copy(alpha = 0.20f),
             onSecondaryContainer = Color(0xFF1A1A1A),
             background           = Color(0xFFF5F5F5),
