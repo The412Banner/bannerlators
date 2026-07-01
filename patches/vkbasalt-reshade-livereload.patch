@@ -1,5 +1,5 @@
 diff --git a/src/basalt.cpp b/src/basalt.cpp
-index 8061050..a5848a5 100644
+index 8061050..bb3955f 100644
 --- a/src/basalt.cpp
 +++ b/src/basalt.cpp
 @@ -9,6 +9,9 @@
@@ -12,7 +12,21 @@ index 8061050..a5848a5 100644
  #include "util.hpp"
  #include "keyboard_input.hpp"
  
-@@ -562,6 +565,42 @@ namespace vkBasalt
+@@ -494,6 +497,13 @@ namespace vkBasalt
+         VkImage     depthImage     = pLogicalDevice->depthImageViews.size() ? pLogicalDevice->depthImages[0] : VK_NULL_HANDLE;
+         VkFormat    depthFormat    = pLogicalDevice->depthImageViews.size() ? pLogicalDevice->depthFormats[0] : VK_FORMAT_UNDEFINED;
+ 
++        // Bannerlator: remember the depth inputs so a live per-effect enable toggle
++        // can re-record commandBuffersEffect with the same parameters (see the
++        // present hook). No effect on the initial recording below.
++        pLogicalSwapchain->depthImage     = depthImage;
++        pLogicalSwapchain->depthImageView = depthImageView;
++        pLogicalSwapchain->depthFormat    = depthFormat;
++
+         Logger::debug("effect string count: " + std::to_string(effectStrings.size()));
+         Logger::debug("effect count: " + std::to_string(pLogicalSwapchain->effects.size()));
+ 
+@@ -562,6 +572,42 @@ namespace vkBasalt
              pressed = false;
          }
  
@@ -55,23 +69,74 @@ index 8061050..a5848a5 100644
          LogicalDevice* pLogicalDevice = deviceMap[GetKey(queue)].get();
  
          std::vector<VkSemaphore> presentSemaphores;
-@@ -575,6 +614,16 @@ namespace vkBasalt
+@@ -575,6 +621,41 @@ namespace vkBasalt
              VkSwapchainKHR    swapchain         = (*pPresentInfo).pSwapchains[i];
              LogicalSwapchain* pLogicalSwapchain = swapchainMap[swapchain].get();
  
 +            // Bannerlator: push live slider/uniform overrides on config change
-+            // (cheap; just re-reads values into each effect, no recompile).
++            // (cheap; just re-reads values into each effect, no recompile). Also
++            // refresh each effect's per-effect enable gate ("<effect>_enabled"); if
++            // any gate flipped we must re-record commandBuffersEffect so disabled
++            // effects switch to their identity passthrough (and back). This is the
++            // Tier-1 in-game effect-switch path: NO swapchain recreate, NO shader
++            // recompile, NO chain rebuild -- just re-recording the primary command
++            // buffers (pipelines/descriptors/uniform buffers are all reused).
 +            if (liveConfigChanged)
 +            {
++                bool enabledChanged = false;
 +                for (auto& effect : pLogicalSwapchain->effects)
 +                {
 +                    effect->updateUniformsFromConfig(*liveConfig);
++                    if (effect->updateEnabledFromConfig(*liveConfig))
++                        enabledChanged = true;
++                }
++                if (enabledChanged)
++                {
++                    // The effect command buffers were recorded with
++                    // VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT and may still be
++                    // pending on the graphics queue; drain it before re-recording.
++                    // This only runs on a live enable toggle (a rare user action),
++                    // not every frame.
++                    pLogicalDevice->vkd.QueueWaitIdle(pLogicalDevice->queue);
++                    writeCommandBuffers(pLogicalDevice,
++                                        pLogicalSwapchain->effects,
++                                        pLogicalSwapchain->depthImage,
++                                        pLogicalSwapchain->depthImageView,
++                                        pLogicalSwapchain->depthFormat,
++                                        pLogicalSwapchain->commandBuffersEffect);
++                    Logger::info("vkBasalt: re-recorded effect command buffers (live per-effect enable change)");
 +                }
 +            }
 +
              for (auto& effect : pLogicalSwapchain->effects)
              {
                  effect->updateEffect();
+diff --git a/src/command_buffer.cpp b/src/command_buffer.cpp
+index a49cb71..5026053 100644
+--- a/src/command_buffer.cpp
++++ b/src/command_buffer.cpp
+@@ -85,7 +85,20 @@ namespace vkBasalt
+             for (uint32_t j = 0; j < effects.size(); j++)
+             {
+                 Logger::debug("before applying effect " + convertToString(effects[j]));
+-                effects[j]->applyEffect(i, commandBuffers[i]);
++                // Bannerlator: per-effect live enable gate. A disabled effect records
++                // an identity input->output copy instead of its shader pass, so the
++                // frame passes through this chain slot unchanged while keeping the
++                // ping-pong image handoff (and PRESENT_SRC_KHR resting layouts) valid
++                // for the next effect and the final present. Re-recording happens on a
++                // live config toggle (see vkBasalt_QueuePresentKHR); no recompile.
++                if (effects[j]->enabled)
++                {
++                    effects[j]->applyEffect(i, commandBuffers[i]);
++                }
++                else
++                {
++                    effects[j]->applyIdentity(i, commandBuffers[i]);
++                }
+             }
+ 
+             memoryBarrier.oldLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 diff --git a/src/config.cpp b/src/config.cpp
 index 129fe73..10632e3 100644
 --- a/src/config.cpp
@@ -111,10 +176,10 @@ index 016d2fe..f77c4f2 100644
          T getOption(const std::string& option, const T& defaultValue = {})
          {
 diff --git a/src/effect.hpp b/src/effect.hpp
-index 70acf62..1edc60a 100644
+index 70acf62..3bd98e5 100644
 --- a/src/effect.hpp
 +++ b/src/effect.hpp
-@@ -11,12 +11,18 @@
+@@ -11,12 +11,44 @@
  
  namespace vkBasalt
  {
@@ -130,14 +195,51 @@ index 70acf62..1edc60a 100644
 +        // config and cache them for the next updateEffect (live sliders). Default
 +        // no-op so non-ReShade effects ignore it.
 +        void virtual updateUniformsFromConfig(Config& config){};
++
++        // Bannerlator: per-effect live enable gate (Tier 1 in-game effect switching).
++        // Default true. Only ReshadeEffect overrides updateEnabledFromConfig, so only
++        // ReShade chain effects are ever disabled -- CAS/sharpen and the other builtin
++        // effects always stay enabled. When false, writeCommandBuffers records
++        // applyIdentity() instead of applyEffect(), so the frame passes through this
++        // slot unchanged and the ping-pong image handoff stays valid for downstream
++        // effects and the final present.
++        bool enabled = true;
++
++        // Re-read "<effectName>_enabled" from a freshly parsed (live-reloaded) config.
++        // Returns true iff the flag actually changed, so the present hook knows it must
++        // re-record the effect command buffers to swap applyEffect<->applyIdentity.
++        // Default no-op (returns false): ungateable effects are never disabled.
++        bool virtual updateEnabledFromConfig(Config& config)
++        {
++            return false;
++        }
++
++        // Identity passthrough used when this effect is disabled: copy this effect's
++        // own input image to its own output image, honoring the same PRESENT_SRC_KHR
++        // resting-layout convention that applyEffect uses (input rests in and returns
++        // to PRESENT_SRC_KHR; output goes UNDEFINED -> ... -> PRESENT_SRC_KHR). Default
++        // no-op; only gateable effects (ReshadeEffect) implement it.
++        void virtual applyIdentity(uint32_t imageIndex, VkCommandBuffer commandBuffer){};
++
          virtual ~Effect(){};
  
      private:
 diff --git a/src/effect_reshade.cpp b/src/effect_reshade.cpp
-index 5676379..bbdcc57 100644
+index 5676379..c5f120f 100644
 --- a/src/effect_reshade.cpp
 +++ b/src/effect_reshade.cpp
-@@ -58,7 +58,7 @@ namespace vkBasalt
+@@ -44,6 +44,10 @@ namespace vkBasalt
+         this->outputImages     = outputImages;
+         this->pConfig          = pConfig;
+         this->effectName       = effectName;
++        // Bannerlator: seed the per-effect live enable gate from config. Key is
++        // "<effectName>_enabled" where effectName is the same chain token used in the
++        // "effects=" line and the uniform keys. Absent/1 = active, 0 = bypassed.
++        this->enabled          = pConfig->getOption<bool>(effectName + "_enabled", true);
+         inputOutputFormatUNORM = convertToUNORM(format);
+         inputOutputFormatSRGB  = convertToSRGB(format);
+ 
+@@ -58,7 +62,7 @@ namespace vkBasalt
  
          enumerateReshadeUniforms(module);
  
@@ -146,7 +248,7 @@ index 5676379..bbdcc57 100644
  
          bufferSize = module.total_uniform_size;
          if (bufferSize)
-@@ -787,6 +787,17 @@ namespace vkBasalt
+@@ -787,6 +791,102 @@ namespace vkBasalt
          }
      }
  
@@ -161,10 +263,95 @@ index 5676379..bbdcc57 100644
 +        }
 +    }
 +
++    // Bannerlator: refresh the per-effect enable gate from a freshly parsed live
++    // config. Returns true iff the flag changed so the present hook re-records the
++    // effect command buffers (swap applyEffect<->applyIdentity for this slot).
++    bool ReshadeEffect::updateEnabledFromConfig(Config& config)
++    {
++        bool newEnabled = config.getOption<bool>(effectName + "_enabled", true);
++        if (newEnabled == enabled)
++            return false;
++        enabled = newEnabled;
++        return true;
++    }
++
++    // Bannerlator: identity passthrough for a disabled effect. Copies this effect's
++    // input image straight to its output image so downstream effects (and the final
++    // present) see the pre-effect frame, and the chain's ping-pong handoff stays
++    // valid. This mirrors TransferEffect::applyEffect exactly: both images rest in
++    // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR (the same resting layout applyEffect assumes),
++    // input transitions PRESENT_SRC->TRANSFER_SRC and back, output UNDEFINED->
++    // TRANSFER_DST->PRESENT_SRC. Input and output share the swapchain format family,
++    // so a straight vkCmdCopyImage is valid (same path TransferEffect uses for the
++    // no-effect passthrough).
++    void ReshadeEffect::applyIdentity(uint32_t imageIndex, VkCommandBuffer commandBuffer)
++    {
++        VkImageCopy imageCopy;
++        imageCopy.srcSubresource            = {};
++        imageCopy.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++        imageCopy.srcSubresource.layerCount = 1;
++        imageCopy.srcOffset                 = {};
++        imageCopy.dstSubresource            = {};
++        imageCopy.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++        imageCopy.dstSubresource.layerCount = 1;
++        imageCopy.dstOffset                 = {};
++        imageCopy.extent                    = {imageExtent.width, imageExtent.height, 1};
++
++        VkImageMemoryBarrier memoryBarrier;
++        memoryBarrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
++        memoryBarrier.pNext               = nullptr;
++        memoryBarrier.srcAccessMask       = 0;
++        memoryBarrier.dstAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
++        memoryBarrier.oldLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++        memoryBarrier.newLayout           = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++        memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++        memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++        memoryBarrier.image               = inputImages[imageIndex];
++
++        memoryBarrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
++        memoryBarrier.subresourceRange.baseMipLevel   = 0;
++        memoryBarrier.subresourceRange.levelCount     = 1;
++        memoryBarrier.subresourceRange.baseArrayLayer = 0;
++        memoryBarrier.subresourceRange.layerCount     = 1;
++
++        pLogicalDevice->vkd.CmdPipelineBarrier(
++            commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
++
++        memoryBarrier.image         = outputImages[imageIndex];
++        memoryBarrier.oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
++        memoryBarrier.newLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
++        memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
++        pLogicalDevice->vkd.CmdPipelineBarrier(
++            commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
++
++        pLogicalDevice->vkd.CmdCopyImage(commandBuffer,
++                                         inputImages[imageIndex],
++                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++                                         outputImages[imageIndex],
++                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
++                                         1,
++                                         &imageCopy);
++
++        memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
++        memoryBarrier.dstAccessMask = 0;
++        memoryBarrier.image         = outputImages[imageIndex];
++        memoryBarrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
++        memoryBarrier.newLayout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++        pLogicalDevice->vkd.CmdPipelineBarrier(
++            commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
++
++        memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
++        memoryBarrier.image         = inputImages[imageIndex];
++        memoryBarrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++        memoryBarrier.newLayout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++        pLogicalDevice->vkd.CmdPipelineBarrier(
++            commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
++    }
++
      void ReshadeEffect::useDepthImage(VkImageView depthImageView)
      {
          std::vector<std::string> depthTextureNames;
-@@ -1147,8 +1158,13 @@ namespace vkBasalt
+@@ -1147,8 +1247,13 @@ namespace vkBasalt
              Logger::err(errors);
          }
  
@@ -180,17 +367,37 @@ index 5676379..bbdcc57 100644
  
          errors = parser.errors();
 diff --git a/src/effect_reshade.hpp b/src/effect_reshade.hpp
-index ec84204..473cc93 100644
+index ec84204..6adc9fa 100644
 --- a/src/effect_reshade.hpp
 +++ b/src/effect_reshade.hpp
-@@ -34,6 +34,7 @@ namespace vkBasalt
+@@ -34,6 +34,9 @@ namespace vkBasalt
                        std::string          effectName);
          void virtual applyEffect(uint32_t imageIndex, VkCommandBuffer commandBuffer) override;
          void virtual updateEffect() override;
 +        void virtual updateUniformsFromConfig(Config& config) override; // Bannerlator: live sliders
++        bool virtual updateEnabledFromConfig(Config& config) override;  // Bannerlator: per-effect live enable
++        void virtual applyIdentity(uint32_t imageIndex, VkCommandBuffer commandBuffer) override; // Bannerlator: bypass copy
          void virtual useDepthImage(VkImageView depthImageView) override;
          virtual ~ReshadeEffect();
  
+diff --git a/src/logical_swapchain.hpp b/src/logical_swapchain.hpp
+index 7a44fd5..9502fd7 100644
+--- a/src/logical_swapchain.hpp
++++ b/src/logical_swapchain.hpp
+@@ -32,6 +32,13 @@ namespace vkBasalt
+         std::shared_ptr<Effect>              defaultTransfer;
+         VkDeviceMemory                       fakeImageMemory;
+ 
++        // Bannerlator: depth inputs captured at swapchain creation so the present
++        // hook can re-record commandBuffersEffect on a live per-effect enable toggle
++        // with exactly the same parameters the original recording used.
++        VkImage     depthImage     = VK_NULL_HANDLE;
++        VkImageView depthImageView = VK_NULL_HANDLE;
++        VkFormat    depthFormat     = VK_FORMAT_UNDEFINED;
++
+         void destroy();
+     };
+ } // namespace vkBasalt
 diff --git a/src/meson.build b/src/meson.build
 index 42345d2..30dba2d 100644
 --- a/src/meson.build
