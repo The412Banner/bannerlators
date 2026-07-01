@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-07-01 — 🏁 RELEASED: Bannerlator 2.2.2 (stable, versionCode 37)
+
+> **GitHub release `2.2.2`** — tag `2.2.2` at `97c0e44`, **prerelease=false / make_latest** (now the Latest release), 3 flavor APKs + `update.json` reporting **versionCode 37 / versionName 2.2.2**. Built by `release.yml` run **`28520346738`** (success, from the main vc37 commit). **vc37 > pre1 vc36 > stable-2.2 vc35** so the in-app updater offers 2.2.2 to both stable and beta users.
+> **What shipped (the four areas previously staged on main since 2.2):** in-game ReShade Tier 1 (per-game multi-effect switching, on-demand catalog, typed live controls, pause-box fix); vkBasalt version-aware `.so` re-extraction (existing containers auto-refresh the ReShade layer on next launch); white-accent bundle (#46 control accent + #45 container-creation orphan-dir + white/dark app-accent contrast); FPS-limiter shortcut-persist (#46).
+> **Release description** hand-set via `gh release edit --notes-file` to match the 2.2 layout (logo → What's New → Downloads → updating note → thanks) — the workflow's auto-changelog body was overwritten. **README** updated on main (`d837036`): new "What's New in 2.2.2" section (old 2.2 notes moved into a `<details>`), version line → 2.2.2/vc37, and the **ReShade multi-select flat-screen warning in 3 places** (What's New, ReShade feature bullet, and the troubleshooting callout): stacking too many effects can prevent a game from starting (flat/blank screen) → uncheck effects one at a time until it boots.
+> **⚠️ Watch item:** the vkBasalt version-aware extraction (`f3a6340`) was CI-green but never independently device-proven — shipped on faith; watch for "existing container didn't pick up the new ReShade layer" reports.
+
+---
+
 ## 2026-07-01 — 📦 RELEASE-CHANNEL STATE + artifacts-only test build of `main`
 
 > **Artifacts-only build dispatched** — `build-artifacts.yml` run **`28518700499`**, ref `main` tip `20fd2da` (vc36/2.2.1), label `2.2.1-main-test`, 3 flavors (ludashi/pubg/standard), **NO tag, NO release**. User downloads the APKs to device-test the staged stack; then has "a few things to test and add" before cutting the next release.
