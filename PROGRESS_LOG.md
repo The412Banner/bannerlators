@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-07-01 — 🔎 ROOT-CAUSE CONFIRMED (not yet coded): #46's 2nd complaint "FPS limit resets every time you close a game" = shortcut-vs-container owner mismatch
+
+> **Status: DIAGNOSED, fix planned, NOT implemented/branched.** Code-traced, not device-repro'd yet. This is the open half of issue #46 (Noname267), the same class of bug as ReShade Tier-1 **Bug A** (write-target ≠ read-source across the shortcut/container owner boundary).
+> **Trigger — hits ~EVERY shortcut-launched game:** `ShortcutsScreen.kt:1201` stamps an `fpsLimiterEnabled` extra onto every shortcut it saves (always `"1"`/`"0"`, never null), so every game launched from a shortcut/game-entry carries it.
+> **The asymmetry:**
+> - **READ (launch seed):** `resolvedFpsLimiterEnabled()` (`XServerDisplayActivity.java:3597-3602`) returns `shortcut.getExtra("fpsLimiterEnabled", <container default>)` when `shortcut != null` — i.e. reads the SHORTCUT.
+> - **WRITE (in-game toggle):** `onFpsLimitChange` (`:603-611`) commits **only** to `container.setFpsLimiterEnabled(limOn)` / `container.setFpsLimiterValue(limitVal)` + `container.saveData()` — there is NO shortcut branch.
+> **⇒** an in-game limiter on/off change is never written back to the owning shortcut, so the next launch re-seeds from the stale shortcut extra and the toggle reverts → "resets every time you close a game." (The *value* seed `:795` / write `:609` both use the container so `fpsLimiterValue` itself survives — but the on/off toggle reverting moots it.)
+> **The "and others" part is mostly benign:** `matchRefreshRate` / `manualRefreshRate` are NOT stamped onto shortcuts by the editor, so their resolvers (`:3606`, `:3616`) fall back to the container and read==write (no bug). `frameGenEngine` IS stamped (`:1200`) and read shortcut-aware (`:3527`) but the engine isn't editable in-game (only FG on/off + multiplier are, and those persist container↔container). So the single real, reproducible offender is the **FPS-limiter enable toggle** — exactly the setting the reporter named.
+> **FIX PLAN (mirror the ReShade Bug A fix — make write-target == read-source; `Shortcut.java:153/163` already exposes `putExtra()` + `saveData()`):**
+> 1. In `onFpsLimitChange` (`:603-611`): if `shortcut != null`, write `fpsLimiterEnabled` (+`fpsLimiterValue`) back to the **shortcut** and `shortcut.saveData()`; else keep the current container write.
+> 2. Add `resolvedFpsLimiterValue()` mirroring `resolvedFpsLimiterEnabled()` and use it at the value seed (`:795`) so the value is read from the same owner it's written to.
+> **Proposed branch** `fix/fps-limiter-shortcut-persist`. **Device retest** = toggle the limiter in-game → quit → relaunch via that game's shortcut → limiter state holds (both on→off and off→on); confirm container-only (no-shortcut) launches still persist. Then comment + close #46. No merge/version bump without user go.
+
+---
+
 ## 2026-07-01 — 🏁 MERGED TO MAIN: #46 white virtual-control accent + #45 container-creation orphan-dir + white/dark app-accent contrast
 
 > **Merge `0bfeebd`** (`--no-ff`, `f3a6340..0bfeebd`), branch `fix/white-accent-and-container-creation` deleted (local + remote). Branch tip `116ef9e` CI-green (run **`28511850270`**, headSha-verified). This adds one commit beyond the earlier checkpoint — `116ef9e` "symmetric on-accent contrast": a **dark** custom accent previously fell through to the preset's baked `onPrimary` (itself dark on Monochrome/Phosphor/Royal Gold/Frost → dark-on-dark glyphs), now mirrors the light-accent guard (derive on-accent from luminance for ANY custom accent; built-in presets keep their designed `onPrimary` → default byte-identical). The white-app-accent follow-up is now **DEVICE-CONFIRMED** by the user ("works well").
