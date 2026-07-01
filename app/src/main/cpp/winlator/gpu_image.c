@@ -10,6 +10,8 @@
 #include <GLES2/gl2ext.h>
 #include <jni.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 
 #define LOG_TAG "GPUImage"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -123,16 +125,26 @@ Java_com_winlator_star_renderer_GPUImage_destroyImageKHR(JNIEnv *env, jclass obj
 }
 
 // SGSR2 Gate 0: recv an AHB over the socket WITHOUT locking it (see GPUImage.java).
+// timeoutMs>0 arms SO_RCVTIMEO/SO_SNDTIMEO so the blocking recvmsg inside
+// AHardwareBuffer_recvHandleFromUnixSocket can never hang the worker thread; on timeout
+// recvmsg returns EAGAIN -> recvHandle fails -> we return 0 and the caller drops+closes.
 JNIEXPORT jlong JNICALL
-Java_com_winlator_star_renderer_GPUImage_nativeRecvHardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd) {
+Java_com_winlator_star_renderer_GPUImage_nativeRecvHardwareBufferFromSocket(JNIEnv *env, jclass obj, jint fd, jint timeoutMs) {
     AHardwareBuffer *ahb;
+    if (timeoutMs > 0) {
+        struct timeval tv;
+        tv.tv_sec  = timeoutMs / 1000;
+        tv.tv_usec = (timeoutMs % 1000) * 1000;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    }
     uint8_t buf = 1;
     if (write(fd, &buf, 1) == -1) {
         LOGE("nativeRecvHardwareBufferFromSocket: write failed");
         return 0;
     }
     if (AHardwareBuffer_recvHandleFromUnixSocket(fd, &ahb) != 0) {
-        LOGE("nativeRecvHardwareBufferFromSocket: recvHandle failed");
+        LOGE("nativeRecvHardwareBufferFromSocket: recvHandle failed/timed out");
         return 0;
     }
     return (jlong)ahb;

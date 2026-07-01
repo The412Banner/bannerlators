@@ -510,3 +510,56 @@ Current-main (76d40cc4) line refs: recordUpscalePasses :1089, planUpscaleFrame :
 importAHBToWinTex :804, createDSLayout :412, createPostPipelines :562, DRI3 1256 insert after :151.
 NEXT = start Gate 0 in parallel (wine-compat courier probe -> CI .wcp; graphics-vulkan 1256 host stub).
 No DXVK until Gate 0 passes.
+
+## 2026-07-01 (cont.) — SGSR2 Gate 0 build status
+Track 2 (app host stub) CI-GREEN: branch feat/sgsr2-gate0-depth-receiver-stub, run
+28524441553 success. DRI3Extension.java modifier-1256 branch + nativeSetDepthAHB RLOG stub;
+1255/1274 paths untouched. Track 1 (Wine courier) code done + pushed to The412Banner/proton-wine
+branch feat/gate0-depth-courier (commit 1bc748b9e7d): make_vulkan un-skips android AHB ext
+(thunks generated, NOT advertised to guests), new dlls/winevulkan/depth_courier_unix.c
+(#pragma makedep unix, hooked at unix wine_vkCreateInstance tail, spawns detached thread on a
+throwaway host device via the wrapper) — inert unless WINE_DEPTH_COURIER env set. CI Autogen
+passed; final arm64ec .wcp build run 28526224298 still compiling (aarch64). On green ->
+release-device-engineer runs the on-device Gate 0 verdict.
+
+Delivery-model decision (user-raised): SGSR2 = patched Wine .wcp + patched DXVK .wcp = existing
+GE-Proton11 + DXVK3.0 + one patch each (app compositor change ships in normal APK, no-ops without
+depth). Model A = separate opt-in catalog bundle (use for Gate 0/1). Model B (target end-state) =
+fold the inert-by-default patch into standard shipped Wine/DXVK so no new SKU, once device-proven.
+Each Wine/DXVK version bump rebases the patch, like gplasync/binsem in Nightlies.
+
+## 2026-07-01 (cont.) — SGSR2 Gate 0 ON-DEVICE result: core GO (2/3 green)
+Ran the depth-courier probe on device (AYANEO Pocket FIT, com.ludashi.benchmark container 2,
+Proton-11.0-1-arm64ec-1, renderer=vulkan, WINE_DEPTH_COURIER=1, AIO DX11 Instanced-512 scene).
+Logs land in logcat System.out / -b all (getlog -b all -s SGSR2_COURIER), not the default buffer.
+(a) PASS: wrapper physdev advertises VK_ANDROID_external_memory_android_hardware_buffer = YES
+    (the killer signal -> transport possible, moonshot premise confirmed on hardware).
+(b) PASS: R32_SFLOAT AHB export FAILED (-1); R8G8B8A8_UNORM export OK. Gate 1 depth format decided
+    = RGBA8-pack (host imports RGBA8 unchanged). Risk R3 confirmed - no single-channel float AHB.
+(c) BLOCKED: courier's own 2nd X connection failed ("X11 open failed"). Root cause: winlator X
+    server socket is at <imagefs>/usr/tmp/.X11-unix/X0, not the host /tmp the courier tried. Wine
+    connects fine (game rendered), so it's a probe X-connect bug, not a transport no-go. Fix =
+    connect to the imagefs X socket, re-probe (c). Then Gate 1 with RGBA8-pack depth.
+
+## 2026-07-01 (cont.) — SGSR2 Gate 0 CLOSED: depth transport proven end-to-end
+X-connect fix (proton-wine feat/gate0-depth-courier af74a505b71) + fixed a Games-shortcut env
+typo (AIO-Graphics-Test-32bit.desktop had envVars=wine_depth_courrier=1 -> the self-contained
+.desktop env is what applies on Games-launch, not the container's; corrected to WINE_DEPTH_COURIER=1).
+Streamed capture (grow buffer + -b all, since 288fps flushes logcat fast). All 3 signals GREEN:
+(a) wrapper advertises the AHB ext = YES; (b) R32F export fails, RGBA8 OK -> Gate 1 = RGBA8-pack;
+(c) courier connects via $TMPDIR/.X11-unix/X0, QueryExtension DRI3, sends PixmapFromBuffers
+modifier=1256 frameId=1, and the HOST app received it (D Dri3: modifier 1256 depth AHB frameId=1
+w=16 h=16 -- the app-side 1256 receiver stub). Transport validated on hardware.
+KNOWN BUG for Gate 1: the receive path blocks the X-server/UI thread on
+AHardwareBuffer_recvHandleFromUnixSocket -> 5s freeze -> ANR (Input dispatching timed out) ->
+app killed. Not a segfault/OOM. Fix = recv off the UI thread + timeout + tighten courier<->host
+ack; fold into Gate 1 host receiver. Gate 0 = CLOSED (transport succeeded before the hang).
+
+## 2026-07-01 (cont.) — Next: ANR fix -> Gate 1 (kicked off)
+ANR fix (2 parts): HOST (graphics-vulkan, feat/sgsr2-gate0-depth-receiver-stub) move the 1256
+socket recv + nativeSetDepthAHB off the X-server thread (bg executor + timeout), keep frameId/dims
+parse on-thread -> kills the 5s ANR. GUEST (wine-compat, feat/gate0-depth-courier) make the courier
+complete the AHB send handshake (read app's 1-byte ack then AHardwareBuffer_sendHandleToUnixSocket)
++ add logs. Re-test: no ANR + full AHB received. THEN Gate 1: DXVK depth-capture patch (compute
+resolve depth -> RGBA8-pack, reuse courier transport, Nightlies patches/dxvk-depth-export.patch,
+CI-green arm64ec) + host real RGBA8 import + grayscale debug quad + catalog + device-prove.

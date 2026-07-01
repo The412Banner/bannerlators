@@ -30,6 +30,22 @@ import java.nio.ByteBuffer;
 
 public class DRI3Extension implements Extension {
     public static final byte MAJOR_OPCODE = -102;
+
+    // SGSR2 Gate 0/1: depth AHBs arrive on the single-threaded X-server/DRI3 handler
+    // thread, but receiving the AHB over the courier socket (blocking recvmsg) must NOT
+    // run there — a stalled recv freezes X request/input dispatch and ANRs the app. So
+    // the blocking recv + native query is handed to this dedicated worker. Daemon thread
+    // so it never blocks JVM/container teardown. This async hand-off is the structure
+    // Gate 1's real RGBA8 import + latest-depth holder will reuse.
+    private static final java.util.concurrent.ExecutorService depthRecvExecutor =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "dri3-depth-recv");
+            t.setDaemon(true);
+            return t;
+        });
+    // Cap the blocking AHB recv so a missing/late courier handoff can never hang the
+    // worker indefinitely (fd is still closed on timeout).
+    private static final int DEPTH_RECV_TIMEOUT_MS = 1000;
     private final Callback<Drawable> onDestroyDrawableListener = (drawable) -> {
         ByteBuffer data = drawable.getData();
         SysVSharedMemory.unmapSHMSegment(data, data.capacity());
@@ -166,23 +182,39 @@ public class DRI3Extension implements Extension {
             // Gate 0 = receive the AHB, query + LOG its format/size natively, then drop.
             // NOT registered as a Drawable/Pixmap (it is not visible window content);
             // nothing is rendered (grayscale quad is Gate 1).
+            // Only the cheap header parse runs on the X-server thread. The blocking AHB
+            // recv + native query is dispatched to the depth worker; the worker now OWNS
+            // the ancillary fd (getAncillaryFd() already transferred ownership) and is
+            // responsible for closing it. The X thread returns immediately -> no ANR.
             int frameId = (int)(modifiers >>> 32);
             Log.d("Dri3", "modifier 1256 (depth AHB) frameId=" + frameId + " w=" + width + " h=" + height);
-            receiveDepthAHB(width, height, frameId, fd);
+            final int depthFd = fd;
+            final short dw = width, dh = height;
+            final int fId = frameId;
+            try {
+                depthRecvExecutor.execute(() -> receiveDepthAHB(dw, dh, fId, depthFd));
+            }
+            catch (Throwable t) {
+                // Executor rejected (shutdown/OOM): don't leak the fd.
+                Log.w("Dri3", "modifier 1256: could not dispatch depth recv (frameId=" + frameId + "), dropping", t);
+                XConnectorEpoll.closeFd(depthFd);
+            }
         }
     }
 
-    // Gate 0 STUB: receive a depth AHB from the guest, hand it to the Vulkan renderer
-    // to query + log format/size, then release it. Safe if the AHB is null / recv fails
-    // (log + drop, no crash). Never touches the window/pixmap managers.
+    // Gate 0 STUB: runs on the depth worker thread. Receive a depth AHB from the guest,
+    // hand it to the Vulkan renderer to query + log format/size, then release it. Safe if
+    // the AHB is null / recv times out (log + drop, no crash). Always closes the fd.
+    // Never touches the window/pixmap managers or the X-server thread.
     private void receiveDepthAHB(short width, short height, int frameId, int fd) {
-        // Lock-free recv: the depth AHB may be GPU-only, so we must NOT use the
-        // auto-CPU-locking GPUImage(fd) constructor (it would release such a buffer).
+        // Lock-free, time-bounded recv: the depth AHB may be GPU-only, so we must NOT use
+        // the auto-CPU-locking GPUImage(fd) constructor (it would release such a buffer);
+        // the timeout guarantees the worker can never hang on a missing courier handoff.
         long ahbPtr = 0;
         try {
-            ahbPtr = GPUImage.recvHardwareBufferUnlocked(fd);
+            ahbPtr = GPUImage.recvHardwareBufferUnlocked(fd, DEPTH_RECV_TIMEOUT_MS);
             if (ahbPtr == 0) {
-                Log.w("Dri3", "modifier 1256: failed to receive depth AHB over socket (frameId=" + frameId + "), dropping");
+                Log.w("Dri3", "modifier 1256: depth AHB recv failed/timed out (frameId=" + frameId + "), dropping");
                 return;
             }
             VulkanRenderer.acceptDepthAHB(ahbPtr, frameId, width, height);

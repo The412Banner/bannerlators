@@ -117,17 +117,19 @@ public class GPUImage extends Texture {
 
     // SGSR2 Gate 0: recv an AHB over the socket WITHOUT CPU-locking it. The depth buffer
     // exported by the guest may be GPU-only; the auto-locking GPUImage(fd) constructor
-    // would fail the CPU lock and release such a buffer. Returns the raw AHardwareBuffer*
-    // (0 on failure). The caller must releaseHardwareBufferPtr() it when done.
-    public static long recvHardwareBufferUnlocked(int socketFd) {
-        return nativeRecvHardwareBufferFromSocket(socketFd);
+    // would fail the CPU lock and release such a buffer. A recv timeout (ms, <=0 = block)
+    // bounds the blocking recvmsg so a missing courier handoff cannot hang the caller.
+    // Returns the raw AHardwareBuffer* (0 on failure/timeout). The caller must
+    // releaseHardwareBufferPtr() it when done. MUST be called off the X-server thread.
+    public static long recvHardwareBufferUnlocked(int socketFd, int timeoutMs) {
+        return nativeRecvHardwareBufferFromSocket(socketFd, timeoutMs);
     }
 
     public static void releaseHardwareBufferPtr(long ptr) {
         if (ptr != 0) nativeReleaseHardwareBuffer(ptr);
     }
 
-    private static native long nativeRecvHardwareBufferFromSocket(int fd);
+    private static native long nativeRecvHardwareBufferFromSocket(int fd, int timeoutMs);
     private static native void nativeReleaseHardwareBuffer(long ptr);
 
     private native long hardwareBufferFromSocket(int fd);
