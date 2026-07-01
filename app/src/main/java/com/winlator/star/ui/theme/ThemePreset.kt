@@ -34,12 +34,18 @@ data class ThemePreset(
 ) {
     fun toColorScheme(accentOverride: Color? = null): androidx.compose.material3.ColorScheme {
         val accent = accentOverride ?: primary
-        // A custom (user-picked) accent can be lighter than the preset's baked onPrimary assumes —
-        // e.g. a white accent, where the default white onPrimary leaves on-accent icons/text
-        // invisible (white-on-white FAB / Play button). Flip to a dark on-accent color for a light
-        // custom accent; built-in presets and dark custom accents keep their designed onPrimary so
-        // the default look stays byte-identical. (issue #46)
-        val onAccent = if (accentOverride != null && accentOverride.luminance() > 0.5f) Color(0xFF000000) else onPrimary
+        // A custom (user-picked) accent can be lighter OR darker than the preset's baked onPrimary
+        // assumes. A white accent with the default white onPrimary leaves on-accent icons/text
+        // invisible (white-on-white FAB / Play button); symmetrically, a near-black accent on a
+        // preset whose onPrimary is itself dark (Monochrome, Phosphor, Royal Gold, Frost) leaves
+        // dark-on-dark. So derive on-accent from the accent's luminance for any custom accent:
+        // light accent -> black on-accent, dark accent -> white on-accent. Built-in presets keep
+        // their designed onPrimary so the default look stays byte-identical. (issue #46)
+        val onAccent = when {
+            accentOverride == null            -> onPrimary
+            accentOverride.luminance() > 0.5f -> Color(0xFF000000)
+            else                              -> Color(0xFFFFFFFF)
+        }
         return darkColorScheme(
             primary              = accent,
             onPrimary            = onAccent,
@@ -69,9 +75,14 @@ data class ThemePreset(
 
     fun toLightColorScheme(accentOverride: Color? = null): androidx.compose.material3.ColorScheme {
         val accent = accentOverride ?: primary
-        // Same on-accent contrast guard as the dark scheme: a light custom accent (e.g. white)
-        // gets a dark on-accent color so on-accent content stays legible. (issue #46)
-        val onAccent = if (accentOverride != null && accentOverride.luminance() > 0.5f) Color(0xFF000000) else Color(0xFFFFFFFF)
+        // Same symmetric on-accent contrast guard as the dark scheme: light custom accent -> dark
+        // on-accent, dark custom accent -> light on-accent, so on-accent content stays legible at
+        // either extreme. Non-custom presets keep the light scheme's white on-accent. (issue #46)
+        val onAccent = when {
+            accentOverride == null            -> Color(0xFFFFFFFF)
+            accentOverride.luminance() > 0.5f -> Color(0xFF000000)
+            else                              -> Color(0xFFFFFFFF)
+        }
         return lightColorScheme(
             primary              = accent,
             onPrimary            = onAccent,
