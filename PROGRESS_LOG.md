@@ -24,6 +24,18 @@
 
 ---
 
+## 2026-06-30 — In-game drawer left icon-rail now scrolls on short screens + 2.2.1 pre-release 1
+
+**Bug (Discord, "TAR - OnePlus 15 1TB - A840 gpu"):** in the in-game side menu the left vertical **icon rail** (Graphics / FPS / ReShade / Controls / Advanced … Task-Manager / Pause / **Exit**) didn't all fit; the user "can't go all the way down to close the game" — the bottom **Exit** button overflowed off-screen with no way to scroll.
+
+**Cause:** the rail was a `fillMaxHeight` `Column` distributing icons with three `Spacer(Modifier.weight(1f))`. On a short drawer height the weight spacers collapse to 0 and the bottom group overflows, unreachable (no scroll). `XServerDrawer.kt:133`.
+
+**Fix (`XServerDrawer.kt`):** wrapped the rail in `BoxWithConstraints` + `verticalScroll`. Content sits in a `Column` with `heightIn(min = maxHeight)` + `Arrangement.SpaceEvenly` over two group-columns (top tabs / bottom TM+Pause+Exit). `SpaceEvenly` reproduces the **exact** three-equal-gap distributed look when it fits, and **stacks + scrolls** when it doesn't, so Exit is always reachable. (`weight()` can't be used inside `verticalScroll` — infinite height — hence `SpaceEvenly`.) Added imports `BoxWithConstraints`, `heightIn`.
+
+**Release:** branch `fix/ingame-rail-scroll`. Bumped `versionCode` 35→36, `versionName` "2.2"→"2.2.1" so the in-app updater flags it. Cutting **2.2.1 Pre-release 1** via `release.yml` (`make_prerelease=true`) — publishes signed release APKs + `update.json` as a GitHub **pre-release**; `make_latest=false` so the **stable `latest` channel is untouched**. Only users who enabled **Settings → "Include pre-releases"** (`update_include_prereleases`, default off) get offered it (by design). NOT merged to main; awaiting on-device confirmation that the rail scrolls + Exit reachable on the OnePlus 15. **✅ DEVICE-VERIFIED by an online user 2026-07-01; merged to main.**
+
+---
+
 ## 2026-06-30 — Release 2.2 description rewritten + README accuracy pass + UI-rewrite explainer
 
 **Docs/release only — no code.** Rewrote the **2.2 GitHub release** body (was the auto-generated commit-table) into the established release layout (centered logo → title → bold summary → `✨ What's New` emoji sections → Downloads table → updating note → thanks), covering the real 2.2 scope: themeable interface (app + in-game drawer), 9 new presets (16 total, AMOLED still default), per-game on-screen control colours, File Manager Favorites, rebuilt controller-binding screen, in-game Task Manager (New Task on Vulkan/Native + cards), consistency/readability. Updating note states 2.2 is **app-side only — no ImageFS reinstall**.
