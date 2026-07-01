@@ -21,6 +21,7 @@ on:
   push:
     branches:
       - feat/reshade-vkbasalt-build
+      - feat/reshade-mes-patch
 
 permissions:
   contents: read
@@ -84,7 +85,10 @@ jobs:
           # (live ReShade on/off, mirrors the lsfg-vk conf.toml watch); Part B =
           # GenericUniform + ReshadeEffect::updateUniformsFromConfig (uniforms in
           # the UBO instead of spec constants -> live sliders via per-frame
-          # memcpy, no recompile); plus the Android X11-free build switch.
+          # memcpy, no recompile); Part C = per-effect live enable gate
+          # ("<effect>_enabled" -> disabled effects record an identity input->output
+          # copy instead of their shader pass, re-recorded on config toggle; Tier-1
+          # in-game effect switching, no recompile); plus the Android X11-free build.
           git -C app/src/main/cpp/vkbasalt apply --verbose \
             "${GITHUB_WORKSPACE}/patches/vkbasalt-reshade-livereload.patch"
 
