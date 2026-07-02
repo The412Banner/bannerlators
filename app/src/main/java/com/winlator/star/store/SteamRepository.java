@@ -161,6 +161,19 @@ public final class SteamRepository {
 
     public byte[] getDepotKey(int depotId) { return depotKeys.get(depotId); }
 
+    // appId → compressed (network) download-size total of the SELECTED (windows/english,
+    // downloadable) depots, computed during library sync. In-memory only — powers the
+    // dual-color download/install progress bar's download denominator. A cache miss
+    // (download resumed in a fresh process with no re-sync) returns 0 and the downloader
+    // falls back to an install-size estimate.
+    private final Map<Integer, Long> downloadSizeByApp = new ConcurrentHashMap<>();
+
+    /** Compressed download size (bytes) of an app's selected depots, or 0 if unknown. */
+    public long getSelectedDownloadSize(int appId) {
+        Long v = downloadSizeByApp.get(appId);
+        return v != null ? v : 0L;
+    }
+
     /** Request a depot decryption key for the given depot. Result comes via DepotKeyCallback. */
     public void requestDepotKey(int depotId, int appId) {
         if (steamApps == null) return;
@@ -632,33 +645,88 @@ public final class SteamRepository {
                             }
                         }
 
-                        // Collect depot IDs, manifest IDs, and sizes from the "depots" section
+                        // Collect depot IDs, manifest IDs, and sizes from the "depots" section.
+                        //
+                        // CRITICAL: only count depots the DepotDownloader will actually FETCH.
+                        // Summing every depot child inflates the size ~2x on multi-platform games
+                        // (it adds macOS/Linux + per-language + optional depots that never download).
+                        // We mirror JavaSteam DepotDownloader.getDepotInfo()'s depot-selection filter
+                        // exactly, for the flags our download path passes in SteamDepotDownloader:
+                        //   os="windows", downloadAllArchs=true, language=null(→"english"),
+                        //   downloadAllPlatforms=false, downloadAllLanguages=false, lowViolence=false.
+                        // Rule (only applied when depots/{id}/config exists):
+                        //   - oslist       : if present & non-blank, must contain "windows"
+                        //   - language     : if present & non-blank, must equal "english"
+                        //   - lowviolence  : if set (1/true), exclude
+                        //   - osarch       : SKIPPED — we pass downloadAllArchs=true (never filters)
+                        // A depot with no config, or empty oslist/language, is shared/common content
+                        // and is always included. A depot with no public manifest can't be
+                        // downloaded, so it is skipped entirely (contributes nothing).
                         StringBuilder depotSb = new StringBuilder();
-                        long totalSize = 0L;
+                        long totalSize     = 0L;   // uncompressed (install) total — SELECTED depots only
+                        long totalDownload = 0L;   // compressed (network) total — SELECTED depots only
+                        int selectedCount = 0, skippedCount = 0;
                         KeyValue depotsKv = root.get("depots");
                         List<KeyValue> depotChildren = depotsKv.getChildren();
                         if (depotChildren != null) {
                             for (KeyValue d : depotChildren) {
                                 int depotId;
                                 try { depotId = Integer.parseInt(d.getName()); }
-                                catch (NumberFormatException ignored) { continue; }
+                                catch (NumberFormatException ignored) { continue; } // "branches", "baselanguages", …
+
+                                // Must have a public manifest to be downloadable.
+                                KeyValue pub = d.get("manifests").get("public");
+                                String manifestGid = kvStr(pub.get("gid"));
+                                if (manifestGid.isEmpty()) manifestGid = kvStr(d.get("manifest")); // older format
+                                if (manifestGid.isEmpty()) { skippedCount++; continue; }
+
+                                // Mirror the DepotDownloader oslist/language/lowviolence filter.
+                                KeyValue config = d.get("config");
+                                String oslist = kvStr(config.get("oslist"));
+                                if (!oslist.isEmpty()) {
+                                    boolean windows = false;
+                                    for (String os : oslist.split(",")) {
+                                        if ("windows".equals(os.trim())) { windows = true; break; }
+                                    }
+                                    if (!windows) {
+                                        Log.d(TAG, "app " + app.getId() + " skip depot " + depotId
+                                                + " oslist='" + oslist + "' (not windows)");
+                                        skippedCount++; continue;
+                                    }
+                                }
+                                String lang = kvStr(config.get("language")).trim();
+                                if (!lang.isEmpty() && !"english".equalsIgnoreCase(lang)) {
+                                    Log.d(TAG, "app " + app.getId() + " skip depot " + depotId
+                                            + " language='" + lang + "' (not english)");
+                                    skippedCount++; continue;
+                                }
+                                String lv = kvStr(config.get("lowviolence")).trim();
+                                if (lv.equals("1") || lv.equalsIgnoreCase("true")) {
+                                    Log.d(TAG, "app " + app.getId() + " skip depot " + depotId + " lowviolence");
+                                    skippedCount++; continue;
+                                }
+
+                                // Selected — count it.
                                 if (depotSb.length() > 0) depotSb.append(',');
                                 depotSb.append(depotId);
-                                // Extract manifest GID from depots/{id}/manifests/public/gid
-                                String manifestGid = kvStr(d.get("manifests").get("public").get("gid"));
-                                if (manifestGid.isEmpty()) {
-                                    // Some depots use "manifest" directly (older format)
-                                    manifestGid = kvStr(d.get("manifest"));
-                                }
-                                // Modern PICS stores size at manifests/public/size (uncompressed).
-                                // Older format uses the top-level maxsize field. Try both.
-                                String sizeStr = kvStr(d.get("manifests").get("public").get("size"));
+                                selectedCount++;
+
+                                // Uncompressed size: modern PICS at manifests/public/size,
+                                // older format at top-level maxsize.
+                                String sizeStr = kvStr(pub.get("size"));
                                 if (sizeStr.isEmpty()) sizeStr = kvStr(d.get("maxsize"));
                                 long depotSize = 0L;
                                 if (!sizeStr.isEmpty()) {
                                     try { depotSize = Long.parseLong(sizeStr); totalSize += depotSize; }
                                     catch (NumberFormatException ignored) {}
                                 }
+                                // Compressed download size: manifests/public/download.
+                                String dlStr = kvStr(pub.get("download"));
+                                if (!dlStr.isEmpty()) {
+                                    try { totalDownload += Long.parseLong(dlStr); }
+                                    catch (NumberFormatException ignored) {}
+                                }
+
                                 if (!manifestGid.isEmpty()) {
                                     try {
                                         long manifestId = Long.parseLong(manifestGid);
@@ -667,6 +735,14 @@ public final class SteamRepository {
                                 }
                             }
                         }
+
+                        // Stash the compressed (network) total in memory for the dual-color
+                        // download/install progress bar. Not persisted (avoids a schema change);
+                        // a cache miss on a later session falls back to an estimate.
+                        downloadSizeByApp.put(app.getId(), totalDownload);
+                        Log.i(TAG, "app " + app.getId() + " depots: selected=" + selectedCount
+                                + " skipped=" + skippedCount + " install=" + totalSize
+                                + "B download=" + totalDownload + "B");
 
                         db.upsertGame(app.getId(), name, icon, totalSize, depotSb.toString(), type,
                                 developer, metacriticScore, genreSb.toString());

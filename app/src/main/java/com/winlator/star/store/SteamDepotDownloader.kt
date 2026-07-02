@@ -197,28 +197,60 @@ object SteamDepotDownloader {
         val installDir = File(File(ctx.filesDir, "imagefs/steam_games"), safeName)
         dlog("Install dir: ${installDir.absolutePath}")
 
-        // total bytes from PICS size data (falls back to depot manifest sum)
+        // Denominators come from the SELECTED-depot sums computed at library sync
+        // (SteamRepository now filters out other-OS / non-english / undownloadable depots):
+        //   installTotal  = uncompressed bytes written to disk        (row.sizeBytes)
+        //   downloadTotal = compressed bytes fetched over the network (repo in-memory cache)
         val hasPicsSize: Boolean
-        val totalExpected: Long = if (row.sizeBytes > 0L) {
+        val installTotal: Long = if (row.sizeBytes > 0L) {
             hasPicsSize = true
             row.sizeBytes
         } else {
             hasPicsSize = false
             db.getDepotManifests(appId).sumOf { it.sizeBytes }.let { if (it > 0L) it else 1L }
         }
-        dlog("Expected total: ${fmtSize(totalExpected)} (hasPicsSize=$hasPicsSize)")
+        // Compressed (network) total for the download bar. In-memory cache populated by
+        // library sync; on a cache miss (resume in a fresh process without a re-sync) fall
+        // back to the install total so the bar still has a sane denominator.
+        val cachedDownload = repo.getSelectedDownloadSize(appId)
+        val downloadTotalSeed: Long = if (cachedDownload > 0L) cachedDownload else installTotal
+        dlog("Denominators: install=${fmtSize(installTotal)} download=${fmtSize(downloadTotalSeed)} " +
+                "(hasPicsSize=$hasPicsSize, cachedDownload=$cachedDownload)")
 
-        // Queue in DB so UI shows progress (skip reset on resume — keep existing bytes)
+        // Queue in DB so UI shows progress (skip reset on resume — keep existing bytes).
+        // The DB tracks the INSTALL (uncompressed) bytes/total; compressed is UI-only.
         if (isResume) {
             db.markDownloadResuming(appId)
         } else {
-            db.queueDownload(appId, totalExpected, installDir.absolutePath)
+            db.queueDownload(appId, installTotal, installDir.absolutePath)
         }
 
-        // Track bytes across all depots (DepotDownloader reports per-depot %)
-        val bytesDownloaded = AtomicLong(0L)
-        // Running total — updated from chunk data when PICS size was wrong/zero
-        val totalRunning = AtomicLong(totalExpected)
+        // Per-depot cumulative accumulators. DepotDownloader reports cumulative bytes PER
+        // DEPOT; a multi-depot game needs these SUMMED or the bar tracks only the largest
+        // single depot and stalls partway. installByDepot=uncompressed, downloadByDepot=compressed.
+        val installByDepot  = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+        val downloadByDepot = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+
+        // Resume seeding: the DB persists only install bytes. Seed both bars so neither
+        // restarts at 0. The download (compressed) seed is derived from the install fraction
+        // since compressed progress isn't persisted — a reasonable approximation.
+        val persistedInstall = if (isResume) (db.getDownload(appId)?.bytesDownloaded ?: 0L) else 0L
+        val installBase  = persistedInstall
+        val downloadBase = if (isResume && installTotal > 0L)
+            (persistedInstall.toDouble() / installTotal * downloadTotalSeed).toLong() else 0L
+        if (isResume) dlog("Resume seed: install=${fmtSize(installBase)} " +
+                "download=${fmtSize(downloadBase)} (download from install-fraction)")
+
+        // Latest aggregate install bytes — read by the pause/complete paths in finally.
+        val lastInstallDone = AtomicLong(installBase)
+        // Running denominators — grown from chunk data if the seed was too low.
+        val installTotalRunning  = AtomicLong(installTotal)
+        val downloadTotalRunning = AtomicLong(downloadTotalSeed)
+
+        // Build the 4-field progress event: install pair + download pair.
+        fun emitProgress(iDone: Long, iTotal: Long, dDone: Long, dTotal: Long) {
+            repo.emit("DownloadProgress:$appId:$iDone:$iTotal:$dDone:$dTotal")
+        }
 
         dlog("Constructing DepotDownloader(androidEmulation=true, maxDownloads=$threads, maxDecompress=$threads, debug=true)")
         val downloader = try {
@@ -245,7 +277,7 @@ object SteamDepotDownloader {
         downloader.addListener(object : IDownloadListener {
             override fun onDownloadStarted(item: DownloadItem) {
                 dlog("onDownloadStarted: appId=${item.appId}")
-                repo.emit("DownloadProgress:$appId:0:${totalRunning.get()}")
+                emitProgress(installBase, installTotalRunning.get(), downloadBase, downloadTotalRunning.get())
             }
 
             override fun onStatusUpdate(message: String) {
@@ -263,25 +295,36 @@ object SteamDepotDownloader {
                 compressedBytes: Long,
                 uncompressedBytes: Long,
             ) {
-                // uncompressedBytes is cumulative per-depot; update if it grew
-                val prev = bytesDownloaded.get()
-                if (uncompressedBytes > prev) bytesDownloaded.set(uncompressedBytes)
-                val done = bytesDownloaded.get()
+                // Both params are cumulative PER DEPOT — keep the latest (monotonic) per
+                // depot, then SUM across depots so multi-depot games climb to the true total.
+                if (uncompressedBytes > (installByDepot[depotId] ?: 0L)) installByDepot[depotId] = uncompressedBytes
+                if (compressedBytes   > (downloadByDepot[depotId] ?: 0L)) downloadByDepot[depotId] = compressedBytes
 
-                // Only back-calculate when PICS gave no valid size — avoids
-                // totalRunning spiking to inflated values (e.g. 81KB / 0.001% = 4.3 GB)
-                // on large depots where pct stays near 0 for many chunks.
-                if (!hasPicsSize && depotPercentComplete > 0.05f && done > 0L) {
-                    val implied = (done.toDouble() / depotPercentComplete).toLong()
-                    if (implied > totalRunning.get()) totalRunning.set(implied)
+                // maxOf(base, sessionSum): fresh downloads use the sum directly (base=0);
+                // resumes never drop below the persisted floor.
+                val installDone  = maxOf(installBase,  installByDepot.values.sum())
+                val downloadDone = maxOf(downloadBase, downloadByDepot.values.sum())
+                lastInstallDone.set(installDone)
+
+                // Only back-calculate the install denominator when PICS gave no valid size —
+                // avoids spiking to inflated values on large depots that sit near 0% for a while.
+                if (!hasPicsSize && depotPercentComplete > 0.05f && installDone > 0L) {
+                    val implied = (installDone.toDouble() / depotPercentComplete).toLong()
+                    if (implied > installTotalRunning.get()) installTotalRunning.set(implied)
                 }
-                val total = totalRunning.get()
+                val iTotal = installTotalRunning.get()
+                var dTotal = downloadTotalRunning.get()
+                // Never let the download bar exceed 100% — grow the denominator if the
+                // in-memory estimate was low (e.g. cache miss on resume).
+                if (downloadDone > dTotal) { downloadTotalRunning.set(downloadDone); dTotal = downloadDone }
 
-                // Clamp to 99% — 100% is reserved for onDownloadCompleted
-                val pct = minOf((depotPercentComplete * 100).toInt(), 99)
-                dlog("Chunk: depot=$depotId pct=$pct% cumulative=${fmtSize(done)}/${fmtSize(total)}")
-                repo.emit("DownloadProgress:$appId:$done:$total")
-                db.updateDownloadProgress(appId, done)
+                // Overall % is the aggregate install fraction (what's actually on disk),
+                // clamped to 99 — 100% is reserved for onDownloadCompleted.
+                val pct = if (iTotal > 0L) minOf((installDone * 100 / iTotal).toInt(), 99) else 0
+                dlog("Chunk: depot=$depotId $pct% install=${fmtSize(installDone)}/${fmtSize(iTotal)} " +
+                        "download=${fmtSize(downloadDone)}/${fmtSize(dTotal)}")
+                emitProgress(installDone, iTotal, downloadDone, dTotal)
+                db.updateDownloadProgress(appId, installDone)
             }
 
             override fun onDepotCompleted(depotId: Int, compressedBytes: Long, uncompressedBytes: Long) {
@@ -290,11 +333,12 @@ object SteamDepotDownloader {
 
             override fun onDownloadCompleted(item: DownloadItem) {
                 dlog("=== Download complete: appId=${item.appId} ===")
-                val finalBytes = bytesDownloaded.get()
-                val finalTotal = totalRunning.get()
-                // Emit 100% before switching to installed state
-                repo.emit("DownloadProgress:$appId:$finalTotal:$finalTotal")
-                db.markInstalled(appId, installDir.absolutePath, finalBytes)
+                val iTotal = installTotalRunning.get()
+                val dTotal = downloadTotalRunning.get()
+                // Both bars reach 100% before switching to installed state.
+                emitProgress(iTotal, iTotal, dTotal, dTotal)
+                val finalInstall = maxOf(lastInstallDone.get(), installByDepot.values.sum())
+                db.markInstalled(appId, installDir.absolutePath, if (finalInstall > 0L) finalInstall else iTotal)
                 repo.emit("DownloadComplete:$appId")
             }
 
@@ -353,7 +397,7 @@ object SteamDepotDownloader {
                     paused.get() -> {
                         // Pause path: keep files + DB row, just mark paused
                         dlog("finally: paused=true — marking DL_PAUSED")
-                        db.markDownloadPaused(appId, bytesDownloaded.get())
+                        db.markDownloadPaused(appId, lastInstallDone.get())
                         repo.emit("DownloadPaused:$appId")
                     }
                     cancelled.get() -> {

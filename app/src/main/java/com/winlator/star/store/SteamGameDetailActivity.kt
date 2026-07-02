@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -101,6 +102,9 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
     private var launchBtnEnabled by mutableStateOf(false)
     private var progressVisible by mutableStateOf(false)
     private var progressValue by mutableIntStateOf(0)
+    // Lighter "download" (network) fill that leads the solid install fill. On paused/DB-restored
+    // views (compressed progress isn't persisted) it mirrors the install fraction.
+    private var downloadProgressValue by mutableIntStateOf(0)
     private var progressText by mutableStateOf("")
     private var progressTextVisible by mutableStateOf(false)
 
@@ -146,6 +150,7 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                     launchBtnEnabled = launchBtnEnabled,
                     progressVisible = progressVisible,
                     progressValue = progressValue,
+                    downloadProgressValue = downloadProgressValue,
                     progressText = progressText,
                     progressTextVisible = progressTextVisible,
                     goldbergVisible = gameStatus == GameStatus.INSTALLED,
@@ -243,16 +248,22 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
     override fun onEvent(event: String) {
         when {
             event.startsWith("DownloadProgress:") -> {
+                // Format: DownloadProgress:appId:installDone:installTotal:downloadDone:downloadTotal
                 val parts = event.split(":")
                 val id    = parts.getOrNull(1)?.toIntOrNull() ?: return
                 if (id != appId) return
-                val done  = parts.getOrNull(2)?.toLongOrNull() ?: 0L
-                val total = parts.getOrNull(3)?.toLongOrNull() ?: 1L
-                val pct   = if (total > 0) (done * 100 / total).toInt().coerceIn(0, 100) else 0
+                val iDone  = parts.getOrNull(2)?.toLongOrNull() ?: 0L
+                val iTotal = parts.getOrNull(3)?.toLongOrNull() ?: 1L
+                val dDone  = parts.getOrNull(4)?.toLongOrNull() ?: iDone
+                val dTotal = parts.getOrNull(5)?.toLongOrNull() ?: iTotal
+                val iPct   = if (iTotal > 0) (iDone * 100 / iTotal).toInt().coerceIn(0, 100) else 0
+                val dPct   = if (dTotal > 0) (dDone * 100 / dTotal).toInt().coerceIn(0, 100) else 0
                 progressVisible = true
-                progressValue = pct
+                progressValue = iPct               // solid install fill (bytes on disk)
+                downloadProgressValue = dPct        // lighter download fill (bytes fetched)
                 progressTextVisible = true
-                progressText = "Downloading… $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
+                // %/size text is the INSTALL fraction — what's actually on disk.
+                progressText = "Downloading… $iPct%  (${fmtSize(iDone)} / ${fmtSize(iTotal)})"
                 installBtnEnabled = true
                 installBtnText = "Cancel"
                 installAction = InstallAction.CANCEL
@@ -270,6 +281,7 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 val pct   = if (total > 0) (done * 100 / total).toInt().coerceIn(0, 100) else 0
                 progressVisible = true
                 progressValue = pct
+                downloadProgressValue = pct   // compressed not persisted — mirror install
                 progressTextVisible = true
                 progressText = "Paused — $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
                 installBtnEnabled = true
@@ -334,6 +346,8 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
         val dlRow = SteamRepository.getInstance().database.getDownload(appId)
         if (dlRow != null) {
             val pct = if (dlRow.bytesTotal > 0) (dlRow.bytesDownloaded * 100 / dlRow.bytesTotal).toInt().coerceIn(0, 100) else 0
+            // DB restore only has install bytes — mirror them onto the download fill.
+            downloadProgressValue = pct
             when (dlRow.status) {
                 SteamDatabase.DL_DOWNLOADING -> {
                     if (SteamDepotDownloader.isDownloading(appId)) {
@@ -354,6 +368,7 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 SteamDatabase.DL_PAUSED -> {
                     progressVisible = true
                     progressValue = pct
+                    downloadProgressValue = pct
                     progressTextVisible = true
                     progressText = "Paused — $pct%  (${fmtSize(dlRow.bytesDownloaded)} / ${fmtSize(dlRow.bytesTotal)})"
                     installBtnEnabled = true
@@ -595,6 +610,7 @@ private fun SteamGameDetailScreen(
     launchBtnEnabled: Boolean,
     progressVisible: Boolean,
     progressValue: Int,
+    downloadProgressValue: Int,
     progressText: String,
     progressTextVisible: Boolean,
     goldbergVisible: Boolean,
@@ -698,14 +714,36 @@ private fun SteamGameDetailScreen(
             )
         }
 
-        // Progress
+        // Progress — overlapping dual bar. A lighter "download" (network) fill leads a
+        // solid "install" (on-disk) fill; they move nearly together, download slightly ahead.
         if (progressVisible) {
-            LinearProgressIndicator(
-                progress = { progressValue / 100f },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+            val installFrac  = (progressValue / 100f).coerceIn(0f, 1f)
+            val downloadFrac = (downloadProgressValue / 100f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                // Download (network) fill — wider, lighter, underneath.
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(downloadFrac)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                )
+                // Install (on-disk) fill — narrower, solid, on top.
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(installFrac)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
         }
         if (progressTextVisible) {
             Text(
