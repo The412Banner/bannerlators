@@ -492,3 +492,35 @@ AddResultDialog), Steam screens wired to it, MainActivity EXTRA_OPEN_SCREEN deep
 against drawerItems; onNewIntent + pendingRoute→LaunchedEffect nav) so "Open Shortcuts" jumps
 CLEAR_TOP|SINGLE_TOP into the Shortcuts (Games) route. Kotlin+Java compile GREEN. Device gate:
 picker rows, result dialog, deep-link from store stack, legacy toast readability.
+
+## 2026-07-01 (cont.) — PLAN: Goldberg auto-patch button (regular/experimental/coldclient ladder)
+Motivation: device-tested Brawlhalla (installed via depot DL) — Goldberg got it BOOTING but hit
+Brawlhalla "Error 3003" = its own SERVER connection fail (online-only game), NOT a Steam-client
+error. Lesson baked into UI copy: Goldberg unlocks DRM/ownership-gated games so they START without
+a running Steam client; it CANNOT make online-only games reach publisher servers. App has ZERO
+Goldberg handling today (grep clean) — net-new feature. Goldberg folder on device =
+/storage/emulated/0/Winlator/Games/Goldberg = gbe_fork build (regular/ = steam_api only;
+experimental/ = steam_api + steamclient; steamclient_experimental/ = ColdClientLoader + loader exe;
+tools/generate_interfaces; steam_settings.EXAMPLE/). Game installed under imagefs (ludashi pkg).
+
+DESIGN (agreed): opt-in TOGGLE on game detail page, escalating tiers Off→Regular→Experimental→
+ColdClient, each framed "try if previous failed". Store's edge = we KNOW appId+installDir → auto
+steam_appid.txt (kills the appid=0 failure class).
+ORDER OF OPS:
+ SHARED PREP (once): (1) scan installDir for all steam_api(64).dll, record path+arch via PE header;
+ (2) if none → message "game doesn't use Steam API, N/A"; (3) byte-scan ORIGINAL dll for
+ SteamClient0xx interface strings → steam_settings/steam_interfaces.txt (reimplement
+ generate_interfaces, no foreign binary); (4) back up each original → .dll.bak (only if absent =
+ permanent pristine source); (5) write steam_settings/steam_appid.txt + steam_appid.txt beside each
+ dll (known appId).
+ TIER1 Regular: copy regular/<arch>/steam_api(64).dll over each. Default.
+ TIER2 Experimental: experimental/<arch>/steam_api(64).dll + steamclient(64).dll alongside.
+ TIER3 ColdClient: RESTORE original steam_api, drop steamclient_experimental files, gen
+ ColdClientLoader.ini (appId+exe+rundir), REPOINT launch shortcut Exec→steamclient_loader_x64.exe.
+GOLDEN RULES: always apply FROM .bak (restore-then-apply on every tier switch — idempotent, no
+stacking); "Restore original" always available (also restores shortcut Exec for ColdClient).
+WRINKLE: ColdClient changes launch command → per-game Goldberg mode must be stored + resolved at
+shortcut-write/launch time (coordinates w/ StarLaunchBridge). Tiers 1-2 = pure file swap, no launch
+change. Bundle a pinned Goldberg (gbe_fork) in app assets, extract to imagefs on first use (turnkey,
+don't depend on user's Winlator/Games/Goldberg folder). Sequenced on branch stacked on
+feat/steam-store-compose (picker work still device-gating build 2 run 28560163675).
