@@ -587,3 +587,26 @@ device-test in the morning (2026-07-02). MORNING CHECKLIST:
  3. Multi-depot download: bar climbs smooth 0→100, no ~48-50% stall; dual fills (solid install + lighter download).
  4. Pause/resume mid-download: percentage stays sane.
 Branch NOT merged; accumulating (store rebuild + Goldberg + dl fix all on feat/steam-goldberg-patcher).
+
+## 2026-07-01 (cont.) — BUG TO CHASE IN MORNING: download fails ~1hr after login (session expiry)
+User report: logged in, ~1hr later can't start a game download. Suspects login/refresh-token needs
+refreshing. QUICK DIAGNOSIS (code read, NOT yet confirmed on device):
+LIKELY ROOT CAUSE = SteamRepository.onLoggedOff (LoggedOffCallback, :485-489) just sets loggedIn=false
++ emit("LoggedOut") and does NOT auto re-login with the stored refresh token. Contrast onDisconnected
+(:445-464) which DOES auto-reconnect+relogin. So a socket DISCONNECT self-heals, but a Steam-side
+LOGGED-OFF (session/access-token timeout after idle, ~1hr) leaves loggedIn=false with no recovery.
+Then the download path (SteamDepotDownloader :158-182): steamClient non-null, but if !isLoggedIn it
+calls ensureLoggedIn() (SteamRepository :831-834) which fires loginWithToken ASYNC (non-blocking) and
+returns immediately → download proceeds before re-logon completes; licenses may still be cached
+(onLoggedOff does NOT clear them) so the empty-check passes, but depot-key/manifest requests need a
+live authenticated session → fail. User's "refresh token" intuition is basically right: token is
+stored + could re-login, but nothing triggers it on LoggedOff and the download's ensureLoggedIn
+doesn't WAIT.
+MORNING: (1) reproduce + capture `getlog com.winlator.banner` at the moment of the failed download —
+confirm whether onLoggedOff fired (LoggedOff:<result>) vs onDisconnected. (2) FIX DIRECTIONS:
+  a. onLoggedOff: if !userInitiated && refresh token stored → auto loginWithToken (mirror
+     onDisconnected auto-reconnect). Refresh token is long-lived; re-logon mints a fresh access token.
+  b. Make download's ensureLoggedIn BLOCK on the LoggedOn callback (latch + timeout) before firing
+     depot requests, so re-login completes first.
+Note: access tokens from refresh-token logon ~24h, but CM session drops on idle far sooner; app
+backgrounding + foreground-service socket idle is a plausible trigger. NOT fixed tonight (needs repro).
