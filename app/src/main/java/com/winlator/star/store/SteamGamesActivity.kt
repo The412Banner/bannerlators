@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.LruCache
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,10 +30,22 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,7 +64,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.winlator.star.ui.theme.WinlatorTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -260,62 +273,58 @@ private fun SteamGamesScreen(
     onUninstall: (SteamGame) -> Unit,
     onLaunch: (SteamGame) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Header bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("\u2190", color = Color(0xFF0055FF), fontSize = 18.sp) }
-            Text(
-                text = "Steam Library",
-                fontSize = 18.sp,
-                color = Color(0xFF0055FF),
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f).padding(start = 8.dp),
-            )
-            Button(
-                onClick = onViewToggle,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                modifier = Modifier.height(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-            ) {
-                Text(
-                    if (viewMode == "grid") "\u2630" else "\u25A6",
-                    color = Color.White, fontSize = 16.sp,
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            Spacer(Modifier.width(4.dp))
-            Button(
-                onClick = onRefresh,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                modifier = Modifier.height(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-            ) { Text("Refresh", color = Color.White, fontSize = 13.sp) }
-            Spacer(Modifier.width(6.dp))
-            Button(
-                onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                modifier = Modifier.height(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-            ) { Text("Logout", color = Color.White, fontSize = 13.sp) }
+            Text(
+                text = "Steam Library",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f).padding(start = 4.dp),
+            )
+            IconButton(onClick = onViewToggle) {
+                Icon(
+                    imageVector = if (viewMode == "grid") Icons.Filled.ViewList else Icons.Filled.GridView,
+                    contentDescription = if (viewMode == "grid") "List view" else "Grid view",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = "Refresh",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            IconButton(onClick = onLogout) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = "Sign out",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
 
-        // Status bar
+        // Status line
         Text(
             text = statusText,
-            fontSize = 12.sp,
-            color = Color(0xFF0055FF),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         )
 
         // Content
@@ -323,8 +332,8 @@ private fun SteamGamesScreen(
             if (games.isEmpty() && !isLoading) {
                 Text(
                     text = "No games found.\nIf sync just finished, tap Refresh.",
-                    fontSize = 14.sp,
-                    color = Color(0xFFAAAAAA),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
             } else {
@@ -360,7 +369,7 @@ private fun SteamGamesScreen(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFF0055FF),
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -374,81 +383,106 @@ private fun GameListItem(
     onUninstall: () -> Unit,
     onLaunch: () -> Unit,
 ) {
-    Row(
+    // Floating card matching the Containers/Shortcuts list idiom (rounded surfaceVariant
+    // panel + outline border + side margins) with a tall poster tile for the game art.
+    Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(Color.Black)
-            .padding(bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        // Cover art
-        GameCoverArt(
-            appId = game.appId,
-            modifier = Modifier.width(80.dp).height(140.dp),
-        )
-
-        // Info
-        Column(
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.Center,
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         ) {
-            Text(
-                text = game.name.ifEmpty { "App ${game.appId}" },
-                fontSize = 14.sp,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            // 3:4 poster cover tile
+            GameCoverArt(
+                appId = game.appId,
+                modifier = Modifier
+                    .size(width = 60.dp, height = 80.dp)
+                    .clip(RoundedCornerShape(6.dp)),
             )
-            if (game.developer.isNotEmpty()) {
-                Text(game.developer, fontSize = 11.sp, color = Color(0xFFAAAAAA), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp))
-            }
-            if (game.genres.isNotEmpty()) {
-                Text(game.genres, fontSize = 11.sp, color = Color(0xFFAAAAAA), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp))
-            }
-            if (game.sizeBytes > 0) {
-                Text(fmtSize(game.sizeBytes), fontSize = 11.sp, color = Color(0xFFAAAAAA),
-                    modifier = Modifier.padding(top = 2.dp))
-            }
-            if (game.metacriticScore > 0) {
+            Spacer(Modifier.width(12.dp))
+
+            // Info
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Metacritic: ${game.metacriticScore}",
-                    fontSize = 11.sp,
-                    color = when {
-                        game.metacriticScore >= 75 -> Color(0xFF4CAF50)
-                        game.metacriticScore >= 50 -> Color(0xFFFFC107)
-                        else -> Color(0xFFF44336)
-                    },
-                    modifier = Modifier.padding(top = 2.dp),
+                    text = game.name.ifEmpty { "App ${game.appId}" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            if (game.isInstalled) {
-                Text(
-                    text = "\u25CF Installed",
-                    fontSize = 11.sp,
-                    color = Color(0xFF4CAF50),
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-                Spacer(Modifier.height(3.dp))
-                Button(
-                    onClick = onUninstall,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                    modifier = Modifier.fillMaxWidth().height(30.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                ) { Text("Uninstall", color = Color.White, fontSize = 11.sp) }
-                Spacer(Modifier.height(3.dp))
-                Button(
-                    onClick = onLaunch,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                    modifier = Modifier.fillMaxWidth().height(30.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                ) { Text("Launch / Add to Shortcuts", color = Color.White, fontSize = 11.sp) }
+                if (game.developer.isNotEmpty()) {
+                    Text(
+                        text = game.developer,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (game.genres.isNotEmpty()) {
+                    Text(
+                        text = game.genres,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (game.sizeBytes > 0) {
+                    Text(
+                        text = fmtSize(game.sizeBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (game.metacriticScore > 0) {
+                    Text(
+                        text = "Metacritic: ${game.metacriticScore}",
+                        style = MaterialTheme.typography.bodySmall,
+                        // Semantic review-score colours, deliberately not themed.
+                        color = when {
+                            game.metacriticScore >= 75 -> Color(0xFF4CAF50)
+                            game.metacriticScore >= 50 -> Color(0xFFFFC107)
+                            else -> Color(0xFFF44336)
+                        },
+                    )
+                }
+                if (game.isInstalled) {
+                    Text(
+                        text = "\u25CF Installed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF4CAF50), // semantic installed-green
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = onLaunch,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                        ) { Text("Launch / Add", style = MaterialTheme.typography.labelSmall) }
+                        OutlinedButton(
+                            onClick = onUninstall,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                        ) { Text("Uninstall", style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
             }
         }
     }
@@ -469,7 +503,7 @@ private fun GameCoverArt(appId: Int, modifier: Modifier = Modifier) {
     }
 
     Box(
-        modifier = modifier.background(Color.Black),
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null) {
@@ -480,11 +514,15 @@ private fun GameCoverArt(appId: Int, modifier: Modifier = Modifier) {
                 contentScale = ContentScale.Crop,
             )
         } else if (loaded) {
-            Text("\u00d7", color = Color(0xFF666666), fontSize = 24.sp)
+            Text(
+                text = "\u00d7",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color(0xFF0055FF),
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 2.dp,
             )
         }
@@ -496,45 +534,40 @@ private fun GameGridTile(
     game: SteamGame,
     onClick: () -> Unit,
 ) {
-    Column(
+    // Grid tile matching the Shortcuts game cards: rounded cover card with an outline
+    // border and a bottom gradient scrim carrying the name.
+    Box(
         modifier = Modifier
+            .aspectRatio(2f / 3f)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.Black)
-            .border(1.dp, Color(0xFF0055FF).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                GameCoverArt(
-                    appId = game.appId,
-                    modifier = Modifier.fillMaxSize(),
+        GameCoverArt(
+            appId = game.appId,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(
+                    // Scrim sits over cover art, so it stays black/white regardless of theme.
+                    brush = Brush.verticalGradient(
+                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)),
+                    ),
                 )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            listOf(Color(0x44000000), Color(0xEE000000)),
-                        ),
-                    )
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = game.name.ifEmpty { "App ${game.appId}" },
-                    fontSize = 11.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        ) {
+            Text(
+                text = game.name.ifEmpty { "App ${game.appId}" },
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

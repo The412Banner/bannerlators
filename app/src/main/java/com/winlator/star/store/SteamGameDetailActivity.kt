@@ -24,13 +24,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,27 +45,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.winlator.star.ui.theme.WinlatorTheme
 import java.io.File
 import java.net.URL
+
+/** Semantic action carried by the install button; the colour resolves inside the composable
+ *  (install/retry = primary, cancel/uninstall = error) so theme presets recolor it live. */
+private enum class InstallAction { INSTALL, CANCEL, UNINSTALL, RETRY }
+
+/** Semantic pause-button mode: PAUSE renders as a calm surfaceVariant container, RESUME as primary. */
+private enum class PauseAction { PAUSE, RESUME }
+
+/** Semantic install status; colour resolves inside the composable (installed = green,
+ *  failed = error, everything else = onSurfaceVariant). */
+private enum class GameStatus { NOT_INSTALLED, INSTALLED, CANCELLED, FAILED }
 
 class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventListener {
 
     companion object {
         const val EXTRA_APP_ID = "steam_app_id"
     }
-
-    private val COLOR_INSTALL   = 0xFF1565C0.toInt()
-    private val COLOR_CANCEL    = 0xFFCC3333.toInt()
-    private val COLOR_UNINSTALL = 0xFFB71C1C.toInt()
-    private val COLOR_LAUNCH    = 0xFF2E7D32.toInt()
-    private val COLOR_PAUSE     = 0xFFE65100.toInt()
-    private val COLOR_RESUME    = 0xFF2E7D32.toInt()
 
     private var appId: Int = 0
     private var game by mutableStateOf<SteamGame?>(null)
@@ -71,20 +81,18 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
 
     // UI state
     private var headerBitmap by mutableStateOf<Bitmap?>(null)
-    private var nameText by mutableStateOf("Loading\u2026")
+    private var nameText by mutableStateOf("Loading…")
     private var typeText by mutableStateOf("GAME")
     private var sizeText by mutableStateOf("Size unknown")
     private var statusText by mutableStateOf("Not installed")
-    private var statusColor by mutableStateOf(0xFFAAAAAA.toInt())
+    private var gameStatus by mutableStateOf(GameStatus.NOT_INSTALLED)
     private var installBtnText by mutableStateOf("Install")
-    private var installBtnColor by mutableIntStateOf(COLOR_INSTALL)
+    private var installAction by mutableStateOf(InstallAction.INSTALL)
     private var installBtnEnabled by mutableStateOf(true)
     private var pauseBtnText by mutableStateOf("Pause")
-    private var pauseBtnColor by mutableIntStateOf(COLOR_PAUSE)
+    private var pauseAction by mutableStateOf(PauseAction.PAUSE)
     private var pauseBtnEnabled by mutableStateOf(false)
-    private var pauseBtnAlpha by mutableStateOf(0.4f)
     private var launchBtnEnabled by mutableStateOf(false)
-    private var launchBtnAlpha by mutableStateOf(0.4f)
     private var progressVisible by mutableStateOf(false)
     private var progressValue by mutableIntStateOf(0)
     private var progressText by mutableStateOf("")
@@ -109,16 +117,14 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                     typeText = typeText,
                     sizeText = sizeText,
                     statusText = statusText,
-                    statusColor = statusColor,
+                    gameStatus = gameStatus,
                     installBtnText = installBtnText,
-                    installBtnColor = installBtnColor,
+                    installAction = installAction,
                     installBtnEnabled = installBtnEnabled,
                     pauseBtnText = pauseBtnText,
-                    pauseBtnColor = pauseBtnColor,
+                    pauseAction = pauseAction,
                     pauseBtnEnabled = pauseBtnEnabled,
-                    pauseBtnAlpha = pauseBtnAlpha,
                     launchBtnEnabled = launchBtnEnabled,
-                    launchBtnAlpha = launchBtnAlpha,
                     progressVisible = progressVisible,
                     progressValue = progressValue,
                     progressText = progressText,
@@ -137,7 +143,7 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                             showSpeedPicker = false
                             lastThreadCount = threadCount
                             installBtnEnabled = false
-                            installBtnText = "Starting\u2026"
+                            installBtnText = "Starting…"
                             downloadHandle = SteamDepotDownloader.installApp(appId, applicationContext, lastThreadCount)
                         },
                     )
@@ -181,14 +187,13 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 progressVisible = true
                 progressValue = pct
                 progressTextVisible = true
-                progressText = "Downloading\u2026 $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
+                progressText = "Downloading… $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
                 installBtnEnabled = true
                 installBtnText = "Cancel"
-                installBtnColor = COLOR_CANCEL
+                installAction = InstallAction.CANCEL
                 pauseBtnEnabled = true
-                pauseBtnAlpha = 1f
                 pauseBtnText = "Pause"
-                pauseBtnColor = COLOR_PAUSE
+                pauseAction = PauseAction.PAUSE
             }
             event.startsWith("DownloadPaused:") -> {
                 val id = event.substringAfter("DownloadPaused:").toIntOrNull() ?: return
@@ -201,14 +206,13 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 progressVisible = true
                 progressValue = pct
                 progressTextVisible = true
-                progressText = "Paused \u2014 $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
+                progressText = "Paused — $pct%  (${fmtSize(done)} / ${fmtSize(total)})"
                 installBtnEnabled = true
                 installBtnText = "Cancel"
-                installBtnColor = COLOR_CANCEL
+                installAction = InstallAction.CANCEL
                 pauseBtnEnabled = true
-                pauseBtnAlpha = 1f
                 pauseBtnText = "Resume"
-                pauseBtnColor = COLOR_RESUME
+                pauseAction = PauseAction.RESUME
             }
             event.startsWith("DownloadComplete:") -> {
                 val id = event.substringAfter("DownloadComplete:").toIntOrNull() ?: return
@@ -226,10 +230,10 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 progressVisible = false
                 progressTextVisible = false
                 statusText = "Download cancelled"
-                statusColor = 0xFFAAAAAA.toInt()
+                gameStatus = GameStatus.CANCELLED
                 installBtnEnabled = true
                 installBtnText = "Install"
-                installBtnColor = COLOR_INSTALL
+                installAction = InstallAction.INSTALL
                 resetPauseBtn()
             }
             event.startsWith("DownloadFailed:") -> {
@@ -242,10 +246,10 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                 progressVisible = false
                 progressTextVisible = false
                 statusText = "Download failed: $reason\nDebug log: $logPath"
-                statusColor = 0xFFFF5555.toInt()
+                gameStatus = GameStatus.FAILED
                 installBtnEnabled = true
                 installBtnText = "Retry"
-                installBtnColor = COLOR_INSTALL
+                installAction = InstallAction.RETRY
                 resetPauseBtn()
             }
         }
@@ -253,9 +257,8 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
 
     private fun resetPauseBtn() {
         pauseBtnEnabled = false
-        pauseBtnAlpha = 0.4f
         pauseBtnText = "Pause"
-        pauseBtnColor = COLOR_PAUSE
+        pauseAction = PauseAction.PAUSE
     }
 
     private fun loadGame() {
@@ -272,14 +275,13 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                         progressVisible = true
                         progressValue = pct
                         progressTextVisible = true
-                        progressText = "Downloading\u2026 $pct%"
+                        progressText = "Downloading… $pct%"
                         installBtnEnabled = true
                         installBtnText = "Cancel"
-                        installBtnColor = COLOR_CANCEL
+                        installAction = InstallAction.CANCEL
                         pauseBtnEnabled = true
-                        pauseBtnAlpha = 1f
                         pauseBtnText = "Pause"
-                        pauseBtnColor = COLOR_PAUSE
+                        pauseAction = PauseAction.PAUSE
                     } else {
                         SteamRepository.getInstance().database.deleteDownload(appId)
                     }
@@ -288,14 +290,13 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
                     progressVisible = true
                     progressValue = pct
                     progressTextVisible = true
-                    progressText = "Paused \u2014 $pct%  (${fmtSize(dlRow.bytesDownloaded)} / ${fmtSize(dlRow.bytesTotal)})"
+                    progressText = "Paused — $pct%  (${fmtSize(dlRow.bytesDownloaded)} / ${fmtSize(dlRow.bytesTotal)})"
                     installBtnEnabled = true
                     installBtnText = "Cancel"
-                    installBtnColor = COLOR_CANCEL
+                    installAction = InstallAction.CANCEL
                     pauseBtnEnabled = true
-                    pauseBtnAlpha = 1f
                     pauseBtnText = "Resume"
-                    pauseBtnColor = COLOR_RESUME
+                    pauseAction = PauseAction.RESUME
                 }
             }
         }
@@ -309,20 +310,18 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
 
         if (g.isInstalled) {
             statusText = "Installed"
-            statusColor = 0xFF4CAF50.toInt()
+            gameStatus = GameStatus.INSTALLED
             installBtnText = "Uninstall"
-            installBtnColor = COLOR_UNINSTALL
+            installAction = InstallAction.UNINSTALL
             installBtnEnabled = true
             launchBtnEnabled = true
-            launchBtnAlpha = 1f
         } else {
             statusText = "Not installed"
-            statusColor = 0xFFAAAAAA.toInt()
+            gameStatus = GameStatus.NOT_INSTALLED
             installBtnText = "Install"
-            installBtnColor = COLOR_INSTALL
+            installAction = InstallAction.INSTALL
             installBtnEnabled = true
             launchBtnEnabled = false
-            launchBtnAlpha = 0.4f
         }
     }
 
@@ -350,9 +349,9 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
             progressVisible = false
             progressTextVisible = false
             statusText = "Download cancelled"
-            statusColor = 0xFFAAAAAA.toInt()
+            gameStatus = GameStatus.CANCELLED
             installBtnText = "Install"
-            installBtnColor = COLOR_INSTALL
+            installAction = InstallAction.INSTALL
             installBtnEnabled = true
             resetPauseBtn()
             return
@@ -367,9 +366,9 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
             progressVisible = false
             progressTextVisible = false
             statusText = "Download cancelled"
-            statusColor = 0xFFAAAAAA.toInt()
+            gameStatus = GameStatus.CANCELLED
             installBtnText = "Install"
-            installBtnColor = COLOR_INSTALL
+            installAction = InstallAction.INSTALL
             installBtnEnabled = true
             resetPauseBtn()
             return
@@ -392,9 +391,8 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
             handle.pause.run()
             downloadHandle = null
             pauseBtnText = "Resume"
-            pauseBtnColor = COLOR_RESUME
+            pauseAction = PauseAction.RESUME
             pauseBtnEnabled = true
-            pauseBtnAlpha = 1f
             installBtnText = "Cancel"
             installBtnEnabled = true
             val cur = progressText
@@ -403,10 +401,9 @@ class SteamGameDetailActivity : ComponentActivity(), SteamRepository.SteamEventL
             val dlRow = SteamRepository.getInstance().database.getDownload(appId) ?: return
             if (dlRow.status != SteamDatabase.DL_PAUSED) return
             pauseBtnEnabled = false
-            pauseBtnAlpha = 0.4f
-            pauseBtnText = "Resuming\u2026"
+            pauseBtnText = "Resuming…"
             installBtnEnabled = false
-            installBtnText = "Starting\u2026"
+            installBtnText = "Starting…"
             downloadHandle = SteamDepotDownloader.resumeApp(appId, applicationContext, lastThreadCount)
         }
     }
@@ -466,16 +463,14 @@ private fun SteamGameDetailScreen(
     typeText: String,
     sizeText: String,
     statusText: String,
-    statusColor: Int,
+    gameStatus: GameStatus,
     installBtnText: String,
-    installBtnColor: Int,
+    installAction: InstallAction,
     installBtnEnabled: Boolean,
     pauseBtnText: String,
-    pauseBtnColor: Int,
+    pauseAction: PauseAction,
     pauseBtnEnabled: Boolean,
-    pauseBtnAlpha: Float,
     launchBtnEnabled: Boolean,
-    launchBtnAlpha: Float,
     progressVisible: Boolean,
     progressValue: Int,
     progressText: String,
@@ -488,21 +483,26 @@ private fun SteamGameDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1B1B1B))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState()),
     ) {
         // Header bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF212121))
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("\u2190 Back", color = Color.White) }
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                )
+            }
         }
 
-        // Header image
+        // Hero image with a subtle gradient into the background at the bottom
         Box(
             modifier = Modifier.fillMaxWidth().height(180.dp),
             contentAlignment = Alignment.Center,
@@ -516,40 +516,54 @@ private fun SteamGameDetailScreen(
                 )
             } else {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF0D47A1)),
+                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = Color(0xFF0055FF),
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 3.dp,
                     )
                 }
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, MaterialTheme.colorScheme.background),
+                        ),
+                    ),
+            )
         }
 
         // Info section
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-            Text(text = nameText, fontSize = 22.sp, color = Color.White)
-            Spacer(Modifier.height(4.dp))
+        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+            Text(
+                text = nameText,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = typeText,
-                    fontSize = 11.sp,
-                    color = Color(0xFF4CAF50),
-                    modifier = Modifier
-                        .background(Color(0xFF263238))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(text = sizeText, fontSize = 12.sp, color = Color(0xFFAAAAAA))
+                InfoChip(typeText)
+                Spacer(Modifier.width(8.dp))
+                InfoChip(sizeText)
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = statusText,
-                fontSize = 12.sp,
-                color = Color(statusColor),
-                modifier = Modifier.padding(bottom = 12.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = when (gameStatus) {
+                    GameStatus.INSTALLED -> Color(0xFF4CAF50) // semantic installed-green
+                    GameStatus.FAILED    -> MaterialTheme.colorScheme.error
+                    else                 -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
 
@@ -558,16 +572,16 @@ private fun SteamGameDetailScreen(
             LinearProgressIndicator(
                 progress = { progressValue / 100f },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                color = Color(0xFF0055FF),
-                trackColor = Color(0xFF2A2A2A),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
         }
         if (progressTextVisible) {
             Text(
                 text = progressText,
-                fontSize = 11.sp,
-                color = Color(0xFFAAAAAA),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
 
@@ -576,36 +590,59 @@ private fun SteamGameDetailScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
                 onClick = onInstallClick,
                 enabled = installBtnEnabled,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(installBtnColor)),
+                colors = when (installAction) {
+                    InstallAction.CANCEL, InstallAction.UNINSTALL -> ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    )
+                    else -> ButtonDefaults.buttonColors()
+                },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(4.dp),
-            ) { Text(installBtnText, color = Color.White) }
+                shape = RoundedCornerShape(10.dp),
+            ) { Text(installBtnText, maxLines = 1) }
 
             Button(
                 onClick = onPauseResumeClick,
                 enabled = pauseBtnEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(pauseBtnColor).copy(alpha = pauseBtnAlpha),
-                ),
+                colors = when (pauseAction) {
+                    PauseAction.PAUSE -> ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
+                    PauseAction.RESUME -> ButtonDefaults.buttonColors()
+                },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(4.dp),
-            ) { Text(pauseBtnText, color = Color.White) }
+                shape = RoundedCornerShape(10.dp),
+            ) { Text(pauseBtnText, maxLines = 1) }
 
             Button(
                 onClick = onLaunchClick,
                 enabled = launchBtnEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2E7D32).copy(alpha = launchBtnAlpha),
-                ),
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(4.dp),
-            ) { Text("Launch", color = Color.White) }
+                shape = RoundedCornerShape(10.dp),
+            ) { Text("Launch", maxLines = 1) }
         }
+    }
+}
+
+@Composable
+private fun InfoChip(label: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -616,9 +653,9 @@ private fun DownloadSpeedPickerDialog(
     onDownload: (threadCount: Int) -> Unit,
 ) {
     val options = listOf(
-        "Safe (4 threads) \u2014 least RAM/CPU usage" to 4,
-        "Normal (8 threads) \u2014 balanced" to 8,
-        "Fast (16 threads) \u2014 maximum speed" to 16,
+        "Safe (4 threads) — least RAM/CPU usage" to 4,
+        "Normal (8 threads) — balanced" to 8,
+        "Fast (16 threads) — maximum speed" to 16,
     )
     var selected by remember { mutableIntStateOf(selectedIndex) }
 
@@ -638,21 +675,24 @@ private fun DownloadSpeedPickerDialog(
                         RadioButton(
                             selected = selected == index,
                             onClick = { selected = index },
-                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0055FF)),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(label, fontSize = 14.sp, color = Color.White, modifier = Modifier.weight(1f))
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = { onDownload(options[selected].second) }) {
-                Text("Download", color = Color(0xFF0055FF))
+                Text("Download")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = Color(0xFFAAAAAA)) }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }

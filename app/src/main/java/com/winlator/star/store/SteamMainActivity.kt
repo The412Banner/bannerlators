@@ -11,10 +11,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import com.winlator.star.ui.theme.WinlatorTheme
 
 class SteamMainActivity : ComponentActivity() {
@@ -74,9 +74,9 @@ private fun SteamMainContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1B1B1B)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = Color(0xFF0055FF))
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }

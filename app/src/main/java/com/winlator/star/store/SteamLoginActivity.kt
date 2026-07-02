@@ -23,10 +23,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,12 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.winlator.star.ui.theme.WinlatorTheme
 
@@ -234,9 +232,9 @@ private fun SteamGuardDialog(
 ) {
     var code by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
-        androidx.compose.material3.Surface(
+        Surface(
             shape = RoundedCornerShape(16.dp),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
@@ -245,12 +243,16 @@ private fun SteamGuardDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(text = title, fontSize = 18.sp, color = Color.White)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = message,
-                    fontSize = 13.sp,
-                    color = Color(0xFFAAAAAA),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
@@ -265,28 +267,18 @@ private fun SteamGuardDialog(
                     ),
                     keyboardActions = KeyboardActions(onDone = { onSubmit(code.trim()) }),
                     modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF0055FF),
-                        unfocusedBorderColor = Color(0xFF2A2A2A),
-                        cursorColor = Color.White,
-                        focusedLabelColor = Color(0xFFAAAAAA),
-                        unfocusedLabelColor = Color(0xFF808080),
-                    ),
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onCancel) { Text("Cancel", color = Color(0xFFAAAAAA)) }
+                    TextButton(onClick = onCancel) { Text("Cancel") }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSubmit(code.trim()) },
                         enabled = code.trim().isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
-                    ) { Text("Submit", color = Color.White) }
+                    ) { Text("Submit") }
                 }
             }
         }
@@ -308,17 +300,21 @@ private fun SteamLoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp, vertical = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = "Steam", fontSize = 32.sp, color = Color.White)
+        Text(
+            text = "Steam",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "Sign in to your account",
-            fontSize = 14.sp,
-            color = Color(0xFFAAAAAA),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(32.dp))
 
@@ -329,15 +325,6 @@ private fun SteamLoginScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFF0055FF),
-                unfocusedBorderColor = Color(0xFF2A2A2A),
-                cursorColor = Color.White,
-                focusedLabelColor = Color(0xFFAAAAAA),
-                unfocusedLabelColor = Color(0xFF808080),
-            ),
         )
         Spacer(Modifier.height(12.dp))
 
@@ -353,15 +340,6 @@ private fun SteamLoginScreen(
             ),
             keyboardActions = KeyboardActions(onDone = { onLoginClick() }),
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFF0055FF),
-                unfocusedBorderColor = Color(0xFF2A2A2A),
-                cursorColor = Color.White,
-                focusedLabelColor = Color(0xFFAAAAAA),
-                unfocusedLabelColor = Color(0xFF808080),
-            ),
         )
         Spacer(Modifier.height(24.dp))
 
@@ -369,20 +347,19 @@ private fun SteamLoginScreen(
             onClick = onLoginClick,
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth().height(52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0055FF)),
             shape = RoundedCornerShape(8.dp),
-        ) { Text("Sign In", color = Color.White) }
+        ) { Text("Sign In") }
         Spacer(Modifier.height(12.dp))
 
         TextButton(onClick = onQrClick) {
-            Text("Sign in with QR Code", color = Color(0xFFAAAAAA))
+            Text("Sign in with QR Code")
         }
         Spacer(Modifier.height(16.dp))
 
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color(0xFF0055FF),
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 2.dp,
             )
             Spacer(Modifier.height(8.dp))
@@ -391,8 +368,9 @@ private fun SteamLoginScreen(
         if (statusText.isNotEmpty()) {
             Text(
                 text = statusText,
-                fontSize = 13.sp,
-                color = if (isStatusError) Color.Red else Color(0xFFAAAAAA),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isStatusError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

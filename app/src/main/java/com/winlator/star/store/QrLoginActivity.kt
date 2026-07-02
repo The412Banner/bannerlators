@@ -22,8 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,9 +32,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color as ComposeColor
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.winlator.star.ui.theme.WinlatorTheme
@@ -215,28 +217,29 @@ private fun QrLoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = "Sign in via QR Code",
-            fontSize = 22.sp,
-            color = androidx.compose.ui.graphics.Color.White,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "Open the Steam app \u2192 \u2630 \u2192 Sign in via QR code",
-            fontSize = 13.sp,
-            color = androidx.compose.ui.graphics.Color(0xFFAAAAAA),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(24.dp))
 
-        // QR code card
+        // QR code card \u2014 deliberately white regardless of theme; scanners need the contrast.
         Box(
             modifier = Modifier
-                .background(androidx.compose.ui.graphics.Color.White)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ComposeColor.White)
                 .padding(12.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -253,7 +256,9 @@ private fun QrLoginScreen(
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            color = androidx.compose.ui.graphics.Color(0xFF0055FF),
+                            // Fixed dark spinner: it sits on the always-white QR card, so a
+                            // light accent preset would make a primary-tinted one invisible.
+                            color = ComposeColor(0xFF444444),
                             strokeWidth = 3.dp,
                         )
                     }
@@ -265,7 +270,7 @@ private fun QrLoginScreen(
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = androidx.compose.ui.graphics.Color(0xFF0055FF),
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 2.dp,
             )
             Spacer(Modifier.height(8.dp))
@@ -273,23 +278,24 @@ private fun QrLoginScreen(
 
         Text(
             text = statusText,
-            fontSize = 13.sp,
-            color = if (isError) androidx.compose.ui.graphics.Color.Red else androidx.compose.ui.graphics.Color(0xFFAAAAAA),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = if (isError) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(20.dp))
 
         if (showRetry) {
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF0055FF)),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(8.dp),
-            ) { Text("Retry", color = androidx.compose.ui.graphics.Color.White) }
+            ) { Text("Retry") }
             Spacer(Modifier.height(8.dp))
         }
 
         TextButton(onClick = onCancel) {
-            Text("\u2190 Back", color = androidx.compose.ui.graphics.Color(0xFFAAAAAA))
+            Text("\u2190 Back")
         }
     }
 }
